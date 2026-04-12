@@ -1,4 +1,4 @@
-if GetResourceState('ox_target') ~= 'started' then return end
+if GetResourceState('ox_target') == 'missing' then return end
 
 local ox_target = exports.ox_target
 local targetZones = {}

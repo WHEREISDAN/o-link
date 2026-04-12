@@ -1,4 +1,4 @@
-if GetResourceState('lation_ui') ~= 'started' then return end
+if GetResourceState('lation_ui') == 'missing' then return end
 if GetResourceState('qb-input') == 'started' then return end
 
 -- Type conversion helpers

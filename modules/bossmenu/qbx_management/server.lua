@@ -1,4 +1,4 @@
-if GetResourceState('qbx_management') ~= 'started' then return end
+if GetResourceState('qbx_management') == 'missing' then return end
 
 olink._register('bossmenu', {
     ---@return string

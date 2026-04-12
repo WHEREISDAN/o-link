@@ -1,4 +1,4 @@
-if GetResourceState('oxide-inventory') ~= 'started' then return end
+if GetResourceState('oxide-inventory') == 'missing' then return end
 
 olink._register('inventory', {
     ---@return table[] SlotData[]

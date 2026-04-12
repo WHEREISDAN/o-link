@@ -1,4 +1,4 @@
-if GetResourceState('night_natural_disasters') ~= 'started' then return end
+if GetResourceState('night_natural_disasters') == 'missing' then return end
 if GetResourceState('oxide-weather') == 'started' then return end
 
 local weatherNames = {

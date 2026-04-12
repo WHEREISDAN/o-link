@@ -1,4 +1,4 @@
-if GetResourceState('oxide-vehicles') ~= 'started' then return end
+if GetResourceState('oxide-vehicles') == 'missing' then return end
 
 ---Resolve a stateId to numeric char_id for DB queries
 ---@param identifier string stateId or char_id

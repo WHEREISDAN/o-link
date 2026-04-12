@@ -1,4 +1,4 @@
-if GetResourceState('qbx_management') ~= 'started' then return end
+if GetResourceState('qbx_management') == 'missing' then return end
 
 RegisterNetEvent('o-link:client:OpenBossMenu', function(jobName, jobType)
     if source ~= 65535 then return end

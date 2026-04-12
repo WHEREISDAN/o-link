@@ -1,4 +1,4 @@
-if GetResourceState('wasabi_mdt') ~= 'started' then return end
+if GetResourceState('wasabi_mdt') == 'missing' then return end
 
 olink._register('dispatch', {
     ---@return string

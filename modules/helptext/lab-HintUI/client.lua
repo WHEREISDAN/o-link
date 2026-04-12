@@ -1,4 +1,4 @@
-if GetResourceState('lab-HintUI') ~= 'started' then return end
+if GetResourceState('lab-HintUI') == 'missing' then return end
 
 olink._register('helptext', {
     ---@param message string

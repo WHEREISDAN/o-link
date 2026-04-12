@@ -1,4 +1,4 @@
-if GetResourceState('cdn-fuel') ~= 'started' then return end
+if GetResourceState('cdn-fuel') == 'missing' then return end
 if GetResourceState('oxide-vehicles') == 'started' then return end
 
 olink._register('fuel', {

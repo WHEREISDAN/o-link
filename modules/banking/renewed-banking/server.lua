@@ -1,4 +1,4 @@
-if GetResourceState('Renewed-Banking') ~= 'started' then return end
+if GetResourceState('Renewed-Banking') == 'missing' then return end
 
 local renewed = exports['Renewed-Banking']
 

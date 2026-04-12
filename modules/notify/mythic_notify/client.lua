@@ -1,5 +1,5 @@
 if GetResourceState('oxide-notify') == 'started' then return end
-if GetResourceState('mythic_notify') ~= 'started' then return end
+if GetResourceState('mythic_notify') == 'missing' then return end
 
 local mod = {
     ---@param message string

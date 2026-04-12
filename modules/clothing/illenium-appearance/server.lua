@@ -1,4 +1,4 @@
-if GetResourceState('illenium-appearance') ~= 'started' then return end
+if GetResourceState('illenium-appearance') == 'missing' then return end
 if GetResourceState('rcore_clothing') == 'started' then return end
 if GetResourceState('17mov_CharacterSystem') == 'started' then return end
 

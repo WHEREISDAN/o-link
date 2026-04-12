@@ -1,4 +1,4 @@
-if GetResourceState('oxide-core') ~= 'started' then return end
+if GetResourceState('oxide-core') == 'missing' then return end
 
 AddEventHandler('oxide:core:playerReady', function(src)
     TriggerEvent('olink:server:playerReady', src)

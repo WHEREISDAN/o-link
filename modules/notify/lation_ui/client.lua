@@ -1,5 +1,5 @@
 if GetResourceState('oxide-notify') == 'started' then return end
-if GetResourceState('lation_ui') ~= 'started' then return end
+if GetResourceState('lation_ui') == 'missing' then return end
 
 local mod = {
     ---@param message string

@@ -1,4 +1,4 @@
-if GetResourceState('okokTextUI') ~= 'started' then return end
+if GetResourceState('okokTextUI') == 'missing' then return end
 
 olink._register('helptext', {
     ---@param message string

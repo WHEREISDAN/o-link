@@ -1,5 +1,5 @@
 if GetResourceState('oxide-inventory') == 'started' then return end
-if GetResourceState('core_inventory') ~= 'started' then return end
+if GetResourceState('core_inventory') == 'missing' then return end
 
 local core = exports.core_inventory
 local stashes = {}

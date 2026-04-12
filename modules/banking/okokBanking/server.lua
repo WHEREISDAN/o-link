@@ -1,4 +1,4 @@
-if GetResourceState('okokBanking') ~= 'started' then return end
+if GetResourceState('okokBanking') == 'missing' then return end
 
 local okokBanking = exports['okokBanking']
 

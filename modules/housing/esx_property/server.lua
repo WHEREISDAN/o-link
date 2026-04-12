@@ -1,4 +1,4 @@
-if GetResourceState('esx_property') ~= 'started' then return end
+if GetResourceState('esx_property') == 'missing' then return end
 
 RegisterNetEvent('esx_property:enter', function(insideId)
     local src = source

@@ -1,4 +1,4 @@
-if GetResourceState('redutzu-mdt') ~= 'started' then return end
+if GetResourceState('redutzu-mdt') == 'missing' then return end
 
 olink._register('dispatch', {
     ---@return string

@@ -1,4 +1,4 @@
-if GetResourceState('qb-phone') ~= 'started' then return end
+if GetResourceState('qb-phone') == 'missing' then return end
 if GetResourceState('lb-phone') == 'started' then return end
 if GetResourceState('gksphone') == 'started' then return end
 if GetResourceState('okokPhone') == 'started' then return end

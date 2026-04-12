@@ -1,4 +1,4 @@
-if GetResourceState('emergencydispatch') ~= 'started' then return end
+if GetResourceState('emergencydispatch') == 'missing' then return end
 
 olink._register('dispatch', {
     ---@return string

@@ -1,4 +1,4 @@
-if GetResourceState('qb-menu') ~= 'started' then return end
+if GetResourceState('qb-menu') == 'missing' then return end
 if GetResourceState('oxide-menu') == 'started' then return end
 
 local menus = {}

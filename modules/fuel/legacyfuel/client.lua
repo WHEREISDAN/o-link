@@ -1,4 +1,4 @@
-if GetResourceState('LegacyFuel') ~= 'started' then return end
+if GetResourceState('LegacyFuel') == 'missing' then return end
 if GetResourceState('oxide-vehicles') == 'started' then return end
 if GetResourceState('qb-fuel') == 'started' then return end
 

@@ -1,4 +1,4 @@
-if GetResourceState('oxide-identity') ~= 'started' then return end
+if GetResourceState('oxide-identity') == 'missing' then return end
 
 -- oxide-identity uses numeric component IDs {[0]={drawable,texture},...} for both components and props
 -- JSON-decoded keys may be strings, so we normalize them to numbers

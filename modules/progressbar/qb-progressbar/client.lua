@@ -1,5 +1,5 @@
 if GetResourceState('oxide-progressbar') == 'started' then return end
-if GetResourceState('progressbar') ~= 'started' then return end
+if GetResourceState('progressbar') == 'missing' then return end
 
 olink._register('progressbar', {
     ---@param options table { duration, label, canCancel?, disable?: { move, car, combat, mouse }, anim?: { dict, clip, flag } }

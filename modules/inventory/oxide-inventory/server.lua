@@ -1,5 +1,5 @@
-if GetResourceState('oxide-inventory') ~= 'started' then return end
-if GetResourceState('oxide-core') ~= 'started' then return end
+if GetResourceState('oxide-inventory') == 'missing' then return end
+if GetResourceState('oxide-core') == 'missing' then return end
 
 local Oxide = exports['oxide-core']:Core()
 local InventoryAPI

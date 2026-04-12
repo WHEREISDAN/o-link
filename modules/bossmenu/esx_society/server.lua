@@ -1,4 +1,4 @@
-if GetResourceState('esx_society') ~= 'started' then return end
+if GetResourceState('esx_society') == 'missing' then return end
 
 local registeredSocieties = {}
 

@@ -1,4 +1,4 @@
-if GetResourceState('oxide-core') ~= 'started' then return end
+if GetResourceState('oxide-core') == 'missing' then return end
 
 local Oxide = exports['oxide-core']:Core()
 

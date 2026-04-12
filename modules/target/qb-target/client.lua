@@ -1,4 +1,4 @@
-if GetResourceState('qb-target') ~= 'started' then return end
+if GetResourceState('qb-target') == 'missing' then return end
 if GetResourceState('ox_target') == 'started' then return end
 
 local qb_target = exports['qb-target']

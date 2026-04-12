@@ -1,4 +1,4 @@
-if GetResourceState('qbx_core') ~= 'started' then return end
+if GetResourceState('qbx_core') == 'missing' then return end
 
 local QBox = exports.qbx_core
 

@@ -1,4 +1,4 @@
-if GetResourceState('jg-textui') ~= 'started' then return end
+if GetResourceState('jg-textui') == 'missing' then return end
 
 olink._register('helptext', {
     ---@param message string

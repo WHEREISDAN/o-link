@@ -1,4 +1,4 @@
-if GetResourceState('wasabi_uikit') ~= 'started' then return end
+if GetResourceState('wasabi_uikit') == 'missing' then return end
 if GetResourceState('oxide-menu') == 'started' then return end
 if GetResourceState('qb-menu') == 'started' then return end
 

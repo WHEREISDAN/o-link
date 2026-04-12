@@ -1,4 +1,4 @@
-if GetResourceState('qb-appartments') ~= 'started' then return end
+if GetResourceState('qb-appartments') == 'missing' then return end
 
 RegisterNetEvent('qb-apartments:server:SetInsideMeta', function(house, insideId, bool, isVisiting)
     local src = source

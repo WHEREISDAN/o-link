@@ -1,4 +1,4 @@
-if GetResourceState('qb-vehiclekeys') ~= 'started' then return end
+if GetResourceState('qb-vehiclekeys') == 'missing' then return end
 if GetResourceState('oxide-vehicles') == 'started' then return end
 
 olink._register('vehiclekey', {

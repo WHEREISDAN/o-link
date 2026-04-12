@@ -1,4 +1,4 @@
-if GetResourceState('qb-clothing') ~= 'started' then return end
+if GetResourceState('qb-clothing') == 'missing' then return end
 if GetResourceState('oxide-clothing') == 'started' then return end
 if GetResourceState('rcore_clothing') == 'started' then return end
 if GetResourceState('17mov_CharacterSystem') == 'started' then return end

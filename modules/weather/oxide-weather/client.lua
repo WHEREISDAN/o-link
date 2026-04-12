@@ -1,4 +1,4 @@
-if GetResourceState('oxide-weather') ~= 'started' then return end
+if GetResourceState('oxide-weather') == 'missing' then return end
 
 olink._register('weather', {
     ---@return string

@@ -1,4 +1,4 @@
-if GetResourceState('qb-weathersync') ~= 'started' then return end
+if GetResourceState('qb-weathersync') == 'missing' then return end
 if GetResourceState('oxide-weather') == 'started' then return end
 
 local trackedWeather = 'EXTRASUNNY'

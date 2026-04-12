@@ -1,4 +1,4 @@
-if GetResourceState('esx-sna-fuel') ~= 'started' then return end
+if GetResourceState('esx-sna-fuel') == 'missing' then return end
 if GetResourceState('oxide-vehicles') == 'started' then return end
 
 olink._register('fuel', {

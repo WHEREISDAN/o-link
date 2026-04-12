@@ -1,4 +1,4 @@
-if GetResourceState('oxide-core') ~= 'started' then return end
+if GetResourceState('oxide-core') == 'missing' then return end
 
 AddStateBagChangeHandler('oxide:character', ('player:%s'):format(cache.serverId), function(_, _, value)
     if value ~= nil then

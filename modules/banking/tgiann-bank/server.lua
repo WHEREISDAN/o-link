@@ -1,4 +1,4 @@
-if GetResourceState('tgiann-bank') ~= 'started' then return end
+if GetResourceState('tgiann-bank') == 'missing' then return end
 
 local tgiann = exports['tgiann-bank']
 

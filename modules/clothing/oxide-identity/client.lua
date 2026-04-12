@@ -1,4 +1,4 @@
-if GetResourceState('oxide-identity') ~= 'started' then return end
+if GetResourceState('oxide-identity') == 'missing' then return end
 
 olink._register('clothing', {
     ---@return string

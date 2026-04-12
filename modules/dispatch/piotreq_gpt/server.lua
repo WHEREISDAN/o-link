@@ -1,4 +1,4 @@
-if GetResourceState('piotreq_gpt') ~= 'started' then return end
+if GetResourceState('piotreq_gpt') == 'missing' then return end
 
 local function sendAlert(src, alertData)
     exports['piotreq_gpt']:SendAlert(src, {

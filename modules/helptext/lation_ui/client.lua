@@ -1,4 +1,4 @@
-if GetResourceState('lation_ui') ~= 'started' then return end
+if GetResourceState('lation_ui') == 'missing' then return end
 
 olink._register('helptext', {
     ---@param message string

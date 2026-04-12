@@ -1,4 +1,4 @@
-if GetResourceState('linden_outlawalert') ~= 'started' then return end
+if GetResourceState('linden_outlawalert') == 'missing' then return end
 
 olink._register('dispatch', {
     ---@return string

@@ -1,4 +1,4 @@
-if GetResourceState('esx_property') ~= 'started' then return end
+if GetResourceState('esx_property') == 'missing' then return end
 
 olink._register('housing', {
     ---@return string

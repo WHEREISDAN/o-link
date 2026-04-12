@@ -1,4 +1,4 @@
-if GetResourceState('qb-input') ~= 'started' then return end
+if GetResourceState('qb-input') == 'missing' then return end
 
 -- Type conversion helpers
 local function QBTypeToOxType(_type)

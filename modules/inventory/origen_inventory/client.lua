@@ -1,6 +1,6 @@
 if GetResourceState('oxide-inventory') == 'started' then return end
 if GetResourceState('ox_inventory') == 'started' then return end
-if GetResourceState('origen_inventory') ~= 'started' then return end
+if GetResourceState('origen_inventory') == 'missing' then return end
 
 local origin = exports.origen_inventory
 

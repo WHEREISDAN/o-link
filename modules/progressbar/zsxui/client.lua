@@ -3,7 +3,7 @@ if GetResourceState('progressbar') == 'started' then return end
 if GetResourceState('keep-progressbar') == 'started' then return end
 if GetResourceState('lation_ui') == 'started' then return end
 if GetResourceState('wasabi_uikit') == 'started' then return end
-if GetResourceState('ZSX_UIV2') ~= 'started' then return end
+if GetResourceState('ZSX_UIV2') == 'missing' then return end
 
 olink._register('progressbar', {
     ---@param options table { duration, label, canCancel?, disable?: { move, car, combat, mouse }, anim?: { dict, clip, flag } }

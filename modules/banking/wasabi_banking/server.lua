@@ -1,4 +1,4 @@
-if GetResourceState('wasabi_banking') ~= 'started' then return end
+if GetResourceState('wasabi_banking') == 'missing' then return end
 
 local wasabi_banking = exports['wasabi_banking']
 

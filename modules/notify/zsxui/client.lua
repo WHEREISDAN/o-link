@@ -1,5 +1,5 @@
 if GetResourceState('oxide-notify') == 'started' then return end
-if GetResourceState('ZSX_UIV2') ~= 'started' then return end
+if GetResourceState('ZSX_UIV2') == 'missing' then return end
 
 local function iconForType(notifType)
     if notifType == 'success' then return 'check-circle'

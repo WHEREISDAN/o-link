@@ -1,4 +1,4 @@
-if GetResourceState('OT_skills') ~= 'started' then return end
+if GetResourceState('OT_skills') == 'missing' then return end
 
 olink._register('skills', {
     ---@return string

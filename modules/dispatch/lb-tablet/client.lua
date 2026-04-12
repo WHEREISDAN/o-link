@@ -1,4 +1,4 @@
-if GetResourceState('lb-tablet') ~= 'started' then return end
+if GetResourceState('lb-tablet') == 'missing' then return end
 
 local function getPriorityLevel(priority)
     if priority == 1 then return 'low'

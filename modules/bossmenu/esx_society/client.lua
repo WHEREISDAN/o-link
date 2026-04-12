@@ -1,4 +1,4 @@
-if GetResourceState('esx_society') ~= 'started' then return end
+if GetResourceState('esx_society') == 'missing' then return end
 
 RegisterNetEvent('o-link:client:OpenBossMenu', function(jobName, jobType)
     if source ~= 65535 then return end

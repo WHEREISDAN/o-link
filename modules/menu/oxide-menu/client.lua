@@ -1,4 +1,4 @@
-if GetResourceState('oxide-menu') ~= 'started' then return end
+if GetResourceState('oxide-menu') == 'missing' then return end
 
 -- Store callbacks locally since functions can't cross the export boundary to oxide-menu
 local menuCallbacks = {}

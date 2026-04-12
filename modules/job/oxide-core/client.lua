@@ -1,4 +1,4 @@
-if GetResourceState('oxide-core') ~= 'started' then return end
+if GetResourceState('oxide-core') == 'missing' then return end
 
 olink._register('job', {
     ---@return table|nil JobData { name, label, grade, gradeLabel, rank, isBoss, onDuty }

@@ -1,4 +1,4 @@
-if GetResourceState('fd_dispatch') ~= 'started' then return end
+if GetResourceState('fd_dispatch') == 'missing' then return end
 if GetResourceState('lb-tablet') == 'started' then return end
 
 olink._register('dispatch', {

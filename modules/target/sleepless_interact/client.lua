@@ -1,4 +1,4 @@
-if GetResourceState('sleepless_interact') ~= 'started' then return end
+if GetResourceState('sleepless_interact') == 'missing' then return end
 if GetResourceState('ox_target') == 'started' then return end
 
 local sleepless = exports.sleepless_interact

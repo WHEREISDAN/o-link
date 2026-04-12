@@ -1,5 +1,5 @@
 if GetResourceState('oxide-inventory') == 'started' then return end
-if GetResourceState('ps-inventory') ~= 'started' then return end
+if GetResourceState('ps-inventory') == 'missing' then return end
 
 -- Server relays stash open via this event
 RegisterNetEvent('o-link:inventory:ps:openStash', function(id, data)

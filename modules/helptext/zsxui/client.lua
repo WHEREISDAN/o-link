@@ -1,4 +1,4 @@
-if GetResourceState('ZSX_UIV2') ~= 'started' then return end
+if GetResourceState('ZSX_UIV2') == 'missing' then return end
 
 olink._register('helptext', {
     ---@param message string

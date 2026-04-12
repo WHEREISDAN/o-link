@@ -1,4 +1,4 @@
-if GetResourceState('BigDaddy-Fuel') ~= 'started' then return end
+if GetResourceState('BigDaddy-Fuel') == 'missing' then return end
 if GetResourceState('oxide-vehicles') == 'started' then return end
 
 olink._register('fuel', {

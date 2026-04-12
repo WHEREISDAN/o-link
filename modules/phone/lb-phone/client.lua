@@ -1,4 +1,4 @@
-if GetResourceState('lb-phone') ~= 'started' then return end
+if GetResourceState('lb-phone') == 'missing' then return end
 
 olink._register('phone', {
     ---@return string

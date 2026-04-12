@@ -1,4 +1,4 @@
-if GetResourceState('tgg-banking') ~= 'started' then return end
+if GetResourceState('tgg-banking') == 'missing' then return end
 
 local tgg = exports['tgg-banking']
 

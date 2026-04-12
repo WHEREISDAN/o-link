@@ -1,4 +1,4 @@
-if GetResourceState('esx_skin') ~= 'started' then return end
+if GetResourceState('esx_skin') == 'missing' then return end
 if GetResourceState('rcore_clothing') == 'started' then return end
 if GetResourceState('17mov_CharacterSystem') == 'started' then return end
 

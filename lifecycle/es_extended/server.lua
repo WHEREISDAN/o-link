@@ -1,4 +1,4 @@
-if GetResourceState('es_extended') ~= 'started' then return end
+if GetResourceState('es_extended') == 'missing' then return end
 
 RegisterNetEvent('esx:playerLoaded', function(src)
     src = src or source

@@ -1,4 +1,4 @@
-if GetResourceState('qb-houses') ~= 'started' then return end
+if GetResourceState('qb-houses') == 'missing' then return end
 
 olink._register('housing', {
     ---@return string

@@ -1,4 +1,4 @@
-if GetResourceState('ox_doorlock') ~= 'started' then return end
+if GetResourceState('ox_doorlock') == 'missing' then return end
 
 olink._register('doorlock', {
     ---@param doorID string|number

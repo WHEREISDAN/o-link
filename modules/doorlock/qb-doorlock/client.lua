@@ -1,4 +1,4 @@
-if GetResourceState('qb-doorlock') ~= 'started' then return end
+if GetResourceState('qb-doorlock') == 'missing' then return end
 
 olink._register('doorlock', {
     ---@return string | nil

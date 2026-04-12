@@ -1,5 +1,5 @@
 if GetResourceState('oxide-inventory') == 'started' then return end
-if GetResourceState('tgiann-inventory') ~= 'started' then return end
+if GetResourceState('tgiann-inventory') == 'missing' then return end
 
 local tgiann = exports['tgiann-inventory']
 local stashes = {}

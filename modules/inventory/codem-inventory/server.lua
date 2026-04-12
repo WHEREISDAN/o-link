@@ -1,5 +1,5 @@
 if GetResourceState('oxide-inventory') == 'started' then return end
-if GetResourceState('codem-inventory') ~= 'started' then return end
+if GetResourceState('codem-inventory') == 'missing' then return end
 
 local codem = exports['codem-inventory']
 local stashes = {}

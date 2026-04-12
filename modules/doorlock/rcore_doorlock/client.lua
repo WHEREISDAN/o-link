@@ -1,4 +1,4 @@
-if GetResourceState('rcore_doorlock') ~= 'started' then return end
+if GetResourceState('rcore_doorlock') == 'missing' then return end
 
 olink._register('doorlock', {
     ---@return string | nil

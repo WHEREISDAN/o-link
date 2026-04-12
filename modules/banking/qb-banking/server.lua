@@ -1,4 +1,4 @@
-if GetResourceState('qb-banking') ~= 'started' then return end
+if GetResourceState('qb-banking') == 'missing' then return end
 
 local qbBanking = exports['qb-banking']
 

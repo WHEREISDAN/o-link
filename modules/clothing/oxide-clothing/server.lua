@@ -1,4 +1,4 @@
-if GetResourceState('oxide-clothing') ~= 'started' then return end
+if GetResourceState('oxide-clothing') == 'missing' then return end
 
 local Players = {}
 

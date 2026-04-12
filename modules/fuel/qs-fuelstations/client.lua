@@ -1,4 +1,4 @@
-if GetResourceState('qs-fuelstations') ~= 'started' then return end
+if GetResourceState('qs-fuelstations') == 'missing' then return end
 if GetResourceState('oxide-vehicles') == 'started' then return end
 
 olink._register('fuel', {

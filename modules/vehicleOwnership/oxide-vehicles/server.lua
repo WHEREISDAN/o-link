@@ -1,4 +1,4 @@
-if GetResourceState('oxide-vehicles') ~= 'started' then return end
+if GetResourceState('oxide-vehicles') == 'missing' then return end
 
 olink._register('vehicleOwnership', {
     ---@return string

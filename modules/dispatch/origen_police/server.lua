@@ -1,4 +1,4 @@
-if GetResourceState('origen_police') ~= 'started' then return end
+if GetResourceState('origen_police') == 'missing' then return end
 
 olink._register('dispatch', {
     ---@return string

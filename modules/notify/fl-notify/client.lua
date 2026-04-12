@@ -1,5 +1,5 @@
 if GetResourceState('oxide-notify') == 'started' then return end
-if GetResourceState('FL-Notify') ~= 'started' then return end
+if GetResourceState('FL-Notify') == 'missing' then return end
 
 local function typeToCode(notifType)
     if notifType == 'error' or notifType == 'info' then

@@ -14,7 +14,7 @@
 ---@field onExit fun(data:ZoneData)? Callback invoked on exit
 ---@alias ZoneType "box"|"sphere"|"poly"
 
-if GetResourceState('PolyZone') ~= 'started' then return end
+if GetResourceState('PolyZone') == 'missing' then return end
 if GetResourceState('ox_lib') == 'started' then return end
 
 local allZones = {}

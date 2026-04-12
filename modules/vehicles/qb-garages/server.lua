@@ -1,4 +1,4 @@
-if GetResourceState('qb-core') ~= 'started' then return end
+if GetResourceState('qb-core') == 'missing' then return end
 if GetResourceState('qbx_core') == 'started' then return end
 
 olink._register('vehicles', {

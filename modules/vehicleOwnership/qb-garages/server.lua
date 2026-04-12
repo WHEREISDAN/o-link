@@ -1,4 +1,4 @@
-if GetResourceState('qb-garages') ~= 'started' then return end
+if GetResourceState('qb-garages') == 'missing' then return end
 
 olink._register('vehicleOwnership', {
     ---@return string

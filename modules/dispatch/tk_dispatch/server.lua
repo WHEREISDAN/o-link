@@ -1,4 +1,4 @@
-if GetResourceState('tk_dispatch') ~= 'started' then return end
+if GetResourceState('tk_dispatch') == 'missing' then return end
 
 olink._register('dispatch', {
     ---@return string

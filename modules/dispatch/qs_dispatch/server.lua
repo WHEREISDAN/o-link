@@ -1,4 +1,4 @@
-if GetResourceState('qs-dispatch') ~= 'started' then return end
+if GetResourceState('qs-dispatch') == 'missing' then return end
 
 olink._register('dispatch', {
     ---@return string

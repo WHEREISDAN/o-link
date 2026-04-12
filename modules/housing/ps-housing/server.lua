@@ -1,4 +1,4 @@
-if GetResourceState('ps-housing') ~= 'started' then return end
+if GetResourceState('ps-housing') == 'missing' then return end
 
 RegisterNetEvent('ps-housing:server:enterProperty', function(insideId)
     local src = source

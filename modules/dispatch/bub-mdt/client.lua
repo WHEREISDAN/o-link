@@ -1,4 +1,4 @@
-if GetResourceState('bub-mdt') ~= 'started' then return end
+if GetResourceState('bub-mdt') == 'missing' then return end
 
 olink._register('dispatch', {
     ---@return string

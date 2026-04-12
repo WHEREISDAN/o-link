@@ -1,5 +1,5 @@
 if GetResourceState('oxide-inventory') == 'started' then return end
-if GetResourceState('qs-inventory') ~= 'started' then return end
+if GetResourceState('qs-inventory') == 'missing' then return end
 
 local quasar = exports['qs-inventory']
 

@@ -1,5 +1,5 @@
 if GetResourceState('oxide-notify') == 'started' then return end
-if GetResourceState('okokNotify') ~= 'started' then return end
+if GetResourceState('okokNotify') == 'missing' then return end
 
 local mod = {
     ---@param message string

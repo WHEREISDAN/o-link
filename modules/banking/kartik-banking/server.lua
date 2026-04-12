@@ -1,4 +1,4 @@
-if GetResourceState('kartik-banking') ~= 'started' then return end
+if GetResourceState('kartik-banking') == 'missing' then return end
 
 local kartik = exports['kartik-banking']
 

@@ -1,4 +1,4 @@
-if GetResourceState('cd_drawtextui') ~= 'started' then return end
+if GetResourceState('cd_drawtextui') == 'missing' then return end
 
 olink._register('helptext', {
     ---@param message string

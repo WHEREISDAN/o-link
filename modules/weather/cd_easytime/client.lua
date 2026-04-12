@@ -1,4 +1,4 @@
-if GetResourceState('cd_easytime') ~= 'started' then return end
+if GetResourceState('cd_easytime') == 'missing' then return end
 if GetResourceState('oxide-weather') == 'started' then return end
 
 olink._register('weather', {
