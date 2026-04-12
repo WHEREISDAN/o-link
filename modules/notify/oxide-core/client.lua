@@ -1,0 +1,2 @@
+-- Notifications for oxide-core are handled by oxide-notify.
+-- This file intentionally left empty — oxide-notify takes priority.
