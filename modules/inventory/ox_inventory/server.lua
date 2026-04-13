@@ -113,6 +113,19 @@ olink._register('inventory', {
     end,
 
     ---@param item string
+    ---@return table {name, label, weight, description}
+    GetItemInfo = function(item)
+        local data = ox_inventory:Items(item)
+        if not data then return {} end
+        return {
+            name = data.name,
+            label = data.label,
+            weight = data.weight,
+            description = data.description,
+        }
+    end,
+
+    ---@param item string
     ---@return string
     GetImagePath = function(item)
         item = olink._stripExt(item)

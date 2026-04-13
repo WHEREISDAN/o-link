@@ -2,6 +2,7 @@ if GetResourceState('oxide-inventory') == 'started' then return end
 if GetResourceState('jpr-inventory') == 'missing' then return end
 
 local jpr = exports['jpr-inventory']
+local QBCore = exports['qb-core']:GetCoreObject()
 local stashes = {}
 
 olink._register('inventory', {
@@ -97,6 +98,14 @@ olink._register('inventory', {
         if not identifier then return false end
         jpr:OpenInventory(src, identifier)
         return true
+    end,
+
+    ---@param item string
+    ---@return table {name, label, weight, description}
+    GetItemInfo = function(item)
+        local data = QBCore.Shared.Items[item]
+        if not data then return {} end
+        return { name = data.name, label = data.label, weight = data.weight, description = data.description }
     end,
 
     ---@param item string

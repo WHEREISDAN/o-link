@@ -117,6 +117,15 @@ olink._register('inventory', {
     end,
 
     ---@param item string
+    ---@return table {name, label, weight, description}
+    GetItemInfo = function(item)
+        local items = quasar:GetItemList()
+        if not items or not items[item] then return {} end
+        local data = items[item]
+        return { name = data.name, label = data.label, weight = data.weight, description = data.description }
+    end,
+
+    ---@param item string
     ---@return string
     GetImagePath = function(item)
         item = olink._stripExt(item)

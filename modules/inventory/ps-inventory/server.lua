@@ -2,6 +2,7 @@ if GetResourceState('oxide-inventory') == 'started' then return end
 if GetResourceState('ps-inventory') == 'missing' then return end
 
 local ps = exports['ps-inventory']
+local QBCore = exports['qb-core']:GetCoreObject()
 local stashes = {}
 
 olink._register('inventory', {
@@ -98,6 +99,14 @@ olink._register('inventory', {
         assert(targetSrc, 'OpenPlayerInventory: targetSrc is required')
         ps:OpenInventoryById(src, targetSrc)
         return true
+    end,
+
+    ---@param item string
+    ---@return table {name, label, weight, description}
+    GetItemInfo = function(item)
+        local data = QBCore.Shared.Items[item]
+        if not data then return {} end
+        return { name = data.name, label = data.label, weight = data.weight, description = data.description }
     end,
 
     ---@param item string
