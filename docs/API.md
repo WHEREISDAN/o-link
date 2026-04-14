@@ -1,295 +1,293 @@
 # o-link API Reference
 
+This file documents the public surface that has been verified against the current codebase.
+
+For implementation coverage by resource name, see [`SUPPORT-MATRIX.md`](./SUPPORT-MATRIX.md).
+For standalone server wiring, see [`STANDALONE-INTEGRATION.md`](./STANDALONE-INTEGRATION.md).
+
 ## Consuming o-link
 
 ```lua
--- shared/init.lua in any resource:
 olink = exports['o-link']:olink()
 Callback = olink.callback
+```
 
--- fxmanifest.lua:
-dependencies { 'ox_lib', 'oxmysql', 'o-link' }
+```lua
+dependencies {
+    'ox_lib',
+    'oxmysql',
+    'o-link',
+}
 ```
 
 ## Capability Checks
 
 ```lua
-olink.supports('character')            -- true if character module loaded
-olink.supports('character.SetBoss')    -- true if function exists
-olink.supports('vehicles.GetByOwner')  -- true if vehicles module has GetByOwner
+olink.supports('character')
+olink.supports('character.SetBoss')
+olink.supports('vehicles.GetByOwner')
+olink.supports('vehicleproperties.GetVehicleProperties')
 ```
-
----
-
-## Module: framework (server + client)
-
-### Server
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `GetName()` | | `string` | Framework name: `'oxide-core'`, `'qb-core'`, `'qbx_core'`, `'es_extended'` |
-| `GetIsPlayerLoaded(src)` | `src: number` | `boolean` | Whether player has a loaded character |
-| `GetPlayers()` | | `number[]` | All online player source IDs |
-| `IsAdmin(src)` | `src: number` | `boolean` | Whether player has admin ACE permission |
-| `GetJobs()` | | `table[]` | All registered jobs: `{ name, label, grades }`. Returns `{}` on Oxide. |
-| `RegisterUsableItem(name, cb)` | `name: string, cb: function(src, itemData)` | | Register an item use callback |
-
-### Client
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `GetName()` | | `string` | Framework name |
-| `GetIsPlayerLoaded()` | | `boolean` | Whether local player has a loaded character |
-
----
-
-## Module: character (server + client)
-
-### Server
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `GetIdentifier(src)` | `src: number` | `string\|nil` | Character identifier (stateId on Oxide, citizenid on QB, identifier on ESX) |
-| `GetName(src)` | `src: number` | `string\|nil, string\|nil` | firstName, lastName |
-| `GetMetadata(src, key)` | `src: number, key: string` | `any\|nil` | Character metadata value |
-| `SetMetadata(src, key, value)` | `src: number, key: string, value: any` | `boolean` | Set character metadata |
-| `GetAllMetadata(src)` | `src: number` | `table\|nil` | All metadata |
-| `SetBoss(src, isBoss)` | `src: number, isBoss: boolean` | `boolean` | Set boss status (metadata fallback on ESX) |
-| `IsBoss(src)` | `src: number` | `boolean` | Get boss status |
-| `Search(query, limit?)` | `query: string, limit?: number` | `table[]` | Search characters by name/ID (offline). Returns `CharacterData[]` |
-| `GetOffline(identifier)` | `identifier: string` | `table\|nil` | Get character data by identifier (offline) |
-
-**CharacterData shape:**
-```lua
-{
-    charId    = string,  -- same as identifier (stateId/citizenid/identifier)
-    firstName = string,
-    lastName  = string,
-    dob       = string,
-    gender    = number,  -- 0=male, 1=female
-    stateId   = string,
-    job       = { name, label, grade, gradeLabel, rank } or nil,
-}
-```
-
-### Client
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `GetIdentifier()` | | `string\|nil` | Local player's character identifier |
-| `GetName()` | | `string\|nil, string\|nil` | Local player's firstName, lastName |
-| `GetMetadata(key)` | `key: string` | `any\|nil` | Local player's metadata value |
-
----
-
-## Module: job (server + client)
-
-### Server
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `Get(src)` | `src: number` | `JobData\|nil` | Get player's job data |
-| `Set(src, jobName, grade)` | `src: number, jobName: string, grade: string\|number` | `boolean` | Set player's job |
-| `SetDuty(src, status)` | `src: number, status: boolean` | `boolean` | Set duty status |
-| `GetDuty(src)` | `src: number` | `boolean` | Get duty status |
-| `GetPlayersWithJob(jobName)` | `jobName: string` | `number[]` | All sources with this job |
-
-**JobData shape:**
-```lua
-{
-    name       = string,   -- job name
-    label      = string,   -- display name
-    grade      = string,   -- grade name
-    gradeLabel = string,   -- grade display name
-    rank       = number,   -- numeric grade level
-    isBoss     = boolean,
-    onDuty     = boolean,
-}
-```
-
-### Client
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `Get()` | | `JobData\|nil` | Local player's job data |
-| `GetDuty()` | | `boolean` | Local player's duty status |
-
----
-
-## Module: money (server only)
-
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `Add(src, accountType, amount, reason?)` | `src: number, accountType: string, amount: number, reason?: string` | `boolean` | Add money to online player |
-| `Remove(src, accountType, amount, reason?)` | `src: number, accountType: string, amount: number, reason?: string` | `boolean` | Remove money from online player |
-| `GetBalance(src, accountType)` | `src: number, accountType: string` | `number` | Get online player's balance |
-| `AddOffline(identifier, accountType, amount)` | `identifier: string, accountType: string, amount: number` | `boolean` | Add money to offline player |
-| `RemoveOffline(identifier, accountType, amount)` | `identifier: string, accountType: string, amount: number` | `boolean` | Remove money from offline player |
-| `GetBalanceOffline(identifier, accountType)` | `identifier: string, accountType: string` | `number` | Get offline player's balance |
-
-**Account types:** `'cash'`, `'bank'` (normalized internally per framework)
-
----
-
-## Module: inventory (server + client)
-
-### Server
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `GetItemCount(src, item)` | `src: number, item: string` | `number` | Count of item in player's inventory |
-| `HasItem(src, item, count?)` | `src: number, item: string, count?: number` | `boolean` | Whether player has item (count defaults to 1) |
-| `AddItem(src, item, count, slot?, metadata?)` | | `boolean` | Add item to player |
-| `RemoveItem(src, item, count, slot?, metadata?)` | | `boolean` | Remove item from player |
-| `GetItemBySlot(src, slot)` | | `SlotData\|nil` | Get item in specific slot |
-| `GetPlayerInventory(src)` | | `SlotData[]` | Get all player items |
-| `OpenPlayerInventory(src, targetSrc)` | | `boolean` | Open target's inventory |
-| `RegisterStash(id, label, slots, weight, owner?)` | | `boolean` | Register a stash |
-| `OpenStash(src, stashId)` | | `nil` | Open a stash for player |
-| `GetItemInfo(item)` | `item: string` | `table` | Get item definition `{name, label, weight, description}` (returns `{}` if not found) |
-| `GetImagePath(item)` | `item: string` | `string` | Get NUI image path for item (returns `''` if not found) |
-
-### Client
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `GetPlayerInventory()` | | `SlotData[]` | Local player's items |
-| `GetItemCount(item)` | `item: string` | `number` | Count of item in inventory |
-| `HasItem(item, count?)` | `item: string, count?: number` | `boolean` | Whether player has item |
-| `GetItemInfo(item)` | `item: string` | `table` | Get item definition `{name, label, weight, description}` (returns `{}` if not found) |
-| `GetImagePath(item)` | `item: string` | `string` | Get NUI image path for item (returns `''` if not found) |
-
----
-
-## Module: vehicles (server only)
-
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `SearchByPlate(plate, limit?)` | `plate: string, limit?: number` | `table[]` | Search vehicles by plate with owner info |
-| `GetByPlate(plate)` | `plate: string` | `table\|nil` | Single vehicle with full owner details |
-| `GetByOwner(identifier)` | `identifier: string` | `table[]` | All vehicles owned by identifier |
-
----
-
-## Module: notify (server + client)
-
-### Server
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `Send(src, message, type?, duration?)` | `src: number, message: string, type?: string, duration?: number` | `nil` | Send notification to player |
-
-### Client
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `Send(message, type?, duration?)` | `message: string, type?: string, duration?: number` | `nil` | Show notification locally |
-
-**Types:** `'success'`, `'error'`, `'info'`, `'warning'`
-
----
-
-## Module: target (client only)
-
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `AddBoxZone(name, coords, size, heading, options, debug?)` | | `nil` | Add box target zone |
-| `AddSphereZone(name, coords, radius, options, debug?)` | | `nil` | Add sphere target zone |
-| `RemoveZone(name)` | | `nil` | Remove a zone by name |
-| `AddLocalEntity(entity, options)` | | `nil` | Add target to entity |
-| `RemoveLocalEntity(entity, optionNames?)` | | `nil` | Remove entity target |
-| `AddModel(models, options)` | | `nil` | Add target to model(s) |
-| `RemoveModel(model)` | | `nil` | Remove model target |
-| `AddGlobalPed(options)` | `options: table` | `nil` | Add target options to all peds |
-| `RemoveGlobalPed(optionNames)` | `optionNames: string[]` | `nil` | Remove global ped options by name |
-
----
-
-## Module: helptext (client only)
-
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `Show(message, position?)` | `message: string, position?: string` | `nil` | Show help text UI |
-| `Hide()` | | `nil` | Hide help text UI |
-
----
-
-## Module: progressbar (client only)
-
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `Open(options, callback?)` | `options: table, callback?: function` | `boolean` | Show progress bar |
-
-**Options:** `{ duration, label, canCancel?, disable?: { move, car, combat, mouse }, anim?: { dict, clip, flag } }`
-
----
-
-## Module: vehiclekey (client only)
-
-| Function | Args | Returns | Description |
-|----------|------|---------|-------------|
-| `Give(vehicle, plate?)` | `vehicle: number, plate?: string` | `nil` | Give keys to player |
-| `Remove(vehicle, plate?)` | `vehicle: number, plate?: string` | `nil` | Remove keys from player |
-
----
 
 ## Module: callback (shared)
 
 ### Server
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
-| `Register(name, handler)` | `name: string, handler: function(src, ...)` | `nil` | Register server callback |
-| `Trigger(name, target, ...)` | `name: string, target: number, ...` | `any` | Trigger client callback (sync) |
+| `Register(name, handler)` | `name: string, handler: function(src, ...)` | `nil` | Register a server callback |
+| `Trigger(name, target, ...)` | `name: string, target: number\|number[], ...` | `any` | Trigger a client callback. If no Lua callback arg is passed, this awaits and returns the response. |
 
 ### Client
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
-| `Register(name, handler)` | `name: string, handler: function(...)` | `nil` | Register client callback |
-| `Trigger(name, ...)` | `name: string, ...` | `any` | Trigger server callback (sync) |
+| `Register(name, handler)` | `name: string, handler: function(...)` | `nil` | Register a client callback |
+| `Trigger(name, ...)` | `name: string, ...` | `any` | Trigger a server callback. If no Lua callback arg is passed, this awaits and returns the response. |
 
----
+## Module: framework (server + client)
+
+### Server
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetName()` | | `string` | Framework name: `'oxide-core'`, `'qb-core'`, `'qbx_core'`, or `'es_extended'` |
+| `GetIsPlayerLoaded(src)` | `src: number` | `boolean` | Whether the player currently has an active character/session |
+| `GetPlayers()` | | `number[]` | Online player source IDs |
+| `GetJobs()` | | `table[]` | Framework jobs list. Oxide currently returns `{}`. |
+| `IsAdmin(src)` | `src: number` | `boolean` | ACE permission check against `command` |
+| `RegisterUsableItem(itemName, cb)` | `itemName: string, cb: function(src, itemData)` | `nil` | Register item use callback through the active framework |
+| `Logout(src)` | `src: number` | `boolean` | Trigger the framework-specific logout flow |
+
+### Client
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetName()` | | `string` | Framework name |
+| `GetIsPlayerLoaded()` | | `boolean` | Whether the local player is loaded |
+
+## Module: character (server + client)
+
+### Server
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetIdentifier(src)` | `src: number` | `string\|nil` | Normalized character identifier |
+| `GetName(src)` | `src: number` | `string\|nil, string\|nil` | `firstName, lastName` |
+| `GetMetadata(src, key)` | `src: number, key: string` | `any\|nil` | Metadata value |
+| `SetMetadata(src, key, value)` | `src: number, key: string, value: any` | `boolean` | Set metadata |
+| `GetAllMetadata(src)` | `src: number` | `table\|nil` | Full metadata table |
+| `SetBoss(src, isBoss)` | `src: number, isBoss: boolean` | `boolean` | Set boss state |
+| `IsBoss(src)` | `src: number` | `boolean` | Get boss state |
+| `Search(query, limit?)` | `query: string, limit?: number` | `table[]` | Search offline character records |
+| `GetOffline(identifier)` | `identifier: string` | `table\|nil` | Get offline character data |
+
+### Client
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetIdentifier()` | | `string\|nil` | Local player's identifier |
+| `GetName()` | | `string\|nil, string\|nil` | `firstName, lastName` |
+| `GetMetadata(key)` | `key: string` | `any\|nil` | Metadata value |
+
+## Module: job (server + client)
+
+### Server
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Get(src)` | `src: number` | `JobData\|nil` | Get normalized job data |
+| `Set(src, jobName, grade)` | `src: number, jobName: string, grade: string\|number` | `boolean` | Set player job |
+| `SetDuty(src, status)` | `src: number, status: boolean` | `boolean` | Set duty state |
+| `GetDuty(src)` | `src: number` | `boolean` | Get duty state |
+| `GetPlayersWithJob(jobName)` | `jobName: string` | `number[]` | Online players with the job |
+
+### Client
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Get()` | | `JobData\|nil` | Local player's normalized job data |
+| `GetDuty()` | | `boolean` | Local duty state |
+
+**JobData shape**
+
+```lua
+{
+    name       = string,
+    label      = string,
+    grade      = string,
+    gradeLabel = string,
+    rank       = number,
+    isBoss     = boolean,
+    onDuty     = boolean,
+}
+```
+
+## Module: money (server only)
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Add(src, accountType, amount, reason?)` | `src: number, accountType: string, amount: number, reason?: string` | `boolean` | Add money to an online player |
+| `Remove(src, accountType, amount, reason?)` | `src: number, accountType: string, amount: number, reason?: string` | `boolean` | Remove money from an online player |
+| `GetBalance(src, accountType)` | `src: number, accountType: string` | `number` | Online balance |
+| `AddOffline(identifier, accountType, amount)` | `identifier: string, accountType: string, amount: number` | `boolean` | Add money offline |
+| `RemoveOffline(identifier, accountType, amount)` | `identifier: string, accountType: string, amount: number` | `boolean` | Remove money offline |
+| `GetBalanceOffline(identifier, accountType)` | `identifier: string, accountType: string` | `number` | Offline balance |
+
+## Module: inventory (server + client)
+
+### Server
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetItemCount(src, item)` | `src: number, item: string` | `number` | Count item |
+| `HasItem(src, item, count?)` | `src: number, item: string, count?: number` | `boolean` | Inventory check |
+| `AddItem(src, item, count, slot?, metadata?)` | | `boolean` | Add item |
+| `RemoveItem(src, item, count, slot?, metadata?)` | | `boolean` | Remove item |
+| `GetItemBySlot(src, slot)` | | `table\|nil` | Slot data |
+| `GetPlayerInventory(src)` | | `table[]` | Full inventory |
+| `OpenPlayerInventory(src, targetSrc)` | | `boolean` | Open another player's inventory |
+| `RegisterStash(id, label, slots, weight, owner?)` | | `boolean` | Register stash |
+| `OpenStash(src, stashId)` | | `nil` | Open stash |
+| `GetItemInfo(item)` | `item: string` | `table` | Item definition or `{}` |
+| `GetImagePath(item)` | `item: string` | `string` | Image path or `''` |
+
+### Client
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetPlayerInventory()` | | `table[]` | Local inventory |
+| `GetItemCount(item)` | `item: string` | `number` | Count item |
+| `HasItem(item, count?)` | `item: string, count?: number` | `boolean` | Inventory check |
+| `GetItemInfo(item)` | `item: string` | `table` | Item definition or `{}` |
+| `GetImagePath(item)` | `item: string` | `string` | Image path or `''` |
+
+## Module: vehicles (server only)
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `SearchByPlate(plate, limit?)` | `plate: string, limit?: number` | `table[]` | Search by plate |
+| `GetByPlate(plate)` | `plate: string` | `table\|nil` | Vehicle record with owner data |
+| `GetByOwner(identifier)` | `identifier: string` | `table[]` | Vehicles for an owner |
+
+## Module: vehicleproperties (client only)
+
+Registered from [`../modules/vehicles/properties/client.lua`](../modules/vehicles/properties/client.lua).
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetVehicleProperties(vehicle)` | `vehicle: number` | `table\|nil` | Serialize GTA vehicle properties |
+| `SetVehicleProperties(vehicle, props)` | `vehicle: number, props: table` | `boolean` | Apply serialized properties |
+
+## Module: notify (server + client)
+
+### Server
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Send(src, message, type?, duration?)` | `src: number, message: string, type?: string, duration?: number` | `nil` | Send notify event to client |
+| `Confirm(src, options, callback)` | `src: number, options: table, callback: function(accepted)` | `nil` | Open client confirm UI and resolve through callback |
+
+### Client
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Send(message, type?, duration?)` | `message: string, type?: string, duration?: number` | `nil` | Show notification locally |
+
+## Module: helptext (server + client)
+
+### Server
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Show(src, message, position?)` | `src: number, message: string, position?: string` | `nil` | Relay helptext to a client |
+| `Hide(src)` | `src: number` | `nil` | Hide helptext for a client |
+
+### Client
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Show(message, position?)` | `message: string, position?: string` | `nil` | Show helptext locally |
+| `Hide()` | | `nil` | Hide helptext locally |
+
+## Module: target (client only)
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `AddBoxZone(name, coords, size, heading, options, debug?)` | | `nil` | Add box zone |
+| `AddSphereZone(name, coords, radius, options, debug?)` | | `nil` | Add sphere zone |
+| `RemoveZone(name)` | | `nil` | Remove zone |
+| `AddLocalEntity(entity, options)` | | `nil` | Add local entity target |
+| `RemoveLocalEntity(entity, optionNames?)` | | `nil` | Remove local entity target |
+| `AddModel(models, options)` | | `nil` | Add model target |
+| `RemoveModel(model)` | | `nil` | Remove model target |
+| `AddGlobalPed(options)` | `options: table` | `nil` | Add global ped options |
+| `RemoveGlobalPed(optionNames)` | `optionNames: string[]` | `nil` | Remove global ped options |
+| `AddGlobalVehicle(options)` | `options: table` | `nil` | Add global vehicle options |
+| `RemoveGlobalVehicle(optionNames)` | `optionNames: string[]` | `nil` | Remove global vehicle options |
+| `AddNetworkedEntity(netId, options)` | `netId: number\|number[], options: table` | `nil` | Add target options to a networked entity |
+| `RemoveNetworkedEntity(netId, optionNames?)` | `netId: number\|number[], optionNames?: string\|string[]` | `nil` | Remove target options from a networked entity |
+
+## Module: progressbar (client only)
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Open(options, callback?)` | `options: table, callback?: function` | `boolean` | Open progress UI |
+
+## Module: vehiclekey (client only)
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Give(vehicle, plate?)` | `vehicle: number, plate?: string` | `nil` | Give keys |
+| `Remove(vehicle, plate?)` | `vehicle: number, plate?: string` | `nil` | Remove keys |
 
 ## Module: entity (server + client)
 
 ### Server
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
-| `Create(data)` | `data: table` | `EntityRecord` | Create server entity (syncs to clients) |
+| `Create(data)` | `data: table` | `table` | Create tracked entity record |
 | `Destroy(id)` | `id: string\|number` | `nil` | Destroy entity |
-| `Get(id)` | `id: string\|number` | `table\|nil` | Get entity data |
-| `Set(id, data)` | `id: string\|number, data: table` | `boolean` | Update entity fields |
+| `Get(id)` | `id: string\|number` | `table\|nil` | Get entity |
+| `Set(id, data)` | `id: string\|number, data: table` | `boolean` | Merge or update entity |
 
 ### Client
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
-| `Create(entityData)` | `entityData: table` | `table` | Create client entity with proximity spawn |
+| `Create(entityData)` | `entityData: table` | `table` | Create client entity wrapper |
 | `Destroy(id)` | `id: string\|number` | `nil` | Destroy entity |
-| `Get(id)` | `id: string\|number` | `table\|nil` | Get entity data |
+| `Get(id)` | `id: string\|number` | `table\|nil` | Get entity |
 | `GetAll()` | | `table` | All entities |
-| `SetOnCreate(propertyKey, handler)` | `propertyKey: string, handler: function` | `nil` | Hook entity creation |
+| `SetOnCreate(propertyKey, handler)` | `propertyKey: string, handler: function` | `nil` | Register create hook |
 
----
+## Module: jobcount (server only)
 
-## Additional Modules (bridged from community_bridge)
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetJobCount(jobName)` | `jobName: string` | `number` | Count online players for a job |
+| `GetJobCountTotal(tbl)` | `tbl: string[]` | `number` | Sum counts across jobs |
+| `AddJobCount(src, jobName)` | `src: number, jobName: string` | `nil` | Force-add or update a job count entry |
+| `RemoveJobCount(src, jobName?)` | `src: number, jobName?: string` | `nil` | Remove a source from tracking |
+| `SearchJobCountBySource(src)` | `src: number` | `string\|nil` | Get tracked job name for a source |
 
-These modules follow the same self-register pattern. Each has multiple implementations for different third-party resources:
+## Additional verified namespaces
 
-| Module | Side | Description | Implementations |
-|--------|------|-------------|-----------------|
-| `fuel` | client | Get/set vehicle fuel | 14 (oxide-vehicles, ox_fuel, ps-fuel, etc.) |
-| `weather` | client | Get weather/time | 5 (oxide-weather, qb-weathersync, etc.) |
-| `input` | client | Input dialogs | 3 (ox_lib, qb-input, lation_ui) |
-| `menu` | client | Context menus | 5 (oxide-menu, ox_lib, qb-menu, etc.) |
-| `zones` | client | Zone definitions | 2 (oxlib, polyzone) |
-| `banking` | server | Banking operations | 8 (fd_banking, qb-banking, etc.) |
-| `phone` | server+client | Phone integration | 7 (oxide-phone, lb-phone, etc.) |
-| `clothing` | shared+server+client | Appearance system | 7 (oxide-identity, fivem-appearance, etc.) |
-| `dispatch` | server+client | Police dispatch | 14 (ps-dispatch, cd_dispatch, etc.) |
-| `doorlock` | server+client | Door lock system | 4 (ox_doorlock, qb-doorlock, etc.) |
-| `housing` | server+client | Property system | 5 (ps-housing, qb-houses, etc.) |
-| `bossmenu` | server+client | Boss/society menus | 3 (qb-management, esx_society, etc.) |
-| `skills` | server+client | Skill/XP system | 3 (evolent_skills, ot_skills, etc.) |
-| `vehicleOwnership` | server | Vehicle ownership ops | 4 (oxide-vehicles, qb-garages, etc.) |
+These namespaces are present in the current implementation and load through the same self-registration pattern, but this file does not attempt to fully document every function signature in every implementation:
 
----
+| Namespace | Side | Verified implementation folders |
+|-----------|------|---------------------------------|
+| `fuel` | client | 14 |
+| `weather` | client | 5 |
+| `input` | client | 3 |
+| `menu` | client | 5 |
+| `zones` | client | 2 |
+| `banking` | server | 8 |
+| `phone` | server + client | 7 |
+| `clothing` | shared + server + client | 7 |
+| `dispatch` | server + client | 15 |
+| `doorlock` | server + client | 4 |
+| `housing` | server + client | 5 |
+| `bossmenu` | server + client | 3 |
+| `skills` | server + client | 4 |
+| `vehicleOwnership` | server | 4 |
+| `death` | server + client | 4 |
+| `needs` | server | 4 |
+| `gang` | server + client | 4 |
 
-## Lifecycle Events
+## Lifecycle events
 
 | Event | Side | Args | Description |
 |-------|------|------|-------------|
-| `olink:server:playerReady` | server | `(source)` | Character loaded and ready |
-| `olink:server:playerUnload` | server | `(source)` | Character unloaded |
-| `olink:server:playerDropped` | server | `(source)` | Player disconnected |
-| `olink:client:playerReady` | client | none | Local player loaded |
+| `olink:server:playerReady` | server | `(source)` | Player is ready |
+| `olink:server:playerUnload` | server | `(source)` | Player unload or logout |
+| `olink:server:playerDropped` | server | `(source)` | Disconnect |
+| `olink:server:jobChanged` | server | `(source, jobName)` | Server-side job change relay |
+| `olink:client:playerReady` | client | none | Local player ready |
 | `olink:client:playerUnload` | client | none | Local player unloaded |
-| `olink:client:jobChanged` | client | `(jobData)` | Local player's job changed |
+| `olink:client:jobChanged` | client | `(jobData)` | Local job update |
