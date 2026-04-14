@@ -1,5 +1,7 @@
 if GetResourceState('oxide-inventory') == 'missing' then return end
 
+local Oxide = exports['oxide-core']:Core()
+
 olink._register('inventory', {
     ---@return table[] SlotData[]
     GetPlayerInventory = function()
@@ -54,6 +56,19 @@ olink._register('inventory', {
             end
         end
         return total >= count
+    end,
+
+    ---@param item string
+    ---@return table {name, label, weight, description}
+    GetItemInfo = function(item)
+        local data = Oxide.GetItem and Oxide.GetItem(item)
+        if not data then return {} end
+        return {
+            name = data.name or item,
+            label = data.label or item,
+            weight = data.weight,
+            description = data.description,
+        }
     end,
 
     ---@param item string

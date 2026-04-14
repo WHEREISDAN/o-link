@@ -102,6 +102,12 @@ olink.inventory.GetItemCount(src, item)                -- server
 olink.inventory.GetItemCount(item)                     -- client
 
 -- OLD
+Bridge.Inventory.GetItemInfo(item)
+
+-- NEW
+olink.inventory.GetItemInfo(item)                      -- both server + client
+
+-- OLD
 Bridge.Inventory.GetImagePath(item)
 
 -- NEW
