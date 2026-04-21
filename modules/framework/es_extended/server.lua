@@ -61,4 +61,28 @@ olink._register('framework', {
         TriggerClientEvent('esx:onPlayerLogout', src)
         return true
     end,
+
+    ---@description Returns the entire inventory of the player as a table.
+    --- Note: base ESX does not support item metadata or slots. Inventories that
+    --- provide slot/metadata storage (jpr, ps, qs, ox, etc.) should be read via
+    --- their own adapter exports instead of this framework fallback.
+    ---@param src number
+    ---@return table[] { name, count, metadata, slot }
+    GetPlayerInventory = function(src)
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if not xPlayer then return {} end
+        local items = xPlayer.getInventory and xPlayer.getInventory() or {}
+        local result = {}
+        for _, v in pairs(items) do
+            if v and v.name and (v.count or 0) > 0 then
+                result[#result + 1] = {
+                    name     = v.name,
+                    count    = v.count,
+                    metadata = {},
+                    slot     = 0,
+                }
+            end
+        end
+        return result
+    end,
 })

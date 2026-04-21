@@ -58,4 +58,26 @@ olink._register('framework', {
         exports.qbx_core:Logout(src)
         return true
     end,
+
+    ---@description Returns the entire inventory of the player as a table.
+    ---@param src number
+    ---@return table[] { name, count, metadata, slot }
+    GetPlayerInventory = function(src)
+        local player = QBox:GetPlayer(src)
+        if not player then return {} end
+        local items = player.PlayerData and player.PlayerData.items
+        if not items then return {} end
+        local result = {}
+        for _, v in pairs(items) do
+            if v and v.name then
+                result[#result + 1] = {
+                    name     = v.name,
+                    count    = v.amount or v.count,
+                    metadata = v.info or v.metadata or {},
+                    slot     = v.slot,
+                }
+            end
+        end
+        return result
+    end,
 })

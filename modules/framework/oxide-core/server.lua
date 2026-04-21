@@ -63,4 +63,12 @@ olink._register('framework', {
         TriggerClientEvent('oxide:multichar:logoutComplete', src)
         return true
     end,
+
+    ---@description Oxide stores items in inventory containers, not on the player
+    --- object. Read inventory via the oxide-inventory adapter directly.
+    ---@param src number
+    ---@return table[]
+    GetPlayerInventory = function(src)
+        return {}
+    end,
 })

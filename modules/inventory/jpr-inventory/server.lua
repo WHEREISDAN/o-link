@@ -2,7 +2,7 @@ if not olink._guardImpl('Inventory', 'jpr-inventory', 'jpr-inventory') then retu
 if not olink._hasOverride('Inventory') and GetResourceState('oxide-inventory') == 'started' then return end
 
 local jpr = exports['jpr-inventory']
-local QBCore = exports['qb-core']:GetCoreObject()
+local QBCore = GetResourceState('qb-core') == 'started' and exports['qb-core']:GetCoreObject() or nil
 local stashes = {}
 
 olink._register('inventory', {
@@ -56,24 +56,7 @@ olink._register('inventory', {
     ---@param src number
     ---@return table[] SlotData[]
     GetPlayerInventory = function(src)
-        local player = QBCore.Functions.GetPlayer(src)
-        if not player then return {} end
-        local items = player.PlayerData and player.PlayerData.items
-        if not items then return {} end
-        local result = {}
-        for _, item in pairs(items) do
-            if item and item.name then
-                result[#result + 1] = {
-                    name     = item.name,
-                    label    = item.label or item.name,
-                    count    = item.amount,
-                    slot     = item.slot,
-                    weight   = item.weight,
-                    metadata = item.info or item.metadata or {},
-                }
-            end
-        end
-        return result
+        return olink.framework.GetPlayerInventory(src) or {}
     end,
 
     ---@param src number
@@ -120,7 +103,7 @@ olink._register('inventory', {
     ---@param item string
     ---@return table {name, label, weight, description}
     GetItemInfo = function(item)
-        local data = QBCore.Shared.Items[item]
+        local data = QBCore and QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[item]
         if not data then return {} end
         return { name = data.name, label = data.label, weight = data.weight, description = data.description }
     end,
@@ -136,7 +119,7 @@ olink._register('inventory', {
 
     ---@return table All item definitions
     Items = function()
-        return QBCore.Shared.Items or {}
+        return (QBCore and QBCore.Shared and QBCore.Shared.Items) or {}
     end,
 
     ---@param src number
