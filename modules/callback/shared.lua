@@ -22,7 +22,8 @@ local function handleResponse(registry, name, callbackId, ...)
     end
 
     if data.promise then
-        data.promise:resolve({ ... })
+        -- Use table.pack so trailing nils and `nil, err` returns survive.
+        data.promise:resolve(table.pack(...))
     end
 
     registry[callbackId] = nil
@@ -62,8 +63,8 @@ if IsDuplicityVersion() then
 
         if not callback then
             local result = Citizen.Await(p)
-            local returnResults = (result and type(result) == 'table') and result or { result }
-            return table.unpack(returnResults)
+            if type(result) ~= 'table' then return result end
+            return table.unpack(result, 1, result.n or #result)
         end
     end
 
@@ -77,7 +78,7 @@ if IsDuplicityVersion() then
         if not playerId or playerId == 0 then return end
 
         local result = table.pack(handler(playerId, ...))
-        TriggerClientEvent(EVENT_NAMES.CLIENT_RESPONSE, playerId, name, callbackId, table.unpack(result))
+        TriggerClientEvent(EVENT_NAMES.CLIENT_RESPONSE, playerId, name, callbackId, table.unpack(result, 1, result.n))
     end)
 
     RegisterNetEvent(EVENT_NAMES.SERVER_RESPONSE, function(name, callbackId, ...)
@@ -114,7 +115,8 @@ else
 
         if not callback then
             local result = Citizen.Await(p)
-            return table.unpack(result)
+            if type(result) ~= 'table' then return result end
+            return table.unpack(result, 1, result.n or #result)
         end
     end
 
@@ -127,7 +129,7 @@ else
         if not handler then return end
 
         local result = table.pack(handler(...))
-        TriggerServerEvent(EVENT_NAMES.SERVER_RESPONSE, name, callbackId, table.unpack(result))
+        TriggerServerEvent(EVENT_NAMES.SERVER_RESPONSE, name, callbackId, table.unpack(result, 1, result.n))
     end)
 end
 

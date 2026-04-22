@@ -50,7 +50,7 @@ It lists implementation folders that exist today. It does not guarantee every im
 | `banking` | server | `fd_banking`, `kartik-banking`, `okokBanking`, `qb-banking`, `renewed-banking`, `tgg-banking`, `tgiann-bank`, `wasabi_banking` |
 | `phone` | server + client | `gksphone`, `lb-phone`, `okokPhone`, `oxide-phone`, `qb-phone`, `qs-smartphone`, `yseries` |
 | `clothing` | shared + server + client | `esx_skin`, `fivem-appearance`, `illenium-appearance`, `oxide-clothing`, `oxide-identity`, `qb-clothing`, `rcore_clothing` |
-| `dispatch` | server + client | `_default`, `bub-mdt`, `cd_dispatch`, `emergencydispatch`, `fd_dispatch`, `kartik-mdt`, `lb-tablet`, `linden_outlawalert`, `origen_police`, `piotreq_gpt`, `ps-dispatch`, `qs_dispatch`, `redutzu-mdt`, `tk_dispatch`, `wasabi_mdt` |
+| `dispatch` | server + client | `_default`, `bub-mdt`, `cd_dispatch`, `emergencydispatch`, `fd_dispatch`, `kartik-mdt`, `lb-tablet`, `linden_outlawalert`, `origen_police`, `oxide-dispatch`, `piotreq_gpt`, `ps-dispatch`, `qs_dispatch`, `redutzu-mdt`, `tk_dispatch`, `wasabi_mdt` |
 | `doorlock` | server + client | `doors_creator`, `ox_doorlock`, `qb-doorlock`, `rcore_doorlock` |
 | `housing` | server + client | `bcs-housing`, `esx_property`, `ps-housing`, `qb-appartments`, `qb-houses` |
 | `bossmenu` | server + client | `esx_society`, `qb-management`, `qbx_management` |

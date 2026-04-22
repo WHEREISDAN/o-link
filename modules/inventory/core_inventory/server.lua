@@ -2,14 +2,24 @@ if not olink._guardImpl('Inventory', 'core_inventory', 'core_inventory') then re
 if not olink._hasOverride('Inventory') and GetResourceState('oxide-inventory') == 'started' then return end
 
 local core = exports.core_inventory
-local QBCore = exports['qb-core']:GetCoreObject()
 local stashes = {}
 
 olink._register('inventory', {
     ---@param src number
     ---@param item string
+    ---@param metadata table|nil
     ---@return number
-    GetItemCount = function(src, item)
+    GetItemCount = function(src, item, metadata)
+        if metadata then
+            local inv = olink.inventory.GetPlayerInventory(src) or {}
+            local total = 0
+            for _, v in pairs(inv) do
+                if v.name == item and v.metadata == metadata then
+                    total = total + (v.count or 0)
+                end
+            end
+            return total
+        end
         return core:getItemCount(src, item) or 0
     end,
 
@@ -31,6 +41,15 @@ olink._register('inventory', {
     ---@param metadata table|nil
     ---@return boolean
     RemoveItem = function(src, item, count, slot, metadata)
+        if not slot and metadata then
+            local inv = olink.inventory.GetPlayerInventory(src) or {}
+            for _, v in pairs(inv) do
+                if v.name == item and v.metadata == metadata then
+                    slot = v.slot
+                    break
+                end
+            end
+        end
         if slot then
             local identifier = olink.character.GetIdentifier(src)
             if identifier then
@@ -46,11 +65,9 @@ olink._register('inventory', {
     ---@param slot number
     ---@return table|nil SlotData
     GetItemBySlot = function(src, slot)
-        local inv = olink.inventory.GetPlayerInventory(src)
+        local inv = olink.inventory.GetPlayerInventory(src) or {}
         for _, v in pairs(inv) do
-            if (v.slot == slot) or (v.id == slot) then
-                return v
-            end
+            if v.slot == slot then return v end
         end
         return nil
     end,
@@ -58,16 +75,33 @@ olink._register('inventory', {
     ---@param src number
     ---@return table[] SlotData[]
     GetPlayerInventory = function(src)
-        local playerItems = core:getInventory(src)
+        local playerItems = core:getInventory(src) or {}
         local result = {}
-        for _, v in pairs(playerItems or {}) do
-            result[#result + 1] = {
-                name     = v.name,
-                label    = v.label or v.name,
-                count    = v.count or v.amount,
-                slot     = v.id or v.slot,
-                metadata = v.metadata or v.info or {},
-            }
+        for _, v in pairs(playerItems) do
+            -- Items with metadata and count > 1 need to be fetched deeply to get
+            -- per-slot metadata, because core_inventory stacks them by name.
+            if (v.metadata or v.info) and (v.count or v.amount or 0) > 1 then
+                local deep = core:getItems(src, v.name)
+                if deep then
+                    for _, item in pairs(deep) do
+                        result[#result + 1] = {
+                            name     = v.name,
+                            label    = v.label or v.name,
+                            count    = item.count or item.amount,
+                            slot     = item.id or item.slot,
+                            metadata = item.metadata or item.info or {},
+                        }
+                    end
+                end
+            else
+                result[#result + 1] = {
+                    name     = v.name,
+                    label    = v.label or v.name,
+                    count    = v.count or v.amount,
+                    slot     = v.id or v.slot,
+                    metadata = v.metadata or v.info or {},
+                }
+            end
         end
         return result
     end,
@@ -90,7 +124,9 @@ olink._register('inventory', {
     RegisterStash = function(id, label, slots, weight, owner)
         id = tostring(id)
         if stashes[id] then return true end
-        stashes[id] = { label = label, slots = slots, weight = weight, owner = owner }
+        -- core_inventory divides slots/weight by 2 per documentation quirk
+        local half = (slots or 30) / 2
+        stashes[id] = { label = label, slots = half, weight = half, owner = owner }
         return true
     end,
 
@@ -98,8 +134,8 @@ olink._register('inventory', {
     ---@param stashId string
     OpenStash = function(src, stashId)
         stashId = tostring(stashId)
-        local tbl = stashes[stashId] or { slots = 30, weight = 50000 }
-        core:openInventory(src, stashId, 'stash', tbl.slots or 30, tbl.weight or 50000, true, nil, false)
+        local tbl = stashes[stashId] or { slots = 15, weight = 25000 }
+        core:openInventory(src, stashId, 'stash', tbl.slots, tbl.weight, true, nil, false)
     end,
 
     ---@param src number
@@ -115,11 +151,19 @@ olink._register('inventory', {
     end,
 
     ---@param item string
-    ---@return table {name, label, weight, description}
+    ---@return table
     GetItemInfo = function(item)
-        local data = QBCore.Shared.Items[item]
+        local items = core:getItemsList()
+        local data = items and items[item]
         if not data then return {} end
-        return { name = data.name, label = data.label, weight = data.weight, description = data.description }
+        return {
+            name = data.name or item,
+            label = data.label or item,
+            weight = data.weight or 0,
+            description = data.description,
+            stack = data.unique == nil and true or (not data.unique),
+            image = data.image or (olink.inventory.GetImagePath and olink.inventory.GetImagePath(item) or nil),
+        }
     end,
 
     ---@param src number
@@ -138,12 +182,12 @@ olink._register('inventory', {
         item = olink._stripExt(item)
         local file = LoadResourceFile('core_inventory', ('html/img/%s.png'):format(item))
         if file then return ('nui://core_inventory/html/img/%s.png'):format(item) end
-        return ''
+        return 'https://avatars.githubusercontent.com/u/47620135'
     end,
 
     ---@return table All item definitions
     Items = function()
-        return QBCore.Shared.Items or {}
+        return core:getItemsList() or {}
     end,
 
     ---@param src number
@@ -154,50 +198,31 @@ olink._register('inventory', {
         return true
     end,
 
-    ---@param id string
-    ---@return table[]
-    GetStashItems = function(id)
-        return {}
-    end,
-
-    ---@param id string
-    ---@param item string
-    ---@param count number
-    ---@return boolean
-    RemoveStashItem = function(id, item, count)
-        return false
-    end,
-
-    ---@param id string
-    ---@param _type string|nil unused
-    ---@return boolean
-    ClearStash = function(id, _type)
-        return false
-    end,
-
-    ---@param identifier string plate or trunk identifier
-    ---@param items table[]
-    ---@return boolean
-    AddTrunkItems = function(identifier, items)
-        return false
-    end,
-
     ---@param oldPlate string
     ---@param newPlate string
     ---@return boolean
     UpdatePlate = function(oldPlate, newPlate)
-        return false
+        MySQL.transaction.await({
+            'UPDATE coreinventories SET name = @newplate WHERE name = @oldplate',
+            'UPDATE coreinventories SET name = @newplate WHERE name = @glovebox_oldplate',
+            'UPDATE coreinventories SET name = @newplate WHERE name = @trunk_oldplate',
+        }, {
+            newplate          = newPlate,
+            oldplate          = oldPlate,
+            glovebox_oldplate = 'glovebox-' .. oldPlate,
+            trunk_oldplate    = 'trunk-' .. oldPlate,
+        })
+        if GetResourceState('jg-mechanic') == 'started' then
+            exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
+        end
+        return true
     end,
 
-    ---@param src number
-    ---@param shopTitle string
-    OpenShop = function(src, shopTitle)
-    end,
-
-    ---@param shopTitle string
-    ---@param shopInventory table
-    ---@param shopCoords table|nil
-    ---@param shopGroups table|nil
-    RegisterShop = function(shopTitle, shopInventory, shopCoords, shopGroups)
-    end,
+    -- Unsupported features
+    GetStashItems = function() return {} end,
+    RemoveStashItem = function() return false end,
+    ClearStash = function() return false end,
+    AddTrunkItems = function() return false end,
+    OpenShop = function() end,
+    RegisterShop = function() end,
 })

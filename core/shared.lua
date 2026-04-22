@@ -155,7 +155,12 @@ function olink._guardImpl(namespace, implName, resourceName)
 
     if resourceName == false then return true end
 
-    return GetResourceState(resourceName or implName) ~= 'missing'
+    local state = GetResourceState(resourceName or implName)
+    if state ~= 'started' and state ~= 'missing' and Config and Config.Debug then
+        print(('[o-link] %s adapter "%s" skipped: resource "%s" is %s (not started)')
+            :format(namespace, implName, resourceName or implName, state))
+    end
+    return state == 'started'
 end
 
 ---Check whether a module or specific function is available.

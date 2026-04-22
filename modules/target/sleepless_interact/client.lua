@@ -2,6 +2,7 @@ if not olink._guardImpl('Target', 'sleepless_interact', 'sleepless_interact') th
 if not olink._hasOverride('Target') and GetResourceState('ox_target') == 'started' then return end
 
 local sleepless = exports.sleepless_interact
+---Shape: { [name] = { id = <zoneId>, creator = <resourceName> } }
 local targetZones = {}
 
 ---Normalize options to match sleepless_interact's expected format
@@ -24,6 +25,16 @@ local function FixOptions(options)
 end
 
 olink._register('target', {
+    ---@return string
+    GetResourceName = function()
+        return 'sleepless_interact'
+    end,
+
+    ---sleepless_interact doesn't expose a global toggle; no-op by design.
+    ---@param bool boolean
+    DisableTargeting = function(bool)
+    end,
+
     ---@param name string
     ---@param coords vector3
     ---@param size vector3
@@ -37,7 +48,7 @@ olink._register('target', {
             coords  = coords,
             options = options,
         })
-        targetZones[name] = id
+        targetZones[name] = { id = id, creator = GetInvokingResource() }
         return id
     end,
 
@@ -54,16 +65,16 @@ olink._register('target', {
             name    = name,
             options = options,
         })
-        targetZones[name] = id
+        targetZones[name] = { id = id, creator = GetInvokingResource() }
         return id
     end,
 
     ---@param name string
     RemoveZone = function(name)
         if not name then return end
-        local id = targetZones[name]
-        if id then
-            sleepless:removeCoords(id)
+        local entry = targetZones[name]
+        if entry then
+            sleepless:removeCoords(entry.id)
             targetZones[name] = nil
         end
     end,
@@ -98,4 +109,26 @@ olink._register('target', {
     RemoveGlobalPed = function(optionNames)
         sleepless:removeGlobalPed(optionNames)
     end,
+
+    ---sleepless_interact doesn't distinguish player from ped — route to ped APIs.
+    ---@param options table
+    AddGlobalPlayer = function(options)
+        options = FixOptions(options or {})
+        sleepless:addGlobalPlayer(options)
+    end,
+
+    ---@param optionNames string[]|nil
+    RemoveGlobalPlayer = function(optionNames)
+        sleepless:removeGlobalPlayer(optionNames)
+    end,
 })
+
+-- Clean up zones when their creator resource stops so we don't leak options.
+AddEventHandler('onClientResourceStop', function(resource)
+    for name, entry in pairs(targetZones) do
+        if entry.creator == resource then
+            sleepless:removeCoords(entry.id)
+            targetZones[name] = nil
+        end
+    end
+end)

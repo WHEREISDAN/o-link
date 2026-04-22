@@ -5,10 +5,11 @@ local mod = {
     ---@param message string
     ---@param notifType string|nil
     ---@param duration number|nil
-    Send = function(message, notifType, duration)
+    ---@param title string|nil
+    Send = function(message, notifType, duration, title)
         duration = duration or 3000
         exports.r_notify:notify({
-            title    = 'Notification',
+            title    = title or 'Notification',
             content  = message,
             type     = notifType or 'success',
             icon     = 'fas fa-check',
@@ -19,8 +20,8 @@ local mod = {
     end,
 }
 
-RegisterNetEvent('o-link:client:notify', function(message, notifType, duration)
-    mod.Send(message, notifType, duration)
+RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, title)
+    mod.Send(message, notifType, duration, title)
 end)
 
 olink._register('notify', mod)

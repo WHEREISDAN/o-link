@@ -113,7 +113,7 @@ olink._register('inventory', {
     end,
 
     ---@param item string
-    ---@return table {name, label, weight, description}
+    ---@return table
     GetItemInfo = function(item)
         local data = ox_inventory:Items(item)
         if not data then return {} end
@@ -122,6 +122,9 @@ olink._register('inventory', {
             label = data.label,
             weight = data.weight,
             description = data.description,
+            stack = data.stack,
+            image = ('nui://ox_inventory/web/images/%s'):format(
+                (data.client and data.client.image) or ('%s.png'):format(item)),
         }
     end,
 
@@ -141,7 +144,7 @@ olink._register('inventory', {
         item = olink._stripExt(item)
         local file = LoadResourceFile('ox_inventory', ('web/images/%s.png'):format(item))
         if file then return ('nui://ox_inventory/web/images/%s.png'):format(item) end
-        return ''
+        return 'https://avatars.githubusercontent.com/u/47620135'
     end,
 
     ---@return table All item definitions
@@ -200,10 +203,23 @@ olink._register('inventory', {
     ---@param newPlate string
     ---@return boolean
     UpdatePlate = function(oldPlate, newPlate)
-        MySQL.update.await('UPDATE ox_inventory SET owner = ? WHERE owner = ?', {
-            'trunk_' .. newPlate, 'trunk_' .. oldPlate
-        })
+        ox_inventory:UpdateVehicle(oldPlate, newPlate)
+        if GetResourceState('jg-mechanic') == 'started' then
+            exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
+        end
         return true
+    end,
+
+    ---@param id string
+    ---@param items table[] { item, count, metadata }
+    ---@return boolean
+    AddStashItems = function(id, items)
+        if type(items) ~= 'table' then return false end
+        local success = false
+        for _, v in pairs(items) do
+            success = ox_inventory:AddItem(tostring(id), v.item, v.count or v.amount, v.metadata or v.info or {})
+        end
+        return success == true
     end,
 
     ---@param src number

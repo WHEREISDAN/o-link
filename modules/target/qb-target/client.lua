@@ -2,6 +2,8 @@ if not olink._guardImpl('Target', 'qb-target', 'qb-target') then return end
 if not olink._hasOverride('Target') and GetResourceState('ox_target') == 'started' then return end
 
 local qb_target = exports['qb-target']
+---Track zones per creator resource so we can clean them up on resource stop.
+---Shape: { [name] = { creator = <resourceName> } }
 local targetZones = {}
 
 ---Extract the largest distance value from an options table
@@ -42,6 +44,17 @@ local function FixOptions(options)
 end
 
 olink._register('target', {
+    ---@return string
+    GetResourceName = function()
+        return 'qb-target'
+    end,
+
+    ---qb-target doesn't expose a toggle, so this is a no-op by design.
+    ---@param bool boolean
+    DisableTargeting = function(bool)
+        -- qb-target has no native toggle; callers expect it to be harmless.
+    end,
+
     ---@param name string
     ---@param coords vector3
     ---@param size vector3
@@ -61,7 +74,7 @@ olink._register('target', {
             options  = options,
             distance = getLargestDistance(options),
         })
-        targetZones[name] = true
+        targetZones[name] = { creator = GetInvokingResource() }
         return name
     end,
 
@@ -79,7 +92,7 @@ olink._register('target', {
             options  = options,
             distance = getLargestDistance(options),
         })
-        targetZones[name] = true
+        targetZones[name] = { creator = GetInvokingResource() }
         return name
     end,
 
@@ -132,6 +145,22 @@ olink._register('target', {
         qb_target:RemoveGlobalPed(optionNames)
     end,
 
+    ---Attach options to every player ped.
+    ---@param options table
+    AddGlobalPlayer = function(options)
+        options = FixOptions(options or {})
+        qb_target:AddGlobalPlayer({
+            options  = options,
+            distance = getLargestDistance(options),
+        })
+    end,
+
+    ---Remove options from every player ped.
+    ---@param optionNames string[]|nil
+    RemoveGlobalPlayer = function(optionNames)
+        qb_target:RemoveGlobalPlayer(optionNames)
+    end,
+
     ---@param options table
     AddGlobalVehicle = function(options)
         options = FixOptions(options or {})
@@ -162,3 +191,13 @@ olink._register('target', {
         qb_target:RemoveTargetEntity(netId, optionNames)
     end,
 })
+
+-- Clean up zones when their creator resource stops so we don't leak options.
+AddEventHandler('onClientResourceStop', function(resource)
+    for name, entry in pairs(targetZones) do
+        if entry.creator == resource then
+            qb_target:RemoveZone(name)
+            targetZones[name] = nil
+        end
+    end
+end)

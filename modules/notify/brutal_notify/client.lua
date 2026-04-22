@@ -5,14 +5,15 @@ local mod = {
     ---@param message string
     ---@param notifType string|nil
     ---@param duration number|nil
-    Send = function(message, notifType, duration)
+    ---@param title string|nil
+    Send = function(message, notifType, duration, title)
         duration = duration or 3000
-        exports['brutal_notify']:SendAlert('Notification', message, duration, notifType or 'success', false)
+        exports['brutal_notify']:SendAlert(title or 'Notification', message, duration, notifType or 'success', false)
     end,
 }
 
-RegisterNetEvent('o-link:client:notify', function(message, notifType, duration)
-    mod.Send(message, notifType, duration)
+RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, title)
+    mod.Send(message, notifType, duration, title)
 end)
 
 olink._register('notify', mod)

@@ -4,6 +4,7 @@ if not olink._hasOverride('Inventory') and GetResourceState('oxide-inventory') =
 local jpr = exports['jpr-inventory']
 local QBCore = GetResourceState('qb-core') == 'started' and exports['qb-core']:GetCoreObject() or nil
 local stashes = {}
+local registeredShops = {}
 
 olink._register('inventory', {
     ---@param src number
@@ -101,11 +102,18 @@ olink._register('inventory', {
     end,
 
     ---@param item string
-    ---@return table {name, label, weight, description}
+    ---@return table
     GetItemInfo = function(item)
         local data = QBCore and QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[item]
         if not data then return {} end
-        return { name = data.name, label = data.label, weight = data.weight, description = data.description }
+        return {
+            name = data.name,
+            label = data.label,
+            weight = data.weight,
+            description = data.description,
+            stack = data.unique == nil and true or (not data.unique),
+            image = olink.inventory.GetImagePath and olink.inventory.GetImagePath(item) or nil,
+        }
     end,
 
     ---@param item string
@@ -114,7 +122,7 @@ olink._register('inventory', {
         item = olink._stripExt(item)
         local file = LoadResourceFile('jpr-inventory', ('html/images/%s.png'):format(item))
         if file then return ('nui://jpr-inventory/html/images/%s.png'):format(item) end
-        return ''
+        return 'https://avatars.githubusercontent.com/u/47620135'
     end,
 
     ---@return table All item definitions
@@ -130,50 +138,59 @@ olink._register('inventory', {
         return true
     end,
 
-    ---@param id string
-    ---@return table[]
-    GetStashItems = function(id)
-        return {}
-    end,
-
-    ---@param id string
-    ---@param item string
-    ---@param count number
-    ---@return boolean
-    RemoveStashItem = function(id, item, count)
-        return false
-    end,
-
-    ---@param id string
-    ---@param _type string|nil unused
-    ---@return boolean
-    ClearStash = function(id, _type)
-        return false
-    end,
-
-    ---@param identifier string plate or trunk identifier
-    ---@param items table[]
-    ---@return boolean
-    AddTrunkItems = function(identifier, items)
-        return false
-    end,
-
     ---@param oldPlate string
     ---@param newPlate string
     ---@return boolean
     UpdatePlate = function(oldPlate, newPlate)
-        return false
+        MySQL.transaction.await({
+            'UPDATE gloveboxitems SET plate = @newplate WHERE plate = @oldplate',
+            'UPDATE trunkitems SET plate = @newplate WHERE plate = @oldplate',
+        }, { newplate = newPlate, oldplate = oldPlate })
+        if GetResourceState('jg-mechanic') == 'started' then
+            exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
+        end
+        return true
     end,
 
     ---@param src number
     ---@param shopTitle string
     OpenShop = function(src, shopTitle)
+        jpr:OpenShop(src, shopTitle)
     end,
 
     ---@param shopTitle string
     ---@param shopInventory table
     ---@param shopCoords table|nil
     ---@param shopGroups table|nil
+    ---@return boolean
     RegisterShop = function(shopTitle, shopInventory, shopCoords, shopGroups)
+        if not shopTitle or not shopInventory or not shopCoords then return false end
+        if registeredShops[shopTitle] then return true end
+
+        local repackItems = {}
+        for k, v in pairs(shopInventory) do
+            repackItems[#repackItems + 1] = {
+                name   = v.name,
+                price  = v.price or 1000,
+                amount = v.count or v.amount or 1,
+                slot   = k,
+            }
+        end
+
+        jpr:CreateShop({
+            name   = shopTitle,
+            label  = shopTitle,
+            coords = shopCoords,
+            items  = repackItems,
+            slots  = #shopInventory,
+        })
+        registeredShops[shopTitle] = true
+        return true
     end,
+
+    -- Unsupported features (not exposed by jpr-inventory)
+    GetStashItems = function() return {} end,
+    RemoveStashItem = function() return false end,
+    ClearStash = function() return false end,
+    AddTrunkItems = function() return false end,
 })

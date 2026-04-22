@@ -5,14 +5,17 @@ local mod = {
     ---@param message string
     ---@param notifType string|nil
     ---@param duration number|nil
-    Send = function(message, notifType, duration)
+    ---@param title string|nil
+    Send = function(message, notifType, duration, title)
         duration = duration or 3000
-        exports.lation_ui:notify({ message = message, type = notifType or 'success', duration = duration, position = 'top-right' })
+        local payload = { message = message, type = notifType or 'success', duration = duration, position = 'top-right' }
+        if title then payload.title = title end
+        exports.lation_ui:notify(payload)
     end,
 }
 
-RegisterNetEvent('o-link:client:notify', function(message, notifType, duration)
-    mod.Send(message, notifType, duration)
+RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, title)
+    mod.Send(message, notifType, duration, title)
 end)
 
 olink._register('notify', mod)

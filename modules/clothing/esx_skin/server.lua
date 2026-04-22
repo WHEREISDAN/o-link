@@ -110,6 +110,23 @@ olink._register('clothing', {
         return olink.clothing.SetAppearance(src, current.backup)
     end,
 
+    ---Flushes the cached skin to the database without requiring a SetAppearance call.
+    ---Matches community_bridge's `Clothing.Save(src)` contract.
+    ---@param src number
+    ---@return boolean
+    Save = function(src)
+        src = tonumber(src)
+        if not src then return false end
+        local charId = olink.character.GetIdentifier(src)
+        if not charId then return false end
+        local current = getFullAppearanceData(src)
+        if not current or not current.skin then return false end
+        MySQL.update.await('UPDATE users SET skin = ? WHERE identifier = ?', {
+            json.encode(current.skin), charId,
+        })
+        return true
+    end,
+
     ---@param src number
     OpenMenu = function(src)
         src = tonumber(src)

@@ -1,6 +1,11 @@
 if not olink._guardImpl('VehicleKey', 'oxide-vehicles', 'oxide-vehicles') then return end
 
 olink._register('vehiclekey', {
+    ---@return string
+    GetResourceName = function()
+        return 'oxide-vehicles'
+    end,
+
     ---@param vehicle number Entity handle
     ---@param plate string|nil
     Give = function(vehicle, plate)

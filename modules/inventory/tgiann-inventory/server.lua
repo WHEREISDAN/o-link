@@ -9,14 +9,9 @@ olink._register('inventory', {
     ---@param item string
     ---@return number
     GetItemCount = function(src, item)
-        local inventory = tgiann:GetPlayerItems(src)
-        local total = 0
-        for k, v in pairs(inventory or {}) do
-            if tonumber(k) and v.name == item then
-                total = total + (v.amount or 0)
-            end
-        end
-        return total
+        local data = tgiann:GetItemByName(src, item)
+        if not data then return 0 end
+        return data.amount or 0
     end,
 
     ---@param src number
@@ -178,24 +173,38 @@ olink._register('inventory', {
     end,
 
     ---@param id string
-    ---@param _type string|nil unused
+    ---@param _type string|nil 'stash', 'trunk', 'glovebox'
     ---@return boolean
     ClearStash = function(id, _type)
-        return false
+        if type(id) ~= 'string' then return false end
+        tgiann:DeleteInventory(_type or 'stash', id)
+        return true
     end,
 
     ---@param identifier string plate or trunk identifier
     ---@param items table[]
     ---@return boolean
     AddTrunkItems = function(identifier, items)
-        return false
+        if type(items) ~= 'table' then return false end
+        for _, v in pairs(items) do
+            tgiann:AddItemToSecondaryInventory('trunk', identifier, v.item, v.count or v.amount, nil, v.metadata or v.info)
+        end
+        return true
     end,
 
     ---@param oldPlate string
     ---@param newPlate string
     ---@return boolean
     UpdatePlate = function(oldPlate, newPlate)
-        return false
+        MySQL.transaction.await({
+            'UPDATE tgiann_inventory_trunkitems SET plate = @newplate WHERE plate = @oldplate',
+            'UPDATE tgiann_inventory_gloveboxitems SET plate = @newplate WHERE plate = @oldplate',
+        }, { newplate = newPlate, oldplate = oldPlate })
+        tgiann:UpdateVehicle(oldPlate, newPlate)
+        if GetResourceState('jg-mechanic') == 'started' then
+            exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
+        end
+        return true
     end,
 
     ---@param src number

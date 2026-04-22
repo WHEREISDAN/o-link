@@ -1,4 +1,5 @@
 if not olink._guardImpl('Dispatch', 'emergencydispatch', 'emergencydispatch') then return end
+if not olink._hasOverride('Dispatch') and GetResourceState('oxide-dispatch') == 'started' then return end
 
 olink._register('dispatch', {
     ---@return string
@@ -7,9 +8,6 @@ olink._register('dispatch', {
     end,
 })
 
-RegisterNetEvent('o-link:dispatch:emergencydispatch:sendAlert', function(data)
-    local job = data.job or (data.jobs and data.jobs[1]) or 'police'
-    local message = data.message or 'An Alert Has Been Made'
-    local coords = data.coords or vector3(0, 0, 0)
-    TriggerEvent('emergencydispatch:emergencycall:new', job, message, coords, true)
-end)
+-- Client fires emergencydispatch's own net event directly (matches
+-- community_bridge). No server relay here — that would zero out `source`
+-- when emergencydispatch's handler reads it.

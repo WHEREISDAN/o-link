@@ -2,24 +2,28 @@ if not olink._guardImpl('Inventory', 'codem-inventory', 'codem-inventory') then 
 if not olink._hasOverride('Inventory') and GetResourceState('oxide-inventory') == 'started' then return end
 
 local codem = exports['codem-inventory']
-local QBCore = exports['qb-core']:GetCoreObject()
 local stashes = {}
+
+---@param src number
+---@param metadata table
+---@return boolean, number|nil
+local function findSlotByMetadata(src, metadata)
+    if not olink.inventory or not olink.inventory.GetPlayerInventory then return false end
+    local inv = olink.inventory.GetPlayerInventory(src) or {}
+    for _, v in pairs(inv) do
+        if v.metadata and v.metadata == metadata then
+            return true, v.slot
+        end
+    end
+    return false
+end
 
 olink._register('inventory', {
     ---@param src number
     ---@param item string
     ---@return number
     GetItemCount = function(src, item)
-        local identifier = olink.character.GetIdentifier(src)
-        if not identifier then return 0 end
-        local playerItems = codem:GetInventory(identifier, src)
-        local total = 0
-        for _, v in pairs(playerItems or {}) do
-            if v.name == item then
-                total = total + (v.amount or v.count or 0)
-            end
-        end
-        return total
+        return codem:GetItemsTotalAmount(src, item) or 0
     end,
 
     ---@param src number
@@ -40,6 +44,10 @@ olink._register('inventory', {
     ---@param metadata table|nil
     ---@return boolean
     RemoveItem = function(src, item, count, slot, metadata)
+        if metadata and not slot then
+            local found, foundSlot = findSlotByMetadata(src, metadata)
+            if found then slot = foundSlot end
+        end
         local success = codem:RemoveItem(src, item, count, slot)
         return success == true
     end,
@@ -64,6 +72,7 @@ olink._register('inventory', {
     ---@return table[] SlotData[]
     GetPlayerInventory = function(src)
         local identifier = olink.character.GetIdentifier(src)
+        if not identifier then return {} end
         local playerItems = codem:GetInventory(identifier, src)
         local result = {}
         for _, v in pairs(playerItems or {}) do
@@ -103,9 +112,40 @@ olink._register('inventory', {
     ---@param stashId string
     OpenStash = function(src, stashId)
         stashId = tostring(stashId)
-        local tbl = stashes[stashId] or {}
-        codem:UpdateStash(stashId, {})
         TriggerClientEvent('codem-inventory:client:openStash', src, stashId)
+    end,
+
+    ---@param id string
+    ---@param items table[] { item, count, metadata }
+    ---@return boolean
+    AddStashItems = function(id, items)
+        if type(items) ~= 'table' then return false end
+        local repack = {}
+        local getInfo = olink.inventory.GetItemInfo or function() return { weight = 0 } end
+        for _, v in pairs(items) do
+            repack[#repack + 1] = {
+                item        = v.item,
+                amount      = v.count or v.amount,
+                info        = v.metadata or v.info or {},
+                unique      = v.unique or v.stack or false,
+                description = v.description or 'none',
+                weight      = (getInfo(v.item) or {}).weight or 0,
+                type        = 'item',
+                slot        = #repack + 1,
+            }
+        end
+        codem:UpdateStash(id, repack)
+        return true
+    end,
+
+    ---@param id string
+    ---@param _type string|nil unused with codem
+    ---@return boolean
+    ClearStash = function(id, _type)
+        if type(id) ~= 'string' then return false end
+        if stashes[id] then stashes[id] = nil end
+        codem:UpdateStash(id, {})
+        return true
     end,
 
     ---@param src number
@@ -119,11 +159,19 @@ olink._register('inventory', {
     end,
 
     ---@param item string
-    ---@return table {name, label, weight, description}
+    ---@return table
     GetItemInfo = function(item)
-        local data = QBCore.Shared.Items[item]
+        local items = codem:GetItemList()
+        local data = items and items[item]
         if not data then return {} end
-        return { name = data.name, label = data.label, weight = data.weight, description = data.description }
+        return {
+            name = data.name or item,
+            label = data.label or item,
+            weight = data.weight or 0,
+            description = data.description,
+            stack = data.unique == nil and true or (not data.unique),
+            image = data.image or (olink.inventory.GetImagePath and olink.inventory.GetImagePath(item) or nil),
+        }
     end,
 
     ---@param src number
@@ -142,12 +190,12 @@ olink._register('inventory', {
         item = olink._stripExt(item)
         local file = LoadResourceFile('codem-inventory', ('html/itemimages/%s.png'):format(item))
         if file then return ('nui://codem-inventory/html/itemimages/%s.png'):format(item) end
-        return ''
+        return 'https://avatars.githubusercontent.com/u/47620135'
     end,
 
     ---@return table All item definitions
     Items = function()
-        return QBCore.Shared.Items or {}
+        return codem:GetItemList() or {}
     end,
 
     ---@param src number
@@ -158,50 +206,24 @@ olink._register('inventory', {
         return true
     end,
 
-    ---@param id string
-    ---@return table[]
-    GetStashItems = function(id)
-        return {}
-    end,
-
-    ---@param id string
-    ---@param item string
-    ---@param count number
-    ---@return boolean
-    RemoveStashItem = function(id, item, count)
-        return false
-    end,
-
-    ---@param id string
-    ---@param _type string|nil unused
-    ---@return boolean
-    ClearStash = function(id, _type)
-        return false
-    end,
-
-    ---@param identifier string plate or trunk identifier
-    ---@param items table[]
-    ---@return boolean
-    AddTrunkItems = function(identifier, items)
-        return false
-    end,
-
     ---@param oldPlate string
     ---@param newPlate string
     ---@return boolean
     UpdatePlate = function(oldPlate, newPlate)
-        return false
+        MySQL.transaction.await({
+            'UPDATE trunkitems SET plate = @newplate WHERE plate = @oldplate',
+            'UPDATE gloveboxitems SET plate = @newplate WHERE plate = @oldplate',
+        }, { newplate = newPlate, oldplate = oldPlate })
+        if GetResourceState('jg-mechanic') == 'started' then
+            exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
+        end
+        return true
     end,
 
-    ---@param src number
-    ---@param shopTitle string
-    OpenShop = function(src, shopTitle)
-    end,
-
-    ---@param shopTitle string
-    ---@param shopInventory table
-    ---@param shopCoords table|nil
-    ---@param shopGroups table|nil
-    RegisterShop = function(shopTitle, shopInventory, shopCoords, shopGroups)
-    end,
+    -- Unsupported features
+    GetStashItems = function() return {} end,
+    RemoveStashItem = function() return false end,
+    AddTrunkItems = function() return false end,
+    OpenShop = function() end,
+    RegisterShop = function() end,
 })

@@ -5,6 +5,20 @@ local ps = exports['ps-inventory']
 local QBCore = GetResourceState('qb-core') == 'started' and exports['qb-core']:GetCoreObject() or nil
 local stashes = {}
 
+---@param src number
+---@param metadata table
+---@return boolean, number|nil
+local function findSlotByMetadata(src, metadata)
+    if not olink.inventory or not olink.inventory.GetPlayerInventory then return false end
+    local inv = olink.inventory.GetPlayerInventory(src) or {}
+    for _, v in pairs(inv) do
+        if v.metadata and v.metadata == metadata then
+            return true, v.slot
+        end
+    end
+    return false
+end
+
 olink._register('inventory', {
     ---@param src number
     ---@param item string
@@ -23,7 +37,12 @@ olink._register('inventory', {
     ---@return boolean
     AddItem = function(src, item, count, slot, metadata)
         local success = ps:AddItem(src, item, count, slot, metadata, 'o-link')
-        return success == true
+        if not success then return false end
+        local itemData = QBCore and QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[item]
+        if itemData then
+            TriggerClientEvent('ps-inventory:client:ItemBox', src, itemData, 'add', count)
+        end
+        return true
     end,
 
     ---@param src number
@@ -33,8 +52,17 @@ olink._register('inventory', {
     ---@param metadata table|nil
     ---@return boolean
     RemoveItem = function(src, item, count, slot, metadata)
+        if metadata and not slot then
+            local found, foundSlot = findSlotByMetadata(src, metadata)
+            if found then slot = foundSlot end
+        end
         local success = ps:RemoveItem(src, item, count, slot, 'o-link')
-        return success == true
+        if not success then return false end
+        local itemData = QBCore and QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[item]
+        if itemData then
+            TriggerClientEvent('ps-inventory:client:ItemBox', src, itemData, 'remove', count)
+        end
+        return true
     end,
 
     ---@param src number
@@ -84,11 +112,7 @@ olink._register('inventory', {
     ---@param stashId string
     OpenStash = function(src, stashId)
         stashId = tostring(stashId)
-        local tbl = stashes[stashId] or {}
-        TriggerClientEvent('o-link:inventory:ps:openStash', src, stashId, {
-            weight = tbl.weight or 5000,
-            slots  = tbl.slots or 20,
-        })
+        ps:OpenInventory('stash', stashId, nil, src)
     end,
 
     ---@param src number
@@ -102,11 +126,18 @@ olink._register('inventory', {
     end,
 
     ---@param item string
-    ---@return table {name, label, weight, description}
+    ---@return table
     GetItemInfo = function(item)
         local data = QBCore and QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[item]
         if not data then return {} end
-        return { name = data.name, label = data.label, weight = data.weight, description = data.description }
+        return {
+            name = data.name,
+            label = data.label,
+            weight = data.weight,
+            description = data.description,
+            stack = data.unique == nil and true or (not data.unique),
+            image = olink.inventory.GetImagePath and olink.inventory.GetImagePath(item) or nil,
+        }
     end,
 
     ---@param item string
@@ -115,7 +146,7 @@ olink._register('inventory', {
         item = olink._stripExt(item)
         local file = LoadResourceFile('ps-inventory', ('html/images/%s.png'):format(item))
         if file then return ('nui://ps-inventory/html/images/%s.png'):format(item) end
-        return ''
+        return 'https://avatars.githubusercontent.com/u/47620135'
     end,
 
     ---@return table All item definitions
@@ -131,50 +162,57 @@ olink._register('inventory', {
         return true
     end,
 
-    ---@param id string
-    ---@return table[]
-    GetStashItems = function(id)
-        return {}
-    end,
-
-    ---@param id string
-    ---@param item string
-    ---@param count number
-    ---@return boolean
-    RemoveStashItem = function(id, item, count)
-        return false
-    end,
-
-    ---@param id string
-    ---@param _type string|nil unused
-    ---@return boolean
-    ClearStash = function(id, _type)
-        return false
-    end,
-
-    ---@param identifier string plate or trunk identifier
-    ---@param items table[]
-    ---@return boolean
-    AddTrunkItems = function(identifier, items)
-        return false
-    end,
-
     ---@param oldPlate string
     ---@param newPlate string
     ---@return boolean
     UpdatePlate = function(oldPlate, newPlate)
-        return false
+        MySQL.transaction.await({
+            'UPDATE inventory_trunk SET plate = @newplate WHERE plate = @oldplate',
+            'UPDATE inventory_glovebox SET plate = @newplate WHERE plate = @oldplate',
+        }, { newplate = newPlate, oldplate = oldPlate })
+        if GetResourceState('jg-mechanic') == 'started' then
+            exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
+        end
+        return true
     end,
 
     ---@param src number
     ---@param shopTitle string
     OpenShop = function(src, shopTitle)
+        ps:OpenShop(src, shopTitle)
     end,
 
     ---@param shopTitle string
     ---@param shopInventory table
     ---@param shopCoords table|nil
     ---@param shopGroups table|nil
+    ---@return boolean
     RegisterShop = function(shopTitle, shopInventory, shopCoords, shopGroups)
+        if not shopTitle or not shopInventory or not shopCoords then return false end
+
+        local repackItems = {}
+        for k, v in pairs(shopInventory) do
+            repackItems[#repackItems + 1] = {
+                name   = v.name,
+                price  = v.price or 1000,
+                amount = v.amount or v.count or 1,
+                slot   = k,
+            }
+        end
+
+        ps:CreateShop({
+            name   = shopTitle,
+            label  = shopTitle,
+            coords = shopCoords,
+            items  = repackItems,
+            slots  = #shopInventory,
+        })
+        return true
     end,
+
+    -- Unsupported features
+    GetStashItems = function() return {} end,
+    RemoveStashItem = function() return false end,
+    ClearStash = function() return false end,
+    AddTrunkItems = function() return false end,
 })

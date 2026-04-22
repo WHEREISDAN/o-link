@@ -2,6 +2,11 @@ if not olink._guardImpl('VehicleKey', 'qb-vehiclekeys', 'qb-vehiclekeys') then r
 if not olink._hasOverride('VehicleKey') and GetResourceState('oxide-vehicles') == 'started' then return end
 
 olink._register('vehiclekey', {
+    ---@return string
+    GetResourceName = function()
+        return 'qb-vehiclekeys'
+    end,
+
     ---@param vehicle number Entity handle
     ---@param plate string|nil
     Give = function(vehicle, plate)

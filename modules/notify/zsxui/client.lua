@@ -13,14 +13,15 @@ local mod = {
     ---@param message string
     ---@param notifType string|nil
     ---@param duration number|nil
-    Send = function(message, notifType, duration)
+    ---@param title string|nil
+    Send = function(message, notifType, duration, title)
         duration = duration or 3000
-        exports['ZSX_UIV2']:Notification('Notification', message, iconForType(notifType), duration)
+        exports['ZSX_UIV2']:Notification(title or 'Notification', message, iconForType(notifType), duration)
     end,
 }
 
-RegisterNetEvent('o-link:client:notify', function(message, notifType, duration)
-    mod.Send(message, notifType, duration)
+RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, title)
+    mod.Send(message, notifType, duration, title)
 end)
 
 olink._register('notify', mod)

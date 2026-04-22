@@ -172,10 +172,12 @@ olink._register('inventory', {
     end,
 
     ---@param id string
-    ---@param _type string|nil unused
+    ---@param _type string|nil 'stash', 'trunk', 'glovebox'
     ---@return boolean
     ClearStash = function(id, _type)
-        return false
+        if type(id) ~= 'string' then return false end
+        quasar:ClearOtherInventory(_type or 'stash', id)
+        return true
     end,
 
     ---@param identifier string plate or trunk identifier
@@ -189,7 +191,14 @@ olink._register('inventory', {
     ---@param newPlate string
     ---@return boolean
     UpdatePlate = function(oldPlate, newPlate)
-        return false
+        MySQL.transaction.await({
+            'UPDATE inventory_trunk SET plate = @newplate WHERE plate = @oldplate',
+            'UPDATE inventory_glovebox SET plate = @newplate WHERE plate = @oldplate',
+        }, { newplate = newPlate, oldplate = oldPlate })
+        if GetResourceState('jg-mechanic') == 'started' then
+            exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
+        end
+        return true
     end,
 
     ---@param src number

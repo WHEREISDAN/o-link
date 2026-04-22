@@ -5,14 +5,17 @@ local mod = {
     ---@param message string
     ---@param notifType string|nil
     ---@param duration number|nil
-    Send = function(message, notifType, duration)
+    ---@param title string|nil
+    Send = function(message, notifType, duration, title)
         duration = duration or 3000
-        exports['t-notify']:Alert({ style = notifType or 'info', message = message, duration = duration })
+        local payload = { style = notifType or 'info', message = message, duration = duration }
+        if title then payload.title = title end
+        exports['t-notify']:Alert(payload)
     end,
 }
 
-RegisterNetEvent('o-link:client:notify', function(message, notifType, duration)
-    mod.Send(message, notifType, duration)
+RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, title)
+    mod.Send(message, notifType, duration, title)
 end)
 
 olink._register('notify', mod)

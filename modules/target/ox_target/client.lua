@@ -1,6 +1,8 @@
 if not olink._guardImpl('Target', 'ox_target', 'ox_target') then return end
 
 local ox_target = exports.ox_target
+---Track zones per creator resource so we can clean them up on resource stop.
+---Shape: { [name] = { id = <zoneId>, creator = <resourceName> } }
 local targetZones = {}
 
 ---Process options to normalize onSelect/action handlers and job groups
@@ -26,6 +28,17 @@ local function FixOptions(options)
 end
 
 olink._register('target', {
+    ---@return string
+    GetResourceName = function()
+        return 'ox_target'
+    end,
+
+    ---Toggle the targeting system on or off for this player.
+    ---@param bool boolean
+    DisableTargeting = function(bool)
+        ox_target:disableTargeting(bool)
+    end,
+
     ---@param name string
     ---@param coords vector3
     ---@param size vector3
@@ -42,7 +55,7 @@ olink._register('target', {
             debug = debug or false,
             options = options,
         })
-        targetZones[name] = id
+        targetZones[name] = { id = id, creator = GetInvokingResource() }
         return id
     end,
 
@@ -60,16 +73,16 @@ olink._register('target', {
             debug = debug or false,
             options = options,
         })
-        targetZones[name] = id
+        targetZones[name] = { id = id, creator = GetInvokingResource() }
         return id
     end,
 
     ---@param name string
     RemoveZone = function(name)
         if not name then return end
-        local id = targetZones[name]
-        if id then
-            ox_target:removeZone(id)
+        local entry = targetZones[name]
+        if entry then
+            ox_target:removeZone(entry.id)
             targetZones[name] = nil
         end
     end,
@@ -99,6 +112,18 @@ olink._register('target', {
         ox_target:removeModel(model)
     end,
 
+    ---Attach options to every player ped.
+    ---@param options table
+    AddGlobalPlayer = function(options)
+        options = FixOptions(options)
+        ox_target:addGlobalPlayer(options)
+    end,
+
+    ---Remove options from every player ped.
+    RemoveGlobalPlayer = function()
+        ox_target:removeGlobalPlayer()
+    end,
+
     ---@param options table
     AddGlobalPed = function(options)
         options = FixOptions(options)
@@ -116,9 +141,19 @@ olink._register('target', {
         ox_target:addGlobalVehicle(options)
     end,
 
-    ---@param optionNames string[]
-    RemoveGlobalVehicle = function(optionNames)
-        ox_target:removeGlobalVehicle(optionNames)
+    ---Remove options from every vehicle. Accepts either an options table
+    ---(names extracted internally) or a raw name list.
+    ---@param options table|string[]
+    RemoveGlobalVehicle = function(options)
+        if type(options) == 'table' and options[1] and type(options[1]) == 'table' then
+            local names = {}
+            for _, v in pairs(options) do
+                if v.name then names[#names + 1] = v.name end
+            end
+            ox_target:removeGlobalVehicle(names)
+        else
+            ox_target:removeGlobalVehicle(options)
+        end
     end,
 
     ---@param netId number|number[]
@@ -134,3 +169,13 @@ olink._register('target', {
         ox_target:removeEntity(netId, optionNames)
     end,
 })
+
+-- Clean up zones when their creator resource stops so we don't leak options.
+AddEventHandler('onClientResourceStop', function(resource)
+    for name, entry in pairs(targetZones) do
+        if entry.creator == resource then
+            ox_target:removeZone(entry.id)
+            targetZones[name] = nil
+        end
+    end
+end)

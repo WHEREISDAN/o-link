@@ -5,6 +5,7 @@ local qbInventory = exports['qb-inventory']
 local QBCore = exports['qb-core']:GetCoreObject()
 
 local stashes = {}
+local shopData = {}
 
 ---Detect qb-inventory v2+ by checking the version metadata
 ---@return boolean
@@ -60,7 +61,12 @@ olink._register('inventory', {
     AddItem = function(src, item, count, slot, metadata)
         if v2 and not qbInventory:CanAddItem(src, item, count) then return false end
         local success = qbInventory:AddItem(src, item, count, slot, metadata, 'o-link')
-        return success == true
+        if not success then return false end
+        local itemData = QBCore.Shared.Items[item]
+        if itemData then
+            TriggerClientEvent('qb-inventory:client:ItemBox', src, itemData, 'add', count)
+        end
+        return true
     end,
 
     ---@param src number
@@ -71,7 +77,12 @@ olink._register('inventory', {
     ---@return boolean
     RemoveItem = function(src, item, count, slot, metadata)
         local success = qbInventory:RemoveItem(src, item, count, slot, 'o-link')
-        return success == true
+        if not success then return false end
+        local itemData = QBCore.Shared.Items[item]
+        if itemData then
+            TriggerClientEvent('qb-inventory:client:ItemBox', src, itemData, 'remove', count)
+        end
+        return true
     end,
 
     ---@param src number
@@ -157,8 +168,140 @@ olink._register('inventory', {
         end
     end,
 
+    ---@param id string
+    ---@param items table[] { item, count, metadata }
+    ---@return boolean
+    AddStashItems = function(id, items)
+        if type(items) ~= 'table' then return false end
+        if not v2 then
+            print('[o-link] qb-inventory v1 does not support AddStashItems')
+            return false
+        end
+        local success = false
+        for _, item in pairs(items) do
+            success = qbInventory:AddItem(id, item.item, item.count or item.amount, nil,
+                item.metadata or item.info, 'o-link: adding items to stash')
+        end
+        return success == true
+    end,
+
+    ---@param identifier string plate or trunk identifier
+    ---@param items table[]
+    ---@return boolean
+    AddTrunkItems = function(identifier, items)
+        if type(items) ~= 'table' then return false end
+        local trunkId = 'trunk-' .. identifier
+        if v2 then
+            if not qbInventory:GetInventory(trunkId) then
+                qbInventory:CreateInventory(trunkId, { label = trunkId, slots = 15, maxweight = 10000 })
+            end
+            Wait(100)
+            for i = 1, #items do
+                qbInventory:AddItem(trunkId, items[i].name, items[i].amount or items[i].count,
+                    items[i].slot, items[i].info or items[i].metadata or {}, 'o-link: adding items to trunk')
+            end
+            return true
+        end
+        TriggerEvent('inventory:server:addTrunkItems', trunkId, items)
+        return true
+    end,
+
+    ---@param id string
+    ---@param _type string|nil 'stash', 'trunk', 'glovebox'
+    ---@return boolean
+    ClearStash = function(id, _type)
+        if type(id) ~= 'string' then return false end
+        if stashes[id] then stashes[id] = nil end
+        if not v2 then
+            print('[o-link] qb-inventory v1 does not support ClearStash')
+            return false
+        end
+        if _type == 'trunk' then
+            id = 'trunk-' .. id
+        elseif _type == 'glovebox' then
+            id = 'glovebox-' .. id
+        end
+        if not qbInventory:GetInventory(id) then return true end
+        qbInventory:ClearStash(id)
+        return true
+    end,
+
+    ---@param oldPlate string
+    ---@param newPlate string
+    ---@return boolean
+    UpdatePlate = function(oldPlate, newPlate)
+        if v2 then
+            local glovebox = qbInventory:GetInventory('glovebox-' .. oldPlate) or { slots = 5, maxweight = 10000, items = {} }
+            local trunk = qbInventory:GetInventory('trunk-' .. oldPlate) or { slots = 5, maxweight = 10000, items = {} }
+            qbInventory:ClearStash('glovebox-' .. oldPlate)
+            qbInventory:ClearStash('trunk-' .. oldPlate)
+            qbInventory:CreateInventory('glovebox-' .. newPlate, {
+                label = 'glovebox-' .. newPlate,
+                slots = glovebox.slots,
+                maxweight = glovebox.maxweight,
+            })
+            qbInventory:SetInventory('glovebox-' .. newPlate, glovebox.items, 'o-link: plate migration')
+            qbInventory:CreateInventory('trunk-' .. newPlate, {
+                label = 'trunk-' .. newPlate,
+                slots = trunk.slots,
+                maxweight = trunk.maxweight,
+            })
+            qbInventory:SetInventory('trunk-' .. newPlate, trunk.items, 'o-link: plate migration')
+        else
+            MySQL.transaction.await({
+                'UPDATE inventory_glovebox SET plate = @newplate WHERE plate = @oldplate',
+                'UPDATE inventory_trunk SET plate = @newplate WHERE plate = @oldplate',
+            }, { newplate = newPlate, oldplate = oldPlate })
+        end
+        if GetResourceState('jg-mechanic') == 'started' then
+            exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
+        end
+        return true
+    end,
+
+    ---@param src number
+    ---@param shopTitle string
+    OpenShop = function(src, shopTitle)
+        if v2 then
+            qbInventory:OpenShop(src, shopTitle)
+            return
+        end
+        local data = shopData[shopTitle]
+        if not data then return end
+        TriggerClientEvent('inventory:client:OpenInventory', src, 'shop', shopTitle, data)
+    end,
+
+    ---@param shopTitle string
+    ---@param shopInventory table
+    ---@param shopCoords table|nil
+    ---@param shopGroups table|nil
+    ---@return boolean
+    RegisterShop = function(shopTitle, shopInventory, shopCoords, shopGroups)
+        if not shopTitle or not shopInventory then return false end
+        if shopData[shopTitle] then return true end
+
+        local repackedItems = {}
+        for _, v in pairs(shopInventory) do
+            repackedItems[#repackedItems + 1] = {
+                name   = v.name,
+                price  = v.price,
+                amount = v.count or v.amount or 1000,
+                info   = v.metadata or v.info or {},
+                type   = 'item',
+            }
+        end
+
+        if v2 then
+            shopData[shopTitle] = { inventory = repackedItems, coords = shopCoords, groups = shopGroups }
+            qbInventory:CreateShop({ name = shopTitle, label = shopTitle, coords = shopCoords, items = repackedItems })
+        else
+            shopData[shopTitle] = { label = shopTitle, items = repackedItems, slots = #repackedItems }
+        end
+        return true
+    end,
+
     ---@param item string
-    ---@return table {name, label, weight, description}
+    ---@return table {name, label, weight, description, image, stack}
     GetItemInfo = function(item)
         local data = QBCore.Shared.Items[item]
         if not data then return {} end
@@ -167,7 +310,19 @@ olink._register('inventory', {
             label = data.label,
             weight = data.weight,
             description = data.description,
+            stack = data.unique == nil and true or (not data.unique),
+            image = olink.inventory.GetImagePath and olink.inventory.GetImagePath(data.image or data.name),
         }
+    end,
+
+    ---@param src number
+    ---@param item string
+    ---@param slot number
+    ---@param metadata table
+    ---@return boolean
+    SetMetadata = function(src, item, slot, metadata)
+        qbInventory:SetItemData(src, item, 'info', metadata)
+        return true
     end,
 
     ---@param item string
@@ -176,7 +331,7 @@ olink._register('inventory', {
         item = olink._stripExt(item)
         local file = LoadResourceFile('qb-inventory', ('html/images/%s.png'):format(item))
         if file then return ('nui://qb-inventory/html/images/%s.png'):format(item) end
-        return ''
+        return 'https://avatars.githubusercontent.com/u/47620135'
     end,
 
     ---@return table All item definitions
@@ -196,6 +351,10 @@ olink._register('inventory', {
     ---@param id string
     ---@return table[]
     GetStashItems = function(id)
+        if v2 then
+            local inv = qbInventory:GetInventory(tostring(id))
+            return (inv and inv.items) or {}
+        end
         return {}
     end,
 
@@ -204,39 +363,10 @@ olink._register('inventory', {
     ---@param count number
     ---@return boolean
     RemoveStashItem = function(id, item, count)
+        if v2 then
+            local success = qbInventory:RemoveItem(tostring(id), item, count, nil, 'o-link: stash remove')
+            return success == true
+        end
         return false
-    end,
-
-    ---@param id string
-    ---@param _type string|nil unused
-    ---@return boolean
-    ClearStash = function(id, _type)
-        return false
-    end,
-
-    ---@param identifier string plate or trunk identifier
-    ---@param items table[]
-    ---@return boolean
-    AddTrunkItems = function(identifier, items)
-        return false
-    end,
-
-    ---@param oldPlate string
-    ---@param newPlate string
-    ---@return boolean
-    UpdatePlate = function(oldPlate, newPlate)
-        return false
-    end,
-
-    ---@param src number
-    ---@param shopTitle string
-    OpenShop = function(src, shopTitle)
-    end,
-
-    ---@param shopTitle string
-    ---@param shopInventory table
-    ---@param shopCoords table|nil
-    ---@param shopGroups table|nil
-    RegisterShop = function(shopTitle, shopInventory, shopCoords, shopGroups)
     end,
 })

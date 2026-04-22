@@ -1,4 +1,5 @@
 if not olink._guardImpl('Dispatch', 'lb-tablet', 'lb-tablet') then return end
+if not olink._hasOverride('Dispatch') and GetResourceState('oxide-dispatch') == 'started' then return end
 
 local function getPriorityLevel(priority)
     if priority == 1 then return 'low'

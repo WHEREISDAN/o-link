@@ -2,6 +2,7 @@
 -- Provides SendAlert that fires a server event, and receives alerts as notifications + blips.
 
 if not olink._guardImpl('Dispatch', '_default', false) then return end
+if not olink._hasOverride('Dispatch') and GetResourceState('oxide-dispatch') == 'started' then return end
 if not olink._hasOverride('Dispatch') and GetResourceState('ps-dispatch') == 'started' then return end
 if not olink._hasOverride('Dispatch') and GetResourceState('cd_dispatch') == 'started' then return end
 if not olink._hasOverride('Dispatch') and GetResourceState('lb-tablet') == 'started' then return end

@@ -1,4 +1,5 @@
 if not olink._guardImpl('Dispatch', 'redutzu-mdt', 'redutzu-mdt') then return end
+if not olink._hasOverride('Dispatch') and GetResourceState('oxide-dispatch') == 'started' then return end
 
 local function getStreetName(coords)
     if not coords then return 'Unknown' end

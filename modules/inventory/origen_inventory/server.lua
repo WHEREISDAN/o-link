@@ -20,6 +20,7 @@ olink._register('inventory', {
     ---@param metadata table|nil
     ---@return boolean
     AddItem = function(src, item, count, slot, metadata)
+        if not origin:canCarryItem(src, item, count) then return false end
         local success = origin:addItem(src, item, count, metadata, slot, false)
         return success == true
     end,
@@ -39,7 +40,7 @@ olink._register('inventory', {
     ---@param slot number
     ---@return table|nil SlotData
     GetItemBySlot = function(src, slot)
-        local inv = olink.inventory.GetPlayerInventory(src)
+        local inv = olink.inventory.GetPlayerInventory(src) or {}
         for _, v in pairs(inv) do
             if v.slot == slot then return v end
         end
@@ -71,7 +72,7 @@ olink._register('inventory', {
     ---@param count number|nil
     ---@return boolean
     HasItem = function(src, item, count)
-        return origin:getItemCount(src, item, nil, false) > ((count or 1) - 1)
+        return (origin:getItemCount(src, item, nil, false) or 0) >= (count or 1)
     end,
 
     ---@param id string
@@ -105,11 +106,18 @@ olink._register('inventory', {
     end,
 
     ---@param item string
-    ---@return table {name, label, weight, description}
+    ---@return table
     GetItemInfo = function(item)
         local data = origin:Items(item)
         if not data then return {} end
-        return { name = data.name, label = data.label, weight = data.weight, description = data.description }
+        return {
+            name = data.name,
+            label = data.label,
+            weight = data.weight or 0,
+            description = data.description,
+            stack = data.unique == nil and true or (not data.unique),
+            image = data.image or (olink.inventory.GetImagePath and olink.inventory.GetImagePath(item) or nil),
+        }
     end,
 
     ---@param src number
@@ -128,7 +136,7 @@ olink._register('inventory', {
         item = olink._stripExt(item)
         local file = LoadResourceFile('origen_inventory', ('html/images/%s.png'):format(item))
         if file then return ('nui://origen_inventory/html/images/%s.png'):format(item) end
-        return ''
+        return 'https://avatars.githubusercontent.com/u/47620135'
     end,
 
     ---@return table All item definitions
@@ -141,53 +149,73 @@ olink._register('inventory', {
     ---@param count number|nil
     ---@return boolean
     CanCarryItem = function(src, item, count)
-        return true
-    end,
-
-    ---@param id string
-    ---@return table[]
-    GetStashItems = function(id)
-        return {}
-    end,
-
-    ---@param id string
-    ---@param item string
-    ---@param count number
-    ---@return boolean
-    RemoveStashItem = function(id, item, count)
-        return false
-    end,
-
-    ---@param id string
-    ---@param _type string|nil unused
-    ---@return boolean
-    ClearStash = function(id, _type)
-        return false
+        return origin:canCarryItem(src, item, count or 1) == true
     end,
 
     ---@param identifier string plate or trunk identifier
     ---@param items table[]
     ---@return boolean
     AddTrunkItems = function(identifier, items)
-        return false
+        if type(items) ~= 'table' then return false end
+        local id = 'trunk_' .. identifier
+        local self = olink.inventory
+        if self and self.RegisterStash then
+            self.RegisterStash(id, identifier, 20, 10000, nil)
+        end
+        local repack = {}
+        for _, v in pairs(items) do
+            repack[#repack + 1] = {
+                name     = v.item,
+                amount   = v.count or v.amount,
+                metadata = v.metadata or v.info or {},
+            }
+        end
+        if #repack == 0 then return false end
+        origin:addItems(id, repack)
+        return true
+    end,
+
+    ---@param id string
+    ---@param _type string|nil 'stash', 'trunk', 'glovebox'
+    ---@return boolean
+    ClearStash = function(id, _type)
+        if type(id) ~= 'string' then return false end
+        if stashes[id] then stashes[id] = nil end
+        local fullId = id
+        if _type == 'trunk' then
+            fullId = 'trunk_' .. id
+        elseif _type == 'glovebox' then
+            fullId = 'glovebox_' .. id
+        elseif _type == 'stash' then
+            fullId = 'stash_' .. id
+        end
+        local inv = origin:getInventory(fullId, _type)
+        if not inv then return false end
+        for _, v in pairs(inv.inventory or {}) do
+            if v.slot then
+                origin:removeItem(fullId, v.name, v.amount, nil, v.slot)
+            end
+        end
+        return true
     end,
 
     ---@param oldPlate string
     ---@param newPlate string
     ---@return boolean
     UpdatePlate = function(oldPlate, newPlate)
-        return false
+        MySQL.transaction.await({
+            'UPDATE gloveboxitems SET plate = @newplate WHERE plate = @oldplate',
+            'UPDATE trunkitems SET plate = @newplate WHERE plate = @oldplate',
+        }, { newplate = newPlate, oldplate = oldPlate })
+        if GetResourceState('jg-mechanic') == 'started' then
+            exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
+        end
+        return true
     end,
 
-    ---@param src number
-    ---@param shopTitle string
-    OpenShop = function(src, shopTitle)
-    end,
-
-    ---@param shopTitle string
-    ---@param shopInventory table
-    ---@param shopCoords table|nil
-    ---@param shopGroups table|nil
-    RegisterShop = function(shopTitle, shopInventory, shopCoords, shopGroups)
-    end,
+    -- Unsupported features
+    GetStashItems = function() return {} end,
+    RemoveStashItem = function() return false end,
+    OpenShop = function() end,
+    RegisterShop = function() end,
 })
