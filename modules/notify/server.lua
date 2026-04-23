@@ -1,7 +1,42 @@
 -- Server-side notify relay: fires a client event that the client notify module listens to.
 local pendingConfirms = {}
 
+local function getNotifyResourceName()
+    local override = olink._getOverride('Notify')
+    if override then
+        return override
+    end
+
+    local resourceNames = {
+        'brutal_notify',
+        'fl-notify',
+        'lation_ui',
+        'mythic_notify',
+        'okokNotify',
+        'ox_lib',
+        'oxide-notify',
+        'pNotify',
+        'r_notify',
+        't-notify',
+        'wasabi_notify',
+        'ZSX_UIV2',
+        'zsxui',
+    }
+
+    for _, resourceName in ipairs(resourceNames) do
+        if GetResourceState(resourceName) == 'started' then
+            return resourceName
+        end
+    end
+
+    return '_default'
+end
+
 olink._register('notify', {
+    GetResourceName = function()
+        return getNotifyResourceName()
+    end,
+
     ---@param src number
     ---@param message string
     ---@param notifType string|nil
@@ -21,6 +56,14 @@ olink._register('notify', {
     ---@param props table|nil
     SendNotification = function(src, title, message, notifType, duration, props)
         TriggerClientEvent('o-link:client:notify', src, message, notifType, duration, title, props)
+    end,
+
+    ---@param src number
+    ---@param message string
+    ---@param notifType string|nil
+    ---@param duration number|nil
+    SendNotify = function(src, message, notifType, duration)
+        TriggerClientEvent('o-link:client:notify', src, message, notifType, duration, nil, nil)
     end,
 
     ---@param src number

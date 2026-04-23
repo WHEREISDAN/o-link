@@ -10,5 +10,13 @@ olink._registerDefault('framework', {
     GetResourceName = function() return '_default' end,
     GetName = function() return '_default' end,
     GetIsPlayerLoaded = function() return false end,
+    ShowHelpText = function(message, position)
+        BeginTextCommandDisplayHelp('STRING')
+        AddTextComponentSubstringPlayerName(tostring(message or ''))
+        EndTextCommandDisplayHelp(0, false, true, -1)
+    end,
+    HideHelpText = function()
+        ClearAllHelpMessages()
+    end,
     IsAdmin = function() return false end,
 })

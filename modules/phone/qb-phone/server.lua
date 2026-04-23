@@ -5,8 +5,6 @@ if not olink._hasOverride('Phone') and GetResourceState('okokPhone') == 'started
 if not olink._hasOverride('Phone') and GetResourceState('qs-smartphone') == 'started' then return end
 if not olink._hasOverride('Phone') and GetResourceState('yseries') == 'started' then return end
 
-local QBCore = exports['qb-core']:GetCoreObject()
-
 olink._register('phone', {
     ---@return string
     GetPhoneName = function()
@@ -21,9 +19,20 @@ olink._register('phone', {
     ---@param src number
     ---@return number|boolean
     GetPlayerPhone = function(src)
-        local player = QBCore.Functions.GetPlayer(src)
-        if not player then return false end
-        return player.PlayerData.charinfo and player.PlayerData.charinfo.phone or false
+        local identifier = olink.character.GetIdentifier(src)
+        if not identifier then return false end
+
+        local row = MySQL.single.await('SELECT charinfo FROM players WHERE citizenid = ?', { identifier })
+        if not row or not row.charinfo then return false end
+
+        local charinfo = row.charinfo
+        if type(charinfo) == 'string' then
+            local ok, decoded = pcall(json.decode, charinfo)
+            if not ok or type(decoded) ~= 'table' then return false end
+            charinfo = decoded
+        end
+
+        return type(charinfo) == 'table' and charinfo.phone or false
     end,
 
     ---@param src number

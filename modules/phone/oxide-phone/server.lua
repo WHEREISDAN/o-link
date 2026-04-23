@@ -33,3 +33,8 @@ olink._register('phone', {
         return false
     end,
 })
+
+RegisterNetEvent('o-link:phone:oxide-phone:sendEmail', function(data)
+    local src = source
+    olink.phone.SendEmail(src, data.email, data.title, data.message)
+end)

@@ -1,5 +1,4 @@
 if not olink._guardImpl('Notify', 'ox_lib', 'ox_lib') then return end
-if not olink._hasOverride('Notify') and GetResourceState('oxide-notify') == 'started' then return end
 
 local mod = {
     ---@param message string
@@ -25,4 +24,4 @@ RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, 
     mod.Send(message, notifType, duration, title, props)
 end)
 
-olink._register('notify', mod)
+olink._register('notify', mod, 'ox_lib')

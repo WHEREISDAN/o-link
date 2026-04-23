@@ -24,9 +24,8 @@ local function Send(message)
 end
 
 olink._registerDefault('notify', {
-    GetResourceName = function() return '_default' end,
     Send = function(message, _notifType, _duration, _title, _props) Send(message) end,
-})
+}, '_default')
 
 RegisterNetEvent('o-link:client:notify', function(message)
     Send(message)

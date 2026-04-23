@@ -1,5 +1,4 @@
 if not olink._guardImpl('Notify', 'zsxui', 'ZSX_UIV2') then return end
-if not olink._hasOverride('Notify') and GetResourceState('oxide-notify') == 'started' then return end
 
 local function iconForType(notifType)
     if notifType == 'success' then return 'check-circle'
@@ -24,4 +23,4 @@ RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, 
     mod.Send(message, notifType, duration, title)
 end)
 
-olink._register('notify', mod)
+olink._register('notify', mod, 'ZSX_UIV2')

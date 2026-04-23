@@ -1,5 +1,4 @@
 if not olink._guardImpl('Notify', 'fl-notify', 'FL-Notify') then return end
-if not olink._hasOverride('Notify') and GetResourceState('oxide-notify') == 'started' then return end
 
 local function typeToCode(notifType)
     if notifType == 'error' or notifType == 'info' then
@@ -25,4 +24,4 @@ RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, 
     mod.Send(message, notifType, duration, title)
 end)
 
-olink._register('notify', mod)
+olink._register('notify', mod, 'FL-Notify')

@@ -1,6 +1,7 @@
 olink = {}
 
 local capabilities = {}
+local moduleKinds = {}
 local warnedCalls = {}
 
 local side = IsDuplicityVersion() and 'server' or 'client'
@@ -12,6 +13,13 @@ function olink._warnMissing(namespace, fn)
     local key = namespace .. '.' .. fn
     if warnedCalls[key] then return end
     warnedCalls[key] = true
+    local kind = moduleKinds[namespace]
+    if kind == 'fallback' then
+        print(('^3[o-link] %s: olink.%s() was called with only fallback defaults loaded for "%s". Returning fallback values. Use olink.supports(%q) to guard optional features.^0')
+            :format(side, key, namespace, key))
+        return
+    end
+
     print(('^3[o-link] %s: olink.%s() was called but no "%s" module is loaded. Returning defaults. Use olink.supports(%q) to guard optional features.^0')
         :format(side, key, namespace, key))
 end
@@ -52,10 +60,91 @@ local function normalizeName(value)
     return type(value) == 'string' and value:lower() or nil
 end
 
+---@param namespace string
+---@param impl table
+---@param implName string|nil
+local function applyCompat(namespace, impl, implName)
+    local ns = normalizeName(namespace)
+
+    if ns == 'notify' then
+        if implName and type(impl.GetResourceName) ~= 'function' then
+            impl.GetResourceName = function()
+                return implName
+            end
+        end
+
+        if side == 'client' then
+            if type(impl.Send) == 'function' and type(impl.SendNotify) ~= 'function' then
+                impl.SendNotify = function(message, notifType, duration)
+                    return impl.Send(message, notifType, duration, nil, nil)
+                end
+            end
+
+            if type(impl.Send) == 'function' and type(impl.SendNotification) ~= 'function' then
+                impl.SendNotification = function(title, message, notifType, duration, props)
+                    return impl.Send(message, notifType, duration, title, props)
+                end
+            end
+
+            if implName == '_default' and type(impl.ShowHelpText) ~= 'function' then
+                impl.ShowHelpText = function(message, position)
+                    return olink.helptext.Show(message, position)
+                end
+            end
+
+            if implName == '_default' and type(impl.HideHelpText) ~= 'function' then
+                impl.HideHelpText = function()
+                    return olink.helptext.Hide()
+                end
+            end
+        else
+            if type(impl.SendNotify) ~= 'function' then
+                if type(impl.SendNotification) == 'function' then
+                    impl.SendNotify = function(src, message, notifType, duration)
+                        return impl.SendNotification(src, nil, message, notifType, duration)
+                    end
+                elseif type(impl.Send) == 'function' then
+                    impl.SendNotify = function(src, message, notifType, duration)
+                        return impl.Send(src, message, notifType, duration)
+                    end
+                end
+            end
+
+            if type(impl.ShowHelpText) ~= 'function' then
+                impl.ShowHelpText = function(src, message, position)
+                    return olink.helptext.Show(src, message, position)
+                end
+            end
+
+            if type(impl.HideHelpText) ~= 'function' then
+                impl.HideHelpText = function(src)
+                    return olink.helptext.Hide(src)
+                end
+            end
+        end
+    elseif ns == 'helptext' then
+        if implName and type(impl.GetResourceName) ~= 'function' then
+            impl.GetResourceName = function()
+                return implName
+            end
+        end
+
+        if type(impl.Show) == 'function' and type(impl.ShowHelpText) ~= 'function' then
+            impl.ShowHelpText = impl.Show
+        end
+
+        if type(impl.Hide) == 'function' and type(impl.HideHelpText) ~= 'function' then
+            impl.HideHelpText = impl.Hide
+        end
+    end
+end
+
 ---Merge functions from `impl` into the namespace table. Existing entries are overwritten.
 ---@param namespace string
 ---@param impl table
-local function mergeImpl(namespace, impl)
+---@param implName string|nil
+local function mergeImpl(namespace, impl, implName)
+    applyCompat(namespace, impl, implName)
     local existing = rawget(olink, namespace)
     if type(existing) ~= 'table' then
         existing = {}
@@ -70,18 +159,26 @@ end
 ---`olink.supports()` returns true for loaded functions.
 ---@param namespace string Module namespace (e.g. 'framework', 'character', 'job')
 ---@param impl table Table of functions returned by the module implementation
-function olink._register(namespace, impl)
-    mergeImpl(namespace, impl)
+---@param implName string|nil
+function olink._register(namespace, impl, implName)
+    mergeImpl(namespace, impl, implName)
     capabilities[namespace] = true
+    moduleKinds[namespace] = 'real'
 end
 
----Register a default/stub implementation for a namespace. Does NOT flip the
----capability flag — `olink.supports()` still returns false. Real implementations
----loaded later will overwrite these stubs.
+---Register a default/stub implementation for a namespace. Fallback namespaces
+---are still considered loaded so `olink.supports()` , where defaults remain callable when no custom
+---implementation is present. Real implementations loaded later overwrite these
+---stubs.
 ---@param namespace string
 ---@param impl table
-function olink._registerDefault(namespace, impl)
-    mergeImpl(namespace, impl)
+---@param implName string|nil
+function olink._registerDefault(namespace, impl, implName)
+    mergeImpl(namespace, impl, implName)
+    capabilities[namespace] = true
+    if moduleKinds[namespace] ~= 'real' then
+        moduleKinds[namespace] = 'fallback'
+    end
 end
 
 ---Build a stub table of warning-return functions for the given namespace.
@@ -183,9 +280,16 @@ function olink.supports(path)
     return not first
 end
 
----@return table<string, boolean> Map of loaded module namespaces
+---@return table<string, { loaded: boolean, kind: string|nil }>
 function olink._getCapabilities()
-    return capabilities
+    local out = {}
+    for namespace, loaded in pairs(capabilities) do
+        out[namespace] = {
+            loaded = loaded,
+            kind = moduleKinds[namespace],
+        }
+    end
+    return out
 end
 
 ---Strip .png / .webp extension from an item name for image path resolution.
