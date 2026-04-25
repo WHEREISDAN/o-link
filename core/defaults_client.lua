@@ -58,7 +58,9 @@ stub('progressbar', {
 })
 
 stub('vehiclekey', {
-    'Give', 'Remove',
+    'Give', 'Remove', 'GetResourceName',
+}, {
+    GetResourceName = 'none',
 })
 
 stub('fuel', {
@@ -140,9 +142,16 @@ stub('clothing', {
 
 stub('dispatch', {
     'GetResourceName', 'SendAlert',
+    'GetActiveAlerts', 'GetAlert', 'RespondToAlert',
+    'StopResponding', 'UpdateResponderStatus', 'CloseAlert',
 }, {
     GetResourceName = 'none',
     SendAlert = false,
+    GetActiveAlerts = function() return {} end,
+    RespondToAlert = false,
+    StopResponding = false,
+    UpdateResponderStatus = false,
+    CloseAlert = false,
 })
 
 stub('doorlock', {

@@ -5,6 +5,7 @@ if not olink._guardImpl('Banking', '_default', false) then return end
 if not olink._hasOverride('Banking') and GetResourceState('fd_banking') == 'started' then return end
 if not olink._hasOverride('Banking') and GetResourceState('kartik-banking') == 'started' then return end
 if not olink._hasOverride('Banking') and GetResourceState('okokBanking') == 'started' then return end
+if not olink._hasOverride('Banking') and GetResourceState('oxide-banking') == 'started' then return end
 if not olink._hasOverride('Banking') and GetResourceState('qb-banking') == 'started' then return end
 if not olink._hasOverride('Banking') and GetResourceState('Renewed-Banking') == 'started' then return end
 if not olink._hasOverride('Banking') and GetResourceState('renewed-banking') == 'started' then return end

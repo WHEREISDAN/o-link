@@ -1,13 +1,26 @@
-if not olink._guardImpl('Dispatch', 'oxide-dispatch', 'oxide-dispatch') then return end
+-- Adapter for oxide-dispatch (client). Registers IMMEDIATELY so consumers that
+-- snapshot olink across the resource boundary capture real wrapper refs, not stubs.
+
+local RESOURCE = 'oxide-dispatch'
+
+-- Pure adapter: bail if the resource isn't installed so other dispatch impls
+-- own the namespace.
+if GetResourceState(RESOURCE) == 'missing' then return end
+if not olink._guardImpl('Dispatch', RESOURCE, false) then return end
+
+local function isStarted()
+    return GetResourceState(RESOURCE) == 'started'
+end
 
 olink._register('dispatch', {
     ---@return string
-    GetResourceName = function() return 'oxide-dispatch' end,
+    GetResourceName = function() return RESOURCE end,
 
     ---Submit a new alert.
     ---@param data table
     SendAlert = function(data)
         if type(data) ~= 'table' then return end
+        if not isStarted() then return end
         local ped = PlayerPedId()
         TriggerServerEvent('oxide:dispatch:sendAlert', {
             code          = data.code,
@@ -28,33 +41,39 @@ olink._register('dispatch', {
     ---@param jobFilter? string|string[]
     ---@return table[]
     GetActiveAlerts = function(jobFilter)
+        if not isStarted() then return {} end
         return olink.callback.Trigger('oxide-dispatch:server:getActiveAlerts', jobFilter) or {}
     end,
 
     ---@param alertId integer
     GetAlert = function(alertId)
+        if not isStarted() then return nil end
         return olink.callback.Trigger('oxide-dispatch:server:getAlert', alertId)
     end,
 
     ---@param alertId integer
     RespondToAlert = function(alertId)
+        if not isStarted() then return false end
         return olink.callback.Trigger('oxide-dispatch:server:respond', alertId)
     end,
 
     ---@param alertId integer
     StopResponding = function(alertId)
+        if not isStarted() then return false end
         return olink.callback.Trigger('oxide-dispatch:server:stopResponding', alertId)
     end,
 
     ---@param alertId integer
     ---@param status 'responding'|'on_scene'|'cleared'
     UpdateResponderStatus = function(alertId, status)
+        if not isStarted() then return false end
         return olink.callback.Trigger('oxide-dispatch:server:setResponderStatus', alertId, status)
     end,
 
     ---@param alertId integer
     ---@param reason? string
     CloseAlert = function(alertId, reason)
+        if not isStarted() then return false end
         return olink.callback.Trigger('oxide-dispatch:server:closeAlert', alertId, reason)
     end,
-})
+}, RESOURCE)

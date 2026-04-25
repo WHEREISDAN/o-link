@@ -82,6 +82,10 @@ stub('inventory', {
 stub('vehicles', {
     'SearchByPlate', 'GetByPlate', 'GetByOwner', 'ImpoundVehicle',
     'ReleaseImpound', 'GetVehicleState', 'SaveVehicleProps',
+    'GeneratePlate', 'RegisterVehicle', 'UnregisterVehicle', 'GetVehicleOwner',
+    'GetOwnedVehicles', 'GetVehicleByPlate', 'GiveKey', 'RemoveKey', 'HasKey',
+    'GetKeysForPlayer', 'IsVehicleLocked', 'SetVehicleLocked', 'RepairVehicle',
+    'AddSharedVehicle', 'RemoveSharedVehicle', 'GetSharedVehicles',
 }, {
     SearchByPlate = function() return {} end,
     GetByOwner = function() return {} end,
@@ -89,6 +93,20 @@ stub('vehicles', {
     ReleaseImpound = false,
     GetVehicleState = false,
     SaveVehicleProps = false,
+    GeneratePlate = function() return '' end,
+    RegisterVehicle = false,
+    UnregisterVehicle = false,
+    GetOwnedVehicles = function() return {} end,
+    GiveKey = false,
+    RemoveKey = false,
+    HasKey = false,
+    GetKeysForPlayer = function() return {} end,
+    IsVehicleLocked = false,
+    SetVehicleLocked = false,
+    RepairVehicle = false,
+    AddSharedVehicle = false,
+    RemoveSharedVehicle = false,
+    GetSharedVehicles = function() return {} end,
 })
 
 stub('vehicleOwnership', {
@@ -101,12 +119,24 @@ stub('vehicleOwnership', {
 stub('banking', {
     'AddAccountMoney', 'GetAccountMoney', 'GetManagmentName', 'GetResourceName',
     'RemoveAccountMoney',
+    'IsReady', 'GetBalance', 'GetAccount', 'AddMoney', 'RemoveMoney',
+    'CreatePlayerAccount', 'CreateJobAccount', 'GetPlayerAccounts',
+    'GetPlayerBankingData', 'GetCreditScore', 'CanAfford',
 }, {
     AddAccountMoney = false,
     GetAccountMoney = 0,
     GetManagmentName = 'none',
     GetResourceName = 'none',
     RemoveAccountMoney = false,
+    IsReady = false,
+    GetBalance = 0,
+    AddMoney = false,
+    RemoveMoney = false,
+    CreatePlayerAccount = false,
+    CreateJobAccount = false,
+    GetPlayerAccounts = function() return {} end,
+    GetCreditScore = function() return 600 end,
+    CanAfford = false,
 })
 
 stub('notify', {
@@ -140,8 +170,15 @@ stub('clothing', {
 
 stub('dispatch', {
     'GetResourceName',
+    'CreateAlert', 'GetActiveAlerts', 'GetAlert', 'RespondToAlert',
+    'StopResponding', 'UpdateResponderStatus', 'CloseAlert',
 }, {
     GetResourceName = 'none',
+    GetActiveAlerts = function() return {} end,
+    RespondToAlert = false,
+    StopResponding = false,
+    UpdateResponderStatus = false,
+    CloseAlert = false,
 })
 
 stub('doorlock', {

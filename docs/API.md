@@ -159,13 +159,37 @@ olink.supports('vehicleproperties.GetVehicleProperties')
 
 ## Module: vehicles (server only)
 
+Provided by `oxide-vehicles` adapter at [`../modules/vehicles/oxide-vehicles/server.lua`](../modules/vehicles/oxide-vehicles/server.lua) (registered immediately at o-link load; wrappers gate on resource state at call time). Generic helpers `IsOwnedBy` / `GetOwnedPlates` come from [`../modules/vehicles/server.lua`](../modules/vehicles/server.lua).
+
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
-| `SearchByPlate(plate, limit?)` | `plate: string, limit?: number` | `table[]` | Search by plate |
-| `GetByPlate(plate)` | `plate: string` | `table\|nil` | Vehicle record with owner data |
-| `GetByOwner(identifier)` | `identifier: string` | `table[]` | Vehicles for an owner |
-| `IsOwnedBy(src, plate)` | `src: number, plate: string` | `boolean` | Whether the vehicle with that plate belongs to the player |
-| `GetOwnedPlates(src)` | `src: number` | `string[]` | Plates owned by the player |
+| `GetResourceName()` |  | `string` | Active provider, e.g. `'oxide-vehicles'` |
+| `SearchByPlate(plate, limit?)` | `plate: string, limit?: number` | `table[]` | Fuzzy plate search joined with owner record |
+| `GetByPlate(plate)` | `plate: string` | `table\|nil` | Vehicle record + owner fields (`charId`, `ownerFirst`, `ownerStateId`, etc.) |
+| `GetByOwner(identifier)` | `identifier: string` (stateId or charId) | `table[]` | Vehicles for an owner |
+| `IsOwnedBy(src, plate)` | `src: number, plate: string` | `boolean` | Whether the plate belongs to the calling player |
+| `GetOwnedPlates(src)` | `src: number` | `string[]` | Plates owned by the calling player |
+| `GeneratePlate()` |  | `string` | Generate a unique plate per resource conventions |
+| `RegisterVehicle(charId, model, plate, props?, type?)` | | `boolean` | Insert an owned vehicle row |
+| `UnregisterVehicle(plate)` | `plate: string` | `boolean` | Delete an owned vehicle row |
+| `GetVehicleOwner(plate)` | `plate: string` | `number\|nil` | Owner charId for a plate |
+| `GetOwnedVehicles(charId)` | `charId: number` | `table[]` | All owned vehicles for a charId |
+| `GetVehicleByPlate(plate)` | `plate: string` | `table\|nil` | Raw vehicle row (does NOT join characters) |
+| `TransferOwnership(plate, newCharId)` | | `boolean` | Reassign owned vehicle to a new charId |
+| `GiveKey(charId, plate, model?)` | | `boolean` | Grant key (item or session) for plate |
+| `RemoveKey(charId, plate)` | | `boolean` | Revoke key for plate |
+| `HasKey(charId, plate)` | | `boolean` | Whether the player has a key |
+| `GetKeysForPlayer(charId)` | | `table[]` | All keys held by the player |
+| `IsVehicleLocked(plate)` | | `boolean` | Vehicle locked state |
+| `SetVehicleLocked(plate, locked)` | | `boolean` | Lock/unlock and sync to entity |
+| `ImpoundVehicle(plate, fee?, lot?)` | | `boolean` | Impound the vehicle |
+| `ReleaseImpound(plate)` | | `boolean` | Release from impound |
+| `GetVehicleState(plate)` | | `any` | Internal state snapshot |
+| `SaveVehicleProps(plate, propsJson)` | | `boolean` | Persist serialized properties |
+| `RepairVehicle(plate)` | | `boolean` | Mark vehicle fully repaired |
+| `AddSharedVehicle(groupType, groupName, model, plate, type?, garage?)` | | `boolean` | Add a job/gang shared vehicle |
+| `RemoveSharedVehicle(plate)` | | `boolean` | Remove a shared vehicle |
+| `GetSharedVehicles(groupType, groupName)` | | `table[]` | List shared vehicles for a group |
 
 ## Module: vehicleproperties (client only)
 
@@ -314,12 +338,40 @@ Ox-style aliases are available under `olink.radial`: `RegisterRadial`,
 | `RemoveJobCount(src, jobName?)` | `src: number, jobName?: string` | `nil` | Remove a source from tracking |
 | `SearchJobCountBySource(src)` | `src: number` | `string\|nil` | Get tracked job name for a source |
 
+## Module: banking (server only)
+
+Adapter selection follows the standard priority: an explicit `Config.Overrides.Banking` wins; otherwise the first started banking resource registers via its adapter. The `oxide-banking` adapter at [`../modules/banking/oxide-banking/server.lua`](../modules/banking/oxide-banking/server.lua) registers immediately at o-link load time and gates per-call on `IsReady()` / `GetResourceState`.
+
+The qb-banking-style names (`AddAccountMoney`, `GetAccountMoney`, `RemoveAccountMoney`, `GetManagmentName`, `GetResourceName`) are common across every adapter. The richer surface below is currently exposed by the `oxide-banking` adapter; other adapters may not implement all of it — guard with `olink.supports('banking.<Fn>')`.
+
+### Note on init timing
+oxide-banking takes 1-5s after its resource starts to finish DB load (accounts, statements, credit scores, cards). The adapter registers immediately on `'started'` but read-side functions (`GetBalance`, `GetAccount`, `GetCreditScore`, `CanAfford`, `GetPlayerAccounts`, `GetPlayerBankingData`) early-return safe defaults until `IsReady()` returns true. Write-side functions (`AddMoney`, `RemoveMoney`, `CreatePlayerAccount`, `CreateJobAccount`) defer to oxide-banking's own internal guards.
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetResourceName()` | | `string` | Active provider, e.g. `'oxide-banking'` |
+| `GetManagmentName()` | | `string` | qb-banking compat surface — same as `GetResourceName` for oxide-banking |
+| `IsReady()` | | `boolean` | True once DB load completes |
+| `GetBalance(accountName)` | `accountName: string` | `number` | Account balance (0 if missing or not ready) |
+| `GetAccount(accountName)` | `accountName: string` | `table\|nil` | Account record |
+| `AddMoney(accountName, amount, reason?)` | | `boolean` | Add funds to an account |
+| `RemoveMoney(accountName, amount, reason?)` | | `boolean` | Remove funds from an account |
+| `CreatePlayerAccount(citizenid, accountName, balance?, users?)` | | `boolean` | Create a new player account |
+| `CreateJobAccount(accountName, balance?)` | | `boolean` | Create a new shared job account |
+| `GetPlayerAccounts(citizenid)` | `citizenid: string` | `table[]` | All accounts the player has access to |
+| `GetPlayerBankingData(citizenid)` | `citizenid: string` | `table\|nil` | Bundled profile (tier, limits, history) |
+| `GetCreditScore(citizenid)` | `citizenid: string` | `number` | Credit score (default 600 if missing/not ready) |
+| `CanAfford(citizenid, amount, accountName?)` | | `boolean` | Whether the player can withdraw `amount` |
+| `AddAccountMoney(...)` `RemoveAccountMoney(...)` `GetAccountMoney(...)` | | | qb-banking-style names — present in qb-banking / renewed-banking adapters; not aliased by oxide-banking yet |
+
 ## Module: dispatch (server + client)
 
 The base `SendAlert` contract is supported by every adapter. Adapters backed by
 `oxide-dispatch` additionally expose persistent alert management — read/respond/close
 — callable from both sides. When a non-persistent adapter is active, the extension
 functions return empty results; guard with `olink.supports('dispatch.GetActiveAlerts')`.
+
+The oxide-dispatch adapter at [`../modules/dispatch/oxide-dispatch/(server|client).lua`](../modules/dispatch/oxide-dispatch/server.lua) registers immediately at o-link load time and gates per-call on `GetResourceState`.
 
 ### Client
 

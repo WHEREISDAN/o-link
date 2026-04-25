@@ -49,8 +49,6 @@ local function ConvertItems(menuId, items, menuOnSelect)
         else
             local needsBridge = type(item.onSelect) == 'function'
                 or type(menuOnSelect) == 'function'
-                or item.event ~= nil
-                or item.serverEvent ~= nil
 
             if needsBridge then
                 local key = callbackKey(menuId, itemId)
@@ -66,6 +64,7 @@ local function ConvertItems(menuId, items, menuOnSelect)
                     menuOnSelect = menuOnSelect,
                 }
                 out.event = BRIDGE_SELECT_EVENT
+                out.__olinkRadialKey = key
                 out.args = {
                     __olinkRadialKey = key,
                     args = item.args,
@@ -95,21 +94,36 @@ ConvertMenu = function(menu, fallbackId, fallbackOnSelect)
         id = id,
         title = menu.title or menu.label or '',
         items = ConvertItems(id, menu.items or {}, menuOnSelect),
-        onClose = closeCallbacks[id] and function(menuId)
-            TriggerEvent(BRIDGE_CLOSE_EVENT, menuId or id)
-        end or nil,
+        closeEvent = closeCallbacks[id] and BRIDGE_CLOSE_EVENT or menu.closeEvent,
+        closeArgs = closeCallbacks[id] and { menuId = id } or menu.closeArgs,
     }
 end
 
-AddEventHandler(BRIDGE_SELECT_EVENT, function(payload)
-    local key = type(payload) == 'table' and payload.__olinkRadialKey or nil
+AddEventHandler(BRIDGE_SELECT_EVENT, function(payload, selectedItem, itemIndex, menuId)
+    local key
+
+    if type(payload) == 'table' then
+        key = payload.__olinkRadialKey
+    elseif type(payload) == 'string' then
+        key = payload
+    end
+
+    if not key and type(selectedItem) == 'table' then
+        key = selectedItem.__olinkRadialKey
+        if not key and type(selectedItem.args) == 'table' then
+            key = selectedItem.args.__olinkRadialKey
+        end
+    end
+
     local data = key and radialCallbacks[key] or nil
     if not data then return end
 
     local args = type(payload) == 'table' and payload.args or data.args
+    local resolvedIndex = itemIndex or data.index
+    local resolvedMenuId = menuId or data.menuId
 
     if type(data.onSelect) == 'function' then
-        local success, err = pcall(data.onSelect, args, data.item, data.index, data.menuId)
+        local success, err = pcall(data.onSelect, args, data.item, resolvedIndex, resolvedMenuId)
         if not success then
             print('[o-link] radial item callback failed: ' .. tostring(err))
         end
@@ -124,18 +138,19 @@ AddEventHandler(BRIDGE_SELECT_EVENT, function(payload)
     end
 
     if type(data.menuOnSelect) == 'function' then
-        local success, err = pcall(data.menuOnSelect, data.item, data.index, data.menuId)
+        local success, err = pcall(data.menuOnSelect, data.item, resolvedIndex, resolvedMenuId)
         if not success then
             print('[o-link] radial menu callback failed: ' .. tostring(err))
         end
     end
 end)
 
-AddEventHandler(BRIDGE_CLOSE_EVENT, function(menuId)
-    local cb = closeCallbacks[menuId]
+AddEventHandler(BRIDGE_CLOSE_EVENT, function(payload, menuId)
+    local id = type(payload) == 'table' and payload.menuId or payload or menuId
+    local cb = closeCallbacks[id]
     if not cb then return end
 
-    local success, err = pcall(cb, menuId)
+    local success, err = pcall(cb, id)
     if not success then
         print('[o-link] radial close callback failed: ' .. tostring(err))
     end
