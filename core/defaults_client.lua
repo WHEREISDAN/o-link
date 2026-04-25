@@ -91,6 +91,32 @@ stub('menu', {
     GetResourceName = 'none',
 })
 
+stub('radial', {
+    'GetResourceName', 'Register', 'Unregister', 'Open', 'Close',
+    'IsOpen', 'GetCurrentId', 'AddItem', 'RemoveItem', 'ClearItems',
+    'Disable', 'Refresh', 'RegisterRadial', 'AddRadialItem',
+    'RemoveRadialItem', 'ClearRadialItems', 'HideRadial',
+    'DisableRadial', 'GetCurrentRadialId',
+}, {
+    GetResourceName = 'none',
+    Register = false,
+    Unregister = false,
+    Open = false,
+    Close = false,
+    IsOpen = false,
+    AddItem = false,
+    RemoveItem = false,
+    ClearItems = false,
+    Disable = false,
+    Refresh = false,
+    RegisterRadial = false,
+    AddRadialItem = false,
+    RemoveRadialItem = false,
+    ClearRadialItems = false,
+    HideRadial = false,
+    DisableRadial = false,
+})
+
 stub('zones', {
     'Create', 'Destroy', 'DestroyByResource', 'Get',
 }, {

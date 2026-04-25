@@ -1,4 +1,4 @@
-if not olink._guardImpl('Notify', 'okokNotify', 'okokNotify') then return end
+if not olink._guardNotifyAdapter('okokNotify', 'okokNotify') then return end
 
 local mod = {
     ---@param message string
@@ -10,9 +10,5 @@ local mod = {
         exports['okokNotify']:Alert(title or 'Notification', message, duration, notifType or 'Success', false)
     end,
 }
-
-RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, title)
-    mod.Send(message, notifType, duration, title)
-end)
 
 olink._register('notify', mod, 'okokNotify')

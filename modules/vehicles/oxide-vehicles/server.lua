@@ -10,6 +10,10 @@ local function ResolveCharId(identifier)
     return tonumber(row)
 end
 
+local function NormalizePlate(plate)
+    return plate and tostring(plate):match('^%s*(.-)%s*$') or nil
+end
+
 olink._register('vehicles', {
     ---@param plate string
     ---@param limit number|nil
@@ -90,5 +94,56 @@ olink._register('vehicles', {
             ownerStateId = row.state_id,
             ownerDob   = row.date_of_birth,
         }
+    end,
+
+    ---@param plate string
+    ---@param fee number|nil
+    ---@param lot string|nil
+    ---@return boolean
+    ImpoundVehicle = function(plate, fee, lot)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' then return false end
+        if GetResourceState('oxide-vehicles') ~= 'started' then return false end
+        local ok = pcall(function()
+            exports['oxide-vehicles']:ImpoundVehicle(plate, tonumber(fee) or 0, lot or 'main')
+        end)
+        return ok == true
+    end,
+
+    ---@param plate string
+    ---@return boolean
+    ReleaseImpound = function(plate)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' then return false end
+        if GetResourceState('oxide-vehicles') ~= 'started' then return false end
+        local ok, result = pcall(function()
+            return exports['oxide-vehicles']:ReleaseImpound(plate)
+        end)
+        return ok == true and result == true
+    end,
+
+    ---@param plate string
+    ---@return any
+    GetVehicleState = function(plate)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' then return nil end
+        if GetResourceState('oxide-vehicles') ~= 'started' then return nil end
+        local ok, result = pcall(function()
+            return exports['oxide-vehicles']:GetVehicleState(plate)
+        end)
+        return ok and result or nil
+    end,
+
+    ---@param plate string
+    ---@param propsJson string
+    ---@return boolean
+    SaveVehicleProps = function(plate, propsJson)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' or not propsJson then return false end
+        if GetResourceState('oxide-vehicles') ~= 'started' then return false end
+        local ok, result = pcall(function()
+            return exports['oxide-vehicles']:SaveVehicleProps(plate, propsJson)
+        end)
+        return ok == true and result == true
     end,
 })

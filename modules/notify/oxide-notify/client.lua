@@ -1,4 +1,4 @@
-if not olink._guardImpl('Notify', 'oxide-notify', 'oxide-notify') then return end
+if not olink._guardNotifyAdapter('oxide-notify', 'oxide-notify') then return end
 
 local mod = {
     ---@param message string
@@ -19,10 +19,5 @@ local mod = {
         exports['oxide-notify']:Notify(payload)
     end,
 }
-
--- Listen for server-side Send() relay
-RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, title, props)
-    mod.Send(message, notifType, duration, title, props)
-end)
 
 olink._register('notify', mod, 'oxide-notify')

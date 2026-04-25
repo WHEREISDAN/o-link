@@ -178,6 +178,12 @@ Registered from [`../modules/vehicles/properties/client.lua`](../modules/vehicle
 
 ## Module: notify (server + client)
 
+Notify uses one selected client adapter for both server-relayed and client-local
+notifications. Auto-detection treats `ox_lib` as the fallback notify adapter
+because it is an `o-link` dependency. If multiple non-`ox_lib` notify resources
+are started, set `Config.Overrides.Notify` to the implementation folder name you
+want to use.
+
 ### Server
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
@@ -241,6 +247,33 @@ Zones created through `AddBoxZone` / `AddSphereZone` are tracked per calling res
 | `GetResourceName()` | | `string` | Active menu resource |
 | `Open(data, useQb?)` | `data: table, useQb?: boolean` | `string` | Open a context menu (returns the menu id). Auto-generates `data.id` if not provided. |
 | `OpenMenu(id, data, useQBinput?)` | `id: string, data: table, useQBinput?: boolean` | `string` | community_bridge-style alias for `Open`. Sets `data.id` from the first argument. |
+
+## Module: radial (client only)
+
+`oxide-menu` is the full provider and supports private immediate-open radials.
+`ox_lib` is a fallback/global registration provider; when `Open(data)` receives
+a private radial definition it registers that radial as an ox_lib submenu and
+adds/updates a global radial entry for it. Direct `lib.addRadialItem` calls
+continue to use ox_lib unchanged.
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetResourceName()` | | `string` | Active radial resource |
+| `Register(menu)` | `menu: table` | `boolean` | Register a reusable radial menu |
+| `Unregister(id)` | `id: string` | `boolean` | Unregister a radial menu where supported |
+| `Open(idOrData, options?)` | `idOrData: string\|table, options?: table` | `string\|false` | Open a private radial immediately when supported. Providers without private open support may expose it as a global radial submenu instead. |
+| `Close()` | | `boolean` | Close the active radial |
+| `IsOpen()` | | `boolean` | Whether a radial is open when the provider can report it |
+| `GetCurrentId()` | | `string\|nil` | Current radial id when known |
+| `AddItem(items)` | `items: table\|table[]` | `boolean` | Add one or more global radial items |
+| `RemoveItem(id)` | `id: string` | `boolean` | Remove a global radial item |
+| `ClearItems()` | | `boolean` | Remove all bridge-added global radial items |
+| `Disable(state)` | `state: boolean` | `boolean` | Enable or disable radial opening |
+| `Refresh()` | | `boolean` | Refresh the open radial where supported |
+
+Ox-style aliases are available under `olink.radial`: `RegisterRadial`,
+`AddRadialItem`, `RemoveRadialItem`, `ClearRadialItems`, `HideRadial`,
+`DisableRadial`, and `GetCurrentRadialId`.
 
 ## Module: vehiclekey (client only)
 
@@ -330,6 +363,7 @@ These namespaces are present in the current implementation and load through the 
 | `weather` | client | 5 |
 | `input` | client | 3 |
 | `menu` | client | 5 |
+| `radial` | client | 2 |
 | `zones` | client | 2 |
 | `banking` | server | 8 |
 | `phone` | server + client | 7 |

@@ -43,6 +43,7 @@ local overrideKeyMap = {
     weather = 'Weather',
     input = 'Input',
     menu = 'Menu',
+    radial = 'Radial',
     zones = 'Zones',
     phone = 'Phone',
     clothing = 'Clothing',

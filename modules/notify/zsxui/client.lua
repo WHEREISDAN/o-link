@@ -1,4 +1,4 @@
-if not olink._guardImpl('Notify', 'zsxui', 'ZSX_UIV2') then return end
+if not olink._guardNotifyAdapter('zsxui', 'ZSX_UIV2') then return end
 
 local function iconForType(notifType)
     if notifType == 'success' then return 'check-circle'
@@ -19,8 +19,4 @@ local mod = {
     end,
 }
 
-RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, title)
-    mod.Send(message, notifType, duration, title)
-end)
-
-olink._register('notify', mod, 'ZSX_UIV2')
+olink._register('notify', mod, 'zsxui')

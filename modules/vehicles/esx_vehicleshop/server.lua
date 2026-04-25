@@ -1,5 +1,25 @@
 if not olink._guardImpl('Vehicles', 'esx_vehicleshop', 'es_extended') then return end
 
+local columnCache = {}
+
+local function NormalizePlate(plate)
+    return plate and tostring(plate):match('^%s*(.-)%s*$') or nil
+end
+
+local function ColumnExists(tableName, columnName)
+    local key = tableName .. '.' .. columnName
+    if columnCache[key] ~= nil then return columnCache[key] end
+    local count = MySQL.scalar.await([[
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+    ]], { tableName, columnName })
+    columnCache[key] = tonumber(count) ~= nil and tonumber(count) > 0
+    return columnCache[key]
+end
+
 olink._register('vehicles', {
     ---@param plate string
     ---@param limit number|nil
@@ -85,5 +105,92 @@ olink._register('vehicles', {
             ownerStateId = row.identifier,
             ownerDob   = row.dateofbirth,
         }
+    end,
+
+    ---@param plate string
+    ---@param fee number|nil
+    ---@param lot string|nil
+    ---@return boolean
+    ImpoundVehicle = function(plate, fee, lot)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' then return false end
+        if not MySQL.scalar.await('SELECT plate FROM owned_vehicles WHERE plate = ? LIMIT 1', { plate }) then return false end
+
+        local sets = {}
+        local params = {}
+        if ColumnExists('owned_vehicles', 'stored') then
+            sets[#sets + 1] = 'stored = ?'
+            params[#params + 1] = 0
+        end
+        if ColumnExists('owned_vehicles', 'state') then
+            sets[#sets + 1] = 'state = ?'
+            params[#params + 1] = 2
+        end
+        if lot and lot ~= '' and ColumnExists('owned_vehicles', 'parking') then
+            sets[#sets + 1] = 'parking = ?'
+            params[#params + 1] = lot
+        elseif lot and lot ~= '' and ColumnExists('owned_vehicles', 'garage') then
+            sets[#sets + 1] = 'garage = ?'
+            params[#params + 1] = lot
+        end
+        if ColumnExists('owned_vehicles', 'depotprice') then
+            sets[#sets + 1] = 'depotprice = ?'
+            params[#params + 1] = tonumber(fee) or 0
+        elseif ColumnExists('owned_vehicles', 'impound_fee') then
+            sets[#sets + 1] = 'impound_fee = ?'
+            params[#params + 1] = tonumber(fee) or 0
+        end
+        if #sets == 0 then return false end
+        params[#params + 1] = plate
+
+        local affected = MySQL.update.await(('UPDATE owned_vehicles SET %s WHERE plate = ?'):format(table.concat(sets, ', ')), params)
+        return (affected or 0) > 0
+    end,
+
+    ---@param plate string
+    ---@return boolean
+    ReleaseImpound = function(plate)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' then return false end
+
+        local sets = {}
+        local params = {}
+        if ColumnExists('owned_vehicles', 'stored') then
+            sets[#sets + 1] = 'stored = ?'
+            params[#params + 1] = 1
+        end
+        if ColumnExists('owned_vehicles', 'state') then
+            sets[#sets + 1] = 'state = ?'
+            params[#params + 1] = 1
+        end
+        if #sets == 0 then return false end
+        params[#params + 1] = plate
+
+        local affected = MySQL.update.await(('UPDATE owned_vehicles SET %s WHERE plate = ?'):format(table.concat(sets, ', ')), params)
+        return (affected or 0) > 0
+    end,
+
+    ---@param plate string
+    ---@return any
+    GetVehicleState = function(plate)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' then return nil end
+        if ColumnExists('owned_vehicles', 'state') then
+            return MySQL.scalar.await('SELECT state FROM owned_vehicles WHERE plate = ? LIMIT 1', { plate })
+        end
+        if ColumnExists('owned_vehicles', 'stored') then
+            return MySQL.scalar.await('SELECT stored FROM owned_vehicles WHERE plate = ? LIMIT 1', { plate })
+        end
+        return nil
+    end,
+
+    ---@param plate string
+    ---@param propsJson string
+    ---@return boolean
+    SaveVehicleProps = function(plate, propsJson)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' or not propsJson or not ColumnExists('owned_vehicles', 'vehicle') then return false end
+        local affected = MySQL.update.await('UPDATE owned_vehicles SET vehicle = ? WHERE plate = ?', { propsJson, plate })
+        return (affected or 0) > 0
     end,
 })

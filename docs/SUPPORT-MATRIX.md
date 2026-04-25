@@ -29,7 +29,17 @@ It lists implementation folders that exist today. It does not guarantee every im
 | `progressbar` | client | `esx_progressbar`, `keep-progressbar`, `lation_ui`, `oxide-progressbar`, `ox_lib`, `qb-progressbar`, `wasabi_uikit`, `zsxui` |
 | `input` | client | `lation_ui`, `ox_lib`, `qb-input` |
 | `menu` | client | `lation_ui`, `oxide-menu`, `ox_lib`, `qb-menu`, `wasabi_uikit` |
+| `radial` | client | `oxide-menu`, `ox_lib` |
 | `zones` | client | `oxlib`, `polyzone` |
+
+`notify` auto-detection selects one renderer. `ox_lib` is fallback-only unless
+forced with `Config.Overrides.Notify = 'ox_lib'`; if multiple non-`ox_lib`
+notify resources are running, set `Config.Overrides.Notify`.
+
+`radial` auto-detection prefers `oxide-menu` as the full provider. The `ox_lib`
+adapter remains available as a fallback/global registration provider; private
+radials opened through `olink.radial.Open(data)` are exposed as global submenus.
+Direct `lib.addRadialItem(...)` calls are not intercepted.
 
 ## Gameplay Systems
 

@@ -15,6 +15,7 @@ shared_scripts {
     '@ox_lib/init.lua',
     'config.lua',
     'core/shared.lua',
+    'modules/notify/shared.lua',
     'modules/callback/shared.lua',
     'modules/clothing/**/shared.lua',
 }
@@ -63,6 +64,7 @@ client_scripts {
     'modules/job/**/client.lua',
     'modules/inventory/**/client.lua',
     'modules/notify/**/client.lua',
+    'modules/notify/relay_client.lua',
     'modules/helptext/**/client.lua',
     'modules/target/**/client.lua',
     'modules/progressbar/**/client.lua',
@@ -73,6 +75,7 @@ client_scripts {
     'modules/input/**/client.lua',
     'modules/menu/**/client.lua',
     'modules/menu/client.lua',
+    'modules/radial/**/client.lua',
     'modules/zones/**/client.lua',
     'modules/entity/client.lua',
     'modules/phone/**/client.lua',

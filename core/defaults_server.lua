@@ -80,10 +80,15 @@ stub('inventory', {
 })
 
 stub('vehicles', {
-    'SearchByPlate', 'GetByPlate', 'GetByOwner',
+    'SearchByPlate', 'GetByPlate', 'GetByOwner', 'ImpoundVehicle',
+    'ReleaseImpound', 'GetVehicleState', 'SaveVehicleProps',
 }, {
     SearchByPlate = function() return {} end,
     GetByOwner = function() return {} end,
+    ImpoundVehicle = false,
+    ReleaseImpound = false,
+    GetVehicleState = false,
+    SaveVehicleProps = false,
 })
 
 stub('vehicleOwnership', {

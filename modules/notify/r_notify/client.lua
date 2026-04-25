@@ -1,4 +1,4 @@
-if not olink._guardImpl('Notify', 'r_notify', 'r_notify') then return end
+if not olink._guardNotifyAdapter('r_notify', 'r_notify') then return end
 
 local mod = {
     ---@param message string
@@ -18,9 +18,5 @@ local mod = {
         })
     end,
 }
-
-RegisterNetEvent('o-link:client:notify', function(message, notifType, duration, title)
-    mod.Send(message, notifType, duration, title)
-end)
 
 olink._register('notify', mod, 'r_notify')

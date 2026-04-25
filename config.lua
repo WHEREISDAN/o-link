@@ -3,6 +3,8 @@ Config = {}
 -- Force a specific implementation for any bridged namespace.
 -- Values use implementation folder names and are matched case-insensitively.
 -- Leave keys unset or nil to keep normal auto-detection and priority behavior.
+-- Notify auto-detection treats ox_lib as a fallback. If multiple non-ox_lib
+-- notify resources are running, set Notify explicitly.
 Config.Overrides = {
     -- Framework         = 'oxide-core',
     -- Character         = 'oxide-core',
@@ -21,6 +23,7 @@ Config.Overrides = {
     -- Weather           = 'oxide-weather',
     -- Input             = 'ox_lib',
     -- Menu              = 'oxide-menu',
+    -- Radial            = 'oxide-menu',
     -- Zones             = 'oxlib',
     -- Phone             = 'oxide-phone',
     -- Clothing          = 'oxide-clothing',

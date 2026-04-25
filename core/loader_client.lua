@@ -2,7 +2,7 @@
 if Config.Debug then
     local caps = olink._getCapabilities()
     print('^2[o-link] Client modules loaded:^0')
-    local modules = { 'callback', 'framework', 'character', 'job', 'inventory', 'notify', 'helptext', 'target', 'progressbar', 'vehiclekey', 'fuel', 'weather', 'input', 'menu', 'zones', 'phone', 'clothing', 'dispatch', 'doorlock', 'housing', 'bossmenu', 'skills', 'entity', 'death', 'gang', 'vehicleproperties' }
+    local modules = { 'callback', 'framework', 'character', 'job', 'inventory', 'notify', 'helptext', 'target', 'progressbar', 'vehiclekey', 'fuel', 'weather', 'input', 'menu', 'radial', 'zones', 'phone', 'clothing', 'dispatch', 'doorlock', 'housing', 'bossmenu', 'skills', 'entity', 'death', 'gang', 'vehicleproperties' }
     for _, ns in ipairs(modules) do
         local state = caps[ns]
         if state and state.loaded then

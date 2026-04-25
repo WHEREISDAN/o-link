@@ -1,40 +1,12 @@
 -- Server-side notify relay: fires a client event that the client notify module listens to.
 local pendingConfirms = {}
 
-local function getNotifyResourceName()
-    local override = olink._getOverride('Notify')
-    if override then
-        return override
-    end
-
-    local resourceNames = {
-        'brutal_notify',
-        'fl-notify',
-        'lation_ui',
-        'mythic_notify',
-        'okokNotify',
-        'ox_lib',
-        'oxide-notify',
-        'pNotify',
-        'r_notify',
-        't-notify',
-        'wasabi_notify',
-        'ZSX_UIV2',
-        'zsxui',
-    }
-
-    for _, resourceName in ipairs(resourceNames) do
-        if GetResourceState(resourceName) == 'started' then
-            return resourceName
-        end
-    end
-
-    return '_default'
-end
+olink._getNotifySelection()
 
 olink._register('notify', {
     GetResourceName = function()
-        return getNotifyResourceName()
+        local selection = olink._getNotifySelection()
+        return selection.resourceName or selection.implName
     end,
 
     ---@param src number
