@@ -1,6 +1,5 @@
--- Inventory event sync shim.
--- Mirrors community_bridge's behavior of firing an inventory-updated event to
--- the client on AddItem/RemoveItem regardless of which inventory adapter registered.
+-- Inventory event sync shim. Fires an inventory-updated event to the client
+-- on AddItem/RemoveItem regardless of which adapter registered.
 -- Loads after adapters via alphabetical glob order.
 
 if not olink.inventory then return end

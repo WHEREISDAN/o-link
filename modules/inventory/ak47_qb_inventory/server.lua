@@ -34,7 +34,7 @@ olink._register('inventory', {
     ---@return boolean
     AddItem = function(src, item, count, slot, metadata)
         if not ak47:CanAddItem(src, item, count) then return false end
-        local success = ak47:AddItem(src, item, count, slot, metadata, 'o-link')
+        local success = ak47:AddItem(src, item, count, slot, metadata)
         if not success then return false end
         local itemData = QBCore.Shared.Items[item]
         if itemData then
@@ -149,7 +149,16 @@ olink._register('inventory', {
     ---@param metadata table
     ---@return boolean
     SetMetadata = function(src, item, slot, metadata)
-        ak47:SetItemInfo(src, slot, metadata)
+        -- ak47's SetItemInfo replaces info wholesale; merge to preserve fields the caller didn't pass.
+        local existing = ak47:GetSlot(src, slot)
+        local merged = {}
+        if existing and type(existing.info) == 'table' then
+            for k, v in pairs(existing.info) do merged[k] = v end
+        end
+        if type(metadata) == 'table' then
+            for k, v in pairs(metadata) do merged[k] = v end
+        end
+        ak47:SetItemInfo(src, slot, merged)
         return true
     end,
 
@@ -197,8 +206,7 @@ olink._register('inventory', {
     ---@param metadata table|nil
     ---@return boolean
     AddStashItem = function(id, item, count, metadata)
-        local success = ak47:AddItem(tostring(id), item, count or 1, nil, metadata,
-            'o-link: adding item to stash')
+        local success = ak47:AddItem(tostring(id), item, count or 1, nil, metadata)
         return success == true
     end,
 
@@ -210,7 +218,7 @@ olink._register('inventory', {
         local success = false
         for _, item in pairs(items) do
             success = ak47:AddItem(id, item.item, item.count or item.amount, nil,
-                item.metadata or item.info, 'o-link: adding items to stash')
+                item.metadata or item.info)
         end
         return success == true
     end,
@@ -243,8 +251,7 @@ olink._register('inventory', {
         Wait(100)
         for i = 1, #items do
             ak47:AddItem(trunkId, items[i].name, items[i].amount or items[i].count,
-                items[i].slot, items[i].info or items[i].metadata or {},
-                'o-link: adding items to trunk')
+                items[i].slot, items[i].info or items[i].metadata or {})
         end
         return true
     end,
@@ -276,10 +283,10 @@ olink._register('inventory', {
             maxweight = trunk.maxweight,
         })
         for _, item in pairs(glovebox.items or {}) do
-            ak47:AddItem('glovebox-' .. newPlate, item.name, item.amount, item.slot, item.info, 'o-link: plate migration')
+            ak47:AddItem('glovebox-' .. newPlate, item.name, item.amount, item.slot, item.info)
         end
         for _, item in pairs(trunk.items or {}) do
-            ak47:AddItem('trunk-' .. newPlate, item.name, item.amount, item.slot, item.info, 'o-link: plate migration')
+            ak47:AddItem('trunk-' .. newPlate, item.name, item.amount, item.slot, item.info)
         end
         if GetResourceState('jg-mechanic') == 'started' then
             exports['jg-mechanic']:vehiclePlateUpdated(oldPlate, newPlate)
