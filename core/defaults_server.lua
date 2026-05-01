@@ -56,8 +56,8 @@ stub('inventory', {
     'GetItemCount', 'HasItem', 'AddItem', 'RemoveItem', 'GetItemBySlot',
     'GetPlayerInventory', 'OpenPlayerInventory', 'RegisterStash', 'OpenStash',
     'GetItemInfo', 'GetImagePath', 'CanCarryItem', 'ClearStash', 'GetStashItems',
-    'Items', 'OpenShop', 'RegisterShop', 'RemoveStashItem', 'SetMetadata',
-    'UpdatePlate', 'AddTrunkItems',
+    'Items', 'OpenShop', 'RegisterShop', 'RemoveStashItem', 'AddStashItem',
+    'SetMetadata', 'UpdatePlate', 'AddTrunkItems',
 }, {
     GetItemCount = 0,
     HasItem = false,
@@ -74,6 +74,7 @@ stub('inventory', {
     Items = function() return {} end,
     RegisterShop = false,
     RemoveStashItem = false,
+    AddStashItem = false,
     SetMetadata = false,
     UpdatePlate = false,
     AddTrunkItems = false,

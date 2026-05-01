@@ -185,6 +185,21 @@ olink._register('inventory', {
         return success == true
     end,
 
+    ---@param id string
+    ---@param item string
+    ---@param count number
+    ---@param metadata table|nil
+    ---@return boolean
+    AddStashItem = function(id, item, count, metadata)
+        if not v2 then
+            print('[o-link] qb-inventory v1 does not support AddStashItem')
+            return false
+        end
+        local success = qbInventory:AddItem(tostring(id), item, count or 1, nil, metadata,
+            'o-link: adding item to stash')
+        return success == true
+    end,
+
     ---@param identifier string plate or trunk identifier
     ---@param items table[]
     ---@return boolean

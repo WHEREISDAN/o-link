@@ -176,6 +176,16 @@ olink._register('inventory', {
     end,
 
     ---@param id string
+    ---@param item string
+    ---@param count number
+    ---@param metadata table|nil
+    ---@return boolean
+    AddStashItem = function(id, item, count, metadata)
+        local success = ox_inventory:AddItem(tostring(id), item, count or 1, metadata)
+        return success == true
+    end,
+
+    ---@param id string
     ---@param _type string|nil unused
     ---@return boolean
     ClearStash = function(id, _type)

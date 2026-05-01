@@ -31,25 +31,35 @@ olink._register('job', {
 
     ---@param src number
     ---@param jobName string
-    ---@param grade string|number|table Grade rank, name, or { rank, name, label }
-    ---@param jobLabel? string Optional human-readable job label (defaults to jobName)
+    ---@param grade string|number|table
+    ---@param jobLabel? string
+    ---@param opts? table { isBoss?: boolean }
     ---@return boolean
-    Set = function(src, jobName, grade, jobLabel)
+    Set = function(src, jobName, grade, jobLabel, opts)
         local char = GetChar(src)
         if not char then return false end
 
-        local gradeRank, gradeName, gradeLabel
+        local gradeRank, gradeName, gradeLabel, gradeBoss
         if type(grade) == 'table' then
             gradeRank  = tonumber(grade.rank or grade.grade_rank or grade.level) or 0
             gradeName  = grade.name or grade.grade_name or 'default'
             gradeLabel = grade.label or grade.grade_label or gradeName
+            if grade.isBoss ~= nil then gradeBoss = grade.isBoss == true
+            elseif grade.is_boss ~= nil then gradeBoss = grade.is_boss == true end
         else
             gradeRank  = tonumber(grade) or 0
             gradeName  = type(grade) == 'string' and grade or 'default'
             gradeLabel = gradeName
         end
 
-        char.SetJob(jobName, jobLabel or jobName, gradeName, gradeLabel, gradeRank)
+        local isBoss
+        if opts and opts.isBoss ~= nil then
+            isBoss = opts.isBoss == true
+        else
+            isBoss = gradeBoss
+        end
+
+        char.SetJob(jobName, jobLabel or jobName, gradeName, gradeLabel, gradeRank, isBoss)
         return true
     end,
 
