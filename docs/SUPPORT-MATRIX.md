@@ -65,7 +65,7 @@ Direct `lib.addRadialItem(...)` calls are not intercepted.
 | `housing` | server + client | `bcs-housing`, `esx_property`, `ps-housing`, `qb-appartments`, `qb-houses` |
 | `bossmenu` | server + client | `esx_society`, `qb-management`, `qbx_management` |
 | `skills` | server + client | `_default`, `evolent_skills`, `ot_skills`, `pickle_xp` |
-| `logger` | server + client | `oxide-logger` (optional, free) |
+| `logger` | server + client | `ox_lib` (default), `oxide-logger` (optional, free; overrides ox_lib when installed) |
 
 ## Lifecycle Adapters
 

@@ -471,7 +471,7 @@ Adapter-specific: `esx_skin` and `qb-clothing` use the framework's native table 
 
 ## Module: logger (server + client)
 
-Provided by the optional `oxide-logger` resource. When `oxide-logger` is not installed, every function is a friendly no-op that returns `false` (or `nil` for `SafeCall`). Use `olink.supports('logger')` to detect the real provider.
+Provided by `oxide-logger` when installed, otherwise routed through `ox_lib`. The ox_lib adapter prints structured `[LEVEL][resource][category]` lines to the server/client console for INFO+ events and forwards through `lib.logger` to Datadog / Fivemanage / Loki when the `ox:logger` convar is set. `oxide-logger` adds rotating file logs, dedicated Discord/Fivemanage sinks, ring-buffered error capture, and `/oxide:diag` snapshots on top.
 
 ### Server
 | Function | Args | Returns | Description |
