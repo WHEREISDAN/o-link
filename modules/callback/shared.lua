@@ -30,10 +30,6 @@ local function handleResponse(registry, name, callbackId, ...)
 end
 
 if IsDuplicityVersion() then
-    -- ================================================================
-    -- Server
-    -- ================================================================
-
     local ServerCallbacks = {}
 
     function Callback.Register(name, handler)
@@ -89,10 +85,6 @@ if IsDuplicityVersion() then
     end)
 
 else
-    -- ================================================================
-    -- Client
-    -- ================================================================
-
     local ClientCallbacks = {}
 
     function Callback.Register(name, handler)

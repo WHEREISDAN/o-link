@@ -86,3 +86,45 @@ olink._register('death', {
         return true
     end,
 })
+
+local lastState = {}
+
+local function emitTransition(src, newState)
+    local oldState = lastState[src] or 'alive'
+    if newState == oldState then return end
+    lastState[src] = newState
+
+    if newState == 'dead' then
+        TriggerEvent('olink:server:playerDied', src, {})
+    elseif newState == 'downed' then
+        TriggerEvent('olink:server:playerDowned', src, {})
+    elseif newState == 'alive' then
+        TriggerEvent('olink:server:playerRevived', src, {})
+    end
+    TriggerEvent('olink:server:playerDeathStateChanged', src, newState, oldState, {})
+end
+
+AddEventHandler('hospital:server:SetDeathStatus', function(isDead)
+    local src = source
+    if not src or src <= 0 then return end
+    if isDead then
+        emitTransition(src, 'dead')
+    else
+        emitTransition(src, 'alive')
+    end
+end)
+
+AddEventHandler('hospital:server:SetLaststandStatus', function(bool)
+    local src = source
+    if not src or src <= 0 then return end
+    if bool then
+        emitTransition(src, 'downed')
+    else
+        emitTransition(src, 'alive')
+    end
+end)
+
+AddEventHandler('playerDropped', function()
+    local src = source
+    lastState[src] = nil
+end)

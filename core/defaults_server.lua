@@ -82,7 +82,8 @@ stub('inventory', {
 
 stub('vehicles', {
     'SearchByPlate', 'GetByPlate', 'GetByOwner', 'ImpoundVehicle',
-    'ReleaseImpound', 'GetVehicleState', 'SaveVehicleProps',
+    'ReleaseImpound', 'GetImpoundedVehicles', 'RetrieveImpounded',
+    'GetVehicleState', 'SaveVehicleProps',
     'GeneratePlate', 'RegisterVehicle', 'UnregisterVehicle', 'GetVehicleOwner',
     'GetOwnedVehicles', 'GetVehicleByPlate', 'GiveKey', 'RemoveKey', 'HasKey',
     'GetKeysForPlayer', 'IsVehicleLocked', 'SetVehicleLocked', 'RepairVehicle',
@@ -92,6 +93,8 @@ stub('vehicles', {
     GetByOwner = function() return {} end,
     ImpoundVehicle = false,
     ReleaseImpound = false,
+    GetImpoundedVehicles = function() return {} end,
+    RetrieveImpounded = function() return false, 'unsupported' end,
     GetVehicleState = false,
     SaveVehicleProps = false,
     GeneratePlate = function() return '' end,
@@ -120,9 +123,10 @@ stub('vehicleOwnership', {
 stub('banking', {
     'AddAccountMoney', 'GetAccountMoney', 'GetManagmentName', 'GetResourceName',
     'RemoveAccountMoney',
-    'IsReady', 'GetBalance', 'GetAccount', 'AddMoney', 'RemoveMoney',
+    'IsReady', 'GetAccount',
     'CreatePlayerAccount', 'CreateJobAccount', 'GetPlayerAccounts',
     'GetPlayerBankingData', 'GetCreditScore', 'CanAfford',
+    'CreateInvoice', 'GetInvoices',
 }, {
     AddAccountMoney = false,
     GetAccountMoney = 0,
@@ -130,14 +134,13 @@ stub('banking', {
     GetResourceName = 'none',
     RemoveAccountMoney = false,
     IsReady = false,
-    GetBalance = 0,
-    AddMoney = false,
-    RemoveMoney = false,
     CreatePlayerAccount = false,
     CreateJobAccount = false,
     GetPlayerAccounts = function() return {} end,
     GetCreditScore = function() return 600 end,
     CanAfford = false,
+    CreateInvoice = false,
+    GetInvoices = function() return {} end,
 })
 
 stub('notify', {
@@ -173,6 +176,7 @@ stub('dispatch', {
     'GetResourceName',
     'CreateAlert', 'GetActiveAlerts', 'GetAlert', 'RespondToAlert',
     'StopResponding', 'UpdateResponderStatus', 'CloseAlert',
+    'SetCallsign', 'SetOfficerStatus', 'GetOfficerStatus', 'TriggerPanic',
 }, {
     GetResourceName = 'none',
     GetActiveAlerts = function() return {} end,
@@ -180,6 +184,10 @@ stub('dispatch', {
     StopResponding = false,
     UpdateResponderStatus = false,
     CloseAlert = false,
+    SetCallsign = false,
+    SetOfficerStatus = false,
+    GetOfficerStatus = function() return nil end,
+    TriggerPanic = false,
 })
 
 stub('doorlock', {
@@ -246,4 +254,24 @@ stub('gang', {
 
 stub('helptext', {
     'Show', 'Hide',
+})
+
+stub('logger', {
+    'GetResourceName',
+    'Trace', 'Debug', 'Info', 'Warn', 'Error', 'Fatal',
+    'Event', 'CaptureError', 'SafeCall',
+    'SetLevel', 'GetLevel',
+}, {
+    GetResourceName = 'none',
+    Trace = false,
+    Debug = false,
+    Info  = false,
+    Warn  = false,
+    Error = false,
+    Fatal = false,
+    Event = false,
+    CaptureError = false,
+    SafeCall = function(fn) if type(fn) == 'function' then local ok, r = pcall(fn) return ok and r or nil end end,
+    SetLevel = false,
+    GetLevel = 'info',
 })

@@ -151,4 +151,77 @@ olink._register('vehicles', {
         local affected = MySQL.update.await('UPDATE player_vehicles SET mods = ? WHERE plate = ?', { propsJson, plate })
         return (affected or 0) > 0
     end,
+
+    ---@param charId string citizenid
+    ---@param lot string|nil
+    ---@return table[]
+    GetImpoundedVehicles = function(charId, lot)
+        if not charId then return {} end
+        local query = 'SELECT id, plate, vehicle, hash, mods, garage, depotprice FROM player_vehicles WHERE citizenid = ? AND state = 2'
+        local params = { charId }
+        if lot and lot ~= '' then
+            query = query .. ' AND garage = ?'
+            params[#params + 1] = lot
+        end
+        local rows = MySQL.query.await(query, params) or {}
+        local out = {}
+        for i, row in ipairs(rows) do
+            local props
+            if row.mods and row.mods ~= '' then
+                local okp, decoded = pcall(json.decode, row.mods)
+                if okp then props = decoded end
+            end
+            out[i] = {
+                id          = row.id,
+                plate       = row.plate,
+                model       = row.vehicle or row.hash,
+                vehicleType = 'car',
+                fee         = row.depotprice or 0,
+                props       = props,
+                lot         = row.garage,
+            }
+        end
+        return out
+    end,
+
+    ---@param src number
+    ---@param vehicleId number
+    ---@param lot string|nil
+    ---@return boolean, string|nil
+    RetrieveImpounded = function(src, vehicleId, lot)
+        if not src or not vehicleId then return false, 'bad_args' end
+        local row = MySQL.single.await(
+            'SELECT id, citizenid, depotprice FROM player_vehicles WHERE id = ? AND state = 2 LIMIT 1',
+            { tonumber(vehicleId) })
+        if not row then return false, 'not_found' end
+
+        local QBCore
+        local okCore = pcall(function() QBCore = exports['qb-core']:GetCoreObject() end)
+        if not okCore or not QBCore then return false, 'no_core' end
+        local Player = QBCore.Functions.GetPlayer(src)
+        if not Player or Player.PlayerData.citizenid ~= row.citizenid then return false, 'not_owner' end
+
+        local fee = tonumber(row.depotprice) or 0
+        if fee > 0 then
+            local removed = false
+            local cash = (Player.PlayerData.money and Player.PlayerData.money.cash) or 0
+            if cash >= fee then
+                removed = Player.Functions.RemoveMoney('cash', fee, 'oxide-impound')
+            end
+            if not removed then
+                removed = Player.Functions.RemoveMoney('bank', fee, 'oxide-impound')
+            end
+            if not removed then return false, 'no_funds' end
+        end
+
+        local affected = MySQL.update.await(
+            'UPDATE player_vehicles SET state = 0, depotprice = 0 WHERE id = ? AND state = 2',
+            { tonumber(vehicleId) })
+        if (affected or 0) <= 0 then
+            -- Atomic guard tripped; refund
+            if fee > 0 then Player.Functions.AddMoney('bank', fee, 'oxide-impound-refund') end
+            return false, 'race_lost'
+        end
+        return true, nil
+    end,
 })

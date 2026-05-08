@@ -8,6 +8,5 @@ olink._register('dispatch', {
     end,
 })
 
--- Client fires emergencydispatch's own net event directly (matches
--- community_bridge). No server relay here — that would zero out `source`
--- when emergencydispatch's handler reads it.
+-- Client fires emergencydispatch's own net event directly. No server relay —
+-- that would zero out `source` when emergencydispatch's handler reads it.

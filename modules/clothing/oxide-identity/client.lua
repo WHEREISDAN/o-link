@@ -16,5 +16,5 @@ RegisterNetEvent('o-link:client:clothing:openMenu', function()
 end)
 
 RegisterNetEvent('o-link:client:clothing:setAppearance', function(data)
-    TriggerEvent('o-link:clothing:applyAppearance', data)
+    exports['oxide-identity']:ApplyClothing(OxideIdentityConvertFromDefault(data))
 end)

@@ -20,3 +20,22 @@ olink._register('death', {
         return { state = state }
     end,
 })
+
+local lastState = LocalPlayer.state.isDead and 'dead' or 'alive'
+
+AddStateBagChangeHandler('isDead', nil, function(bagName, _, value)
+    local plyId = GetPlayerFromStateBagName(bagName)
+    if plyId == 0 or plyId ~= PlayerId() then return end
+
+    local newState = value and 'dead' or 'alive'
+    if newState == lastState then return end
+    local oldState = lastState
+    lastState = newState
+
+    if newState == 'dead' then
+        TriggerEvent('olink:client:playerDied', {})
+    else
+        TriggerEvent('olink:client:playerRevived', {})
+    end
+    TriggerEvent('olink:client:playerDeathStateChanged', newState, oldState, {})
+end)

@@ -58,6 +58,10 @@ olink._register('clothing', {
         if not src then return end
         local citId = getCitId(src)
         if not citId then return end
+        -- Re-read DB before a fresh backup; cache isn't invalidated on external writes.
+        if not Players[citId] or not Players[citId].backup then
+            Players[citId] = nil
+        end
         local current = getFullAppearanceData(src)
         if not current then return end
 

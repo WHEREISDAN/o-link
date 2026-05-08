@@ -70,6 +70,10 @@ olink._register('clothing', {
         if not src then return end
         local charId = olink.character.GetIdentifier(src)
         if not charId then return end
+        -- Re-read DB before a fresh backup; cache isn't invalidated on external writes.
+        if not Players[charId] or not Players[charId].backup then
+            Players[charId] = nil
+        end
         local current = getFullAppearanceData(src)
         if not current then return end
 
@@ -111,7 +115,6 @@ olink._register('clothing', {
     end,
 
     ---Flushes the cached skin to the database without requiring a SetAppearance call.
-    ---Matches community_bridge's `Clothing.Save(src)` contract.
     ---@param src number
     ---@return boolean
     Save = function(src)

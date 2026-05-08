@@ -53,6 +53,7 @@ server_scripts {
     'modules/jobcount/server.lua',
     'modules/helptext/**/server.lua',
     'modules/helptext/server.lua',
+    'modules/logger/**/server.lua',
     'lifecycle/**/server.lua',
     'core/loader_server.lua',
 }
@@ -88,6 +89,7 @@ client_scripts {
     'modules/death/**/client.lua',
     'modules/gang/**/client.lua',
     'modules/vehicles/**/client.lua',
+    'modules/logger/**/client.lua',
     'lifecycle/**/client.lua',
     'core/loader_client.lua',
 }

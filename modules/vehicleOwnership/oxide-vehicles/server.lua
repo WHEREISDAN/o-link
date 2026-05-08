@@ -1,11 +1,5 @@
--- Adapter for oxide-vehicles (vehicleOwnership). Registers IMMEDIATELY so
--- consumers that snapshot olink across the resource boundary capture real
--- wrapper refs, not stubs.
-
 local RESOURCE = 'oxide-vehicles'
 
--- Pure adapter: bail if oxide-vehicles isn't installed so other vehicleOwnership
--- impls (qbx_vehicles, qb-garages, esx_vehicleshop, _default) own the namespace.
 if GetResourceState(RESOURCE) == 'missing' then return end
 if not olink._guardImpl('VehicleOwnership', RESOURCE, false) then return end
 

@@ -1,9 +1,6 @@
--- Housing integration relay.
--- Mirrors community_bridge's _OnPlayerInside: adapters fire the internal
--- `o-link:server:OnPlayerInside` event (with src + insideId from a server
--- TriggerEvent, or just insideId from a client TriggerServerEvent); this
--- relay enriches with the routing bucket + player coords and re-emits a
--- public event resources can listen to.
+-- Housing relay: adapters fire `o-link:server:OnPlayerInside` (with src + insideId
+-- from a server TriggerEvent, or just insideId from a client TriggerServerEvent);
+-- this enriches with routing bucket + coords and re-emits a public event.
 
 if olink._housingRelayLoaded then return end
 olink._housingRelayLoaded = true

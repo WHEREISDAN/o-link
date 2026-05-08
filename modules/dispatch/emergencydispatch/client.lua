@@ -13,10 +13,8 @@ olink._register('dispatch', {
         local job = data.job or (data.jobs and data.jobs[1]) or 'police'
         local message = data.message or 'An Alert Has Been Made'
         local coords = data.coords or GetEntityCoords(ped)
-        -- Match community_bridge: fire emergencydispatch's own net event
-        -- directly from the client so `source` is the calling player on the
-        -- server side. Going through an o-link server relay would zero out
-        -- the source, which emergencydispatch may depend on.
+        -- Fire emergencydispatch's own net event from the client so `source` is
+        -- the calling player on the server side; an o-link relay would zero it.
         TriggerServerEvent('emergencydispatch:emergencycall:new', job, message, coords, true)
     end,
 })

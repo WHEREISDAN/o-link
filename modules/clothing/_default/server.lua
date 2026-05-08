@@ -26,7 +26,7 @@ end
 
 local function SetAppearance(src, data)
     LastAppearance[tostring(src)] = GetAppearance(src)
-    TriggerClientEvent('o-link:clothing:setAppearance', src, data)
+    TriggerClientEvent('o-link:client:clothing:setAppearance', src, data)
 end
 
 olink._registerDefault('clothing', {
@@ -42,7 +42,7 @@ olink._registerDefault('clothing', {
     end,
 
     RestoreAppearance = function(src)
-        TriggerClientEvent('o-link:clothing:restoreAppearance', src)
+        TriggerClientEvent('o-link:client:clothing:restoreAppearance', src)
     end,
 
     SaveOutfit = function() return nil end,

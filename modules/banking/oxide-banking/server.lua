@@ -1,12 +1,5 @@
--- Adapter for oxide-banking. Registers IMMEDIATELY so that consumers which
--- snapshot olink across the resource boundary capture the real wrapper
--- functions, not the defaults_server stubs. Wrappers gate on the resource
--- being started at call time. See .claude/rules/community-bridge-usage.md.
-
 local RESOURCE = 'oxide-banking'
 
--- Pure adapter: bail if the resource isn't installed at all so other adapters
--- (qb-banking, renewed-banking, _default fallback, etc.) own the namespace.
 if GetResourceState(RESOURCE) == 'missing' then return end
 if not olink._guardImpl('Banking', RESOURCE, false) then return end
 
@@ -35,14 +28,9 @@ olink._register('banking', {
         return isReady()
     end,
 
-    -- =========================================================
-    -- Read-side: gate on IsReady() so callers during the 1-5s
-    -- DB-load window get safe defaults instead of partial reads.
-    -- =========================================================
-
     ---@param accountName string
     ---@return number
-    GetBalance = function(accountName)
+    GetAccountMoney = function(accountName)
         if not isReady() then return 0 end
         local ok, result = pcall(function() return res:GetAccountBalance(accountName) end)
         return (ok and tonumber(result)) or 0
@@ -90,16 +78,11 @@ olink._register('banking', {
         return ok and result or nil
     end,
 
-    -- =========================================================
-    -- Write-side: oxide-banking's exports already guard against
-    -- early calls — let them surface their own failure signal.
-    -- =========================================================
-
     ---@param accountName string
     ---@param amount number
     ---@param reason string|nil
     ---@return boolean
-    AddMoney = function(accountName, amount, reason)
+    AddAccountMoney = function(accountName, amount, reason)
         if not isStarted() then return false end
         local ok, result = pcall(function() return res:AddMoney(accountName, amount, reason) end)
         return ok and result == true
@@ -109,7 +92,7 @@ olink._register('banking', {
     ---@param amount number
     ---@param reason string|nil
     ---@return boolean
-    RemoveMoney = function(accountName, amount, reason)
+    RemoveAccountMoney = function(accountName, amount, reason)
         if not isStarted() then return false end
         local ok, result = pcall(function() return res:RemoveMoney(accountName, amount, reason) end)
         return ok and result == true
@@ -133,5 +116,34 @@ olink._register('banking', {
         if not isStarted() then return false end
         local ok, result = pcall(function() return res:CreateJobAccount(accountName, balance) end)
         return ok and result == true
+    end,
+
+    ---@param fromCitizenId string
+    ---@param fromJob string|nil
+    ---@param toCitizenId string
+    ---@param amount number
+    ---@param description string|nil
+    ---@param dueDate string|nil 'YYYY-MM-DD'; nil = provider default
+    ---@return boolean success
+    ---@return table|string|nil { invoiceId, invoiceNumber, dueDate } on success
+    CreateInvoice = function(fromCitizenId, fromJob, toCitizenId, amount, description, dueDate)
+        if not isStarted() then return false, 'banking_not_started' end
+        local ok, success, data = pcall(function()
+            return res:CreateInvoice(fromCitizenId, fromJob, toCitizenId, amount, description, dueDate)
+        end)
+        if not ok then return false, tostring(success) end
+        return success == true, data
+    end,
+
+    ---@param citizenid string|nil
+    ---@param jobName string|nil
+    ---@param filter string|nil 'sent'|'received'|'pending'|'overdue'|nil
+    ---@return table[]
+    GetInvoices = function(citizenid, jobName, filter)
+        if not isReady() then return {} end
+        local ok, result = pcall(function()
+            return res:GetInvoices(citizenid, jobName, filter)
+        end)
+        return ok and result or {}
     end,
 }, RESOURCE)

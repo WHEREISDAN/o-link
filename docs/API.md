@@ -55,7 +55,7 @@ olink.supports('vehicleproperties.GetVehicleProperties')
 | `IsAdmin(src)` | `src: number` | `boolean` | ACE permission check against `command` |
 | `RegisterUsableItem(itemName, cb)` | `itemName: string, cb: function(src, itemData)` | `nil` | Register item use callback through the active framework |
 | `Logout(src)` | `src: number` | `boolean` | Trigger the framework-specific logout flow |
-| `ItemList()` | | `table` | Passthrough to the active inventory's item definitions (community_bridge compat) |
+| `ItemList()` | | `table` | Passthrough to the active inventory's item definitions |
 | `GetStatus(src, column)` | `src: number, column: string` | `any\|nil` | Read a framework status column. Delegates hunger/thirst/stress to `needs.GetNeed`; returns `nil` otherwise. |
 
 ### Client
@@ -183,7 +183,9 @@ Provided by `oxide-vehicles` adapter at [`../modules/vehicles/oxide-vehicles/ser
 | `IsVehicleLocked(plate)` | | `boolean` | Vehicle locked state |
 | `SetVehicleLocked(plate, locked)` | | `boolean` | Lock/unlock and sync to entity |
 | `ImpoundVehicle(plate, fee?, lot?)` | | `boolean` | Impound the vehicle |
-| `ReleaseImpound(plate)` | | `boolean` | Release from impound |
+| `ReleaseImpound(plate)` | | `boolean` | Release from impound (admin/no-fee) |
+| `GetImpoundedVehicles(charId, lot?)` | `charId: string\|number, lot?: string` | `table[]` | List vehicles in impound owned by `charId`, optionally filtered to `lot`. Each row: `{ id, plate, model, vehicleType, fee, props, lot }`. `fee = nil` means the framework has no fee column — caller must apply its own fee policy. |
+| `RetrieveImpounded(src, vehicleId, lot?)` | `src: number, vehicleId: number\|string, lot?: string` | `boolean, errorReason?` | Validate ownership, deduct any framework-native fee, flip state out of impound. Caller spawns the vehicle from `props` returned by the prior `GetImpoundedVehicles` call. When the framework has no fee column (ESX), the bridge skips fee deduction and the caller is responsible. |
 | `GetVehicleState(plate)` | | `any` | Internal state snapshot |
 | `SaveVehicleProps(plate, propsJson)` | | `boolean` | Persist serialized properties |
 | `RepairVehicle(plate)` | | `boolean` | Mark vehicle fully repaired |
@@ -212,7 +214,7 @@ want to use.
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
 | `Send(src, message, type?, duration?, title?, props?)` | `src: number, message: string, type?: string, duration?: number, title?: string, props?: table` | `nil` | Send notification to a client. `title` is surfaced by adapters that support it (okokNotify, ox_lib, t-notify, r_notify, pNotify, lation_ui, zsxui, brutal_notify, FL-Notify, oxide-notify). `props` are merged for adapters that accept extra fields (ox_lib, oxide-notify). |
-| `SendNotification(src, title, message, type?, duration?, props?)` | | `nil` | community_bridge-style alias — same event under the hood, with `title` as the first data argument. |
+| `SendNotification(src, title, message, type?, duration?, props?)` | | `nil` | Alias accepting `title` as the first data argument. Same event under the hood as `Send`. |
 | `Confirm(src, options, callback)` | `src: number, options: table, callback: function(accepted)` | `nil` | Open client confirm UI and resolve through callback |
 
 ### Client
@@ -270,7 +272,7 @@ Zones created through `AddBoxZone` / `AddSphereZone` are tracked per calling res
 |----------|------|---------|-------------|
 | `GetResourceName()` | | `string` | Active menu resource |
 | `Open(data, useQb?)` | `data: table, useQb?: boolean` | `string` | Open a context menu (returns the menu id). Auto-generates `data.id` if not provided. |
-| `OpenMenu(id, data, useQBinput?)` | `id: string, data: table, useQBinput?: boolean` | `string` | community_bridge-style alias for `Open`. Sets `data.id` from the first argument. |
+| `OpenMenu(id, data, useQBinput?)` | `id: string, data: table, useQBinput?: boolean` | `string` | Alias for `Open` that takes `id` as the first argument and assigns it to `data.id`. |
 
 ## Module: radial (client only)
 
@@ -306,8 +308,8 @@ Ox-style aliases are available under `olink.radial`: `RegisterRadial`,
 | `GetResourceName()` | | `string` | Active vehicle key resource |
 | `Give(vehicle, plate?)` | `vehicle: number, plate?: string` | `nil` | Give keys to the local player |
 | `Remove(vehicle, plate?)` | `vehicle: number, plate?: string` | `nil` | Remove keys from the local player |
-| `GiveKeys(vehicle, plate?)` | | `nil` | community_bridge-style alias for `Give` |
-| `RemoveKeys(vehicle, plate?)` | | `nil` | community_bridge-style alias for `Remove` |
+| `GiveKeys(vehicle, plate?)` | | `nil` | Alias for `Give` |
+| `RemoveKeys(vehicle, plate?)` | | `nil` | Alias for `Remove` |
 
 ## Module: entity (server + client)
 
@@ -342,27 +344,26 @@ Ox-style aliases are available under `olink.radial`: `RegisterRadial`,
 
 Adapter selection follows the standard priority: an explicit `Config.Overrides.Banking` wins; otherwise the first started banking resource registers via its adapter. The `oxide-banking` adapter at [`../modules/banking/oxide-banking/server.lua`](../modules/banking/oxide-banking/server.lua) registers immediately at o-link load time and gates per-call on `IsReady()` / `GetResourceState`.
 
-The qb-banking-style names (`AddAccountMoney`, `GetAccountMoney`, `RemoveAccountMoney`, `GetManagmentName`, `GetResourceName`) are common across every adapter. The richer surface below is currently exposed by the `oxide-banking` adapter; other adapters may not implement all of it — guard with `olink.supports('banking.<Fn>')`.
+The universal society/job-account surface (`AddAccountMoney`, `GetAccountMoney`, `RemoveAccountMoney`, `GetManagmentName`, `GetResourceName`) is implemented by every adapter and routes to the appropriate society/job/shared account in each backend. The richer surface below is currently exposed only by the `oxide-banking` adapter; other adapters may not implement it — guard with `olink.supports('banking.<Fn>')`. Account creation (`CreateJobAccount`, `CreatePlayerAccount`) is intentionally oxide-only because other frameworks define jobs/accounts in their own core resource.
 
 ### Note on init timing
-oxide-banking takes 1-5s after its resource starts to finish DB load (accounts, statements, credit scores, cards). The adapter registers immediately on `'started'` but read-side functions (`GetBalance`, `GetAccount`, `GetCreditScore`, `CanAfford`, `GetPlayerAccounts`, `GetPlayerBankingData`) early-return safe defaults until `IsReady()` returns true. Write-side functions (`AddMoney`, `RemoveMoney`, `CreatePlayerAccount`, `CreateJobAccount`) defer to oxide-banking's own internal guards.
+oxide-banking takes 1-5s after its resource starts to finish DB load (accounts, statements, credit scores, cards). The adapter registers immediately on `'started'` but read-side functions (`GetAccountMoney`, `GetAccount`, `GetCreditScore`, `CanAfford`, `GetPlayerAccounts`, `GetPlayerBankingData`) early-return safe defaults until `IsReady()` returns true. Write-side functions (`AddAccountMoney`, `RemoveAccountMoney`, `CreatePlayerAccount`, `CreateJobAccount`) defer to oxide-banking's own internal guards.
 
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
 | `GetResourceName()` | | `string` | Active provider, e.g. `'oxide-banking'` |
 | `GetManagmentName()` | | `string` | qb-banking compat surface — same as `GetResourceName` for oxide-banking |
-| `IsReady()` | | `boolean` | True once DB load completes |
-| `GetBalance(accountName)` | `accountName: string` | `number` | Account balance (0 if missing or not ready) |
-| `GetAccount(accountName)` | `accountName: string` | `table\|nil` | Account record |
-| `AddMoney(accountName, amount, reason?)` | | `boolean` | Add funds to an account |
-| `RemoveMoney(accountName, amount, reason?)` | | `boolean` | Remove funds from an account |
-| `CreatePlayerAccount(citizenid, accountName, balance?, users?)` | | `boolean` | Create a new player account |
-| `CreateJobAccount(accountName, balance?)` | | `boolean` | Create a new shared job account |
-| `GetPlayerAccounts(citizenid)` | `citizenid: string` | `table[]` | All accounts the player has access to |
-| `GetPlayerBankingData(citizenid)` | `citizenid: string` | `table\|nil` | Bundled profile (tier, limits, history) |
-| `GetCreditScore(citizenid)` | `citizenid: string` | `number` | Credit score (default 600 if missing/not ready) |
-| `CanAfford(citizenid, amount, accountName?)` | | `boolean` | Whether the player can withdraw `amount` |
-| `AddAccountMoney(...)` `RemoveAccountMoney(...)` `GetAccountMoney(...)` | | | qb-banking-style names — present in qb-banking / renewed-banking adapters; not aliased by oxide-banking yet |
+| `GetAccountMoney(accountName)` | `accountName: string` | `number` | Account balance (0 if missing or not ready) |
+| `AddAccountMoney(accountName, amount, reason?)` | | `boolean` | Add funds to an account |
+| `RemoveAccountMoney(accountName, amount, reason?)` | | `boolean` | Remove funds from an account |
+| `IsReady()` | | `boolean` | True once DB load completes (oxide-banking only) |
+| `GetAccount(accountName)` | `accountName: string` | `table\|nil` | Account record (oxide-banking only) |
+| `CreatePlayerAccount(citizenid, accountName, balance?, users?)` | | `boolean` | Create a new player account (oxide-banking only) |
+| `CreateJobAccount(accountName, balance?)` | | `boolean` | Create a new shared job account (oxide-banking only) |
+| `GetPlayerAccounts(citizenid)` | `citizenid: string` | `table[]` | All accounts the player has access to (oxide-banking only) |
+| `GetPlayerBankingData(citizenid)` | `citizenid: string` | `table\|nil` | Bundled profile (tier, limits, history) (oxide-banking only) |
+| `GetCreditScore(citizenid)` | `citizenid: string` | `number` | Credit score (default 600 if missing/not ready) (oxide-banking only) |
+| `CanAfford(citizenid, amount, accountName?)` | | `boolean` | Whether the player can withdraw `amount` (oxide-banking only) |
 
 ## Module: dispatch (server + client)
 
@@ -468,6 +469,30 @@ Adapter-specific: `esx_skin` and `qb-clothing` use the framework's native table 
 | `IsOwnedBy(src, plate)` | | `boolean` | True if the vehicle with that plate belongs to the player |
 | `GetOwnedPlates(src)` | | `string[]` | Plates owned by the player |
 
+## Module: logger (server + client)
+
+Provided by the optional `oxide-logger` resource. When `oxide-logger` is not installed, every function is a friendly no-op that returns `false` (or `nil` for `SafeCall`). Use `olink.supports('logger')` to detect the real provider.
+
+### Server
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Trace(resource, category, message, data?)` | | `boolean` | Trace-level log |
+| `Debug(resource, category, message, data?)` | | `boolean` | Debug-level log |
+| `Info(resource, category, message, data?)` | | `boolean` | Info-level log |
+| `Warn(resource, category, message, data?)` | | `boolean` | Warn-level log |
+| `Error(resource, category, message, data?)` | | `boolean` | Error-level log |
+| `Fatal(resource, category, message, data?)` | | `boolean` | Fatal-level log |
+| `Event(resource, category, eventName, data?)` | | `boolean` | Structured Info-level event log |
+| `CaptureError(resource, errorMessage, traceback?, source?)` | | `boolean` | Push an error into the diag ring buffer |
+| `SafeCall(fn, resource, category?)` | | `any` | xpcall wrapper that captures errors |
+| `SetLevel(resource, level)` | `level: 'trace'\|'debug'\|'info'\|'warn'\|'error'\|'fatal'` | `boolean` | Override the per-resource level at runtime |
+| `GetLevel(resource)` | | `string` | Current level for the resource |
+
+### Client
+Same surface as server minus `SetLevel`/`GetLevel` (level control is server-only — the server owns the sink configuration). Client log calls forward to the server for sink dispatch; only `SafeCall` and the local error ring buffer run client-side.
+
+Categories are free-form strings; the Discord sink uses them to choose a webhook URL via `Config.Discord.Webhooks[category]` with fallback to `default`.
+
 ## Lifecycle events
 
 | Event | Side | Args | Description |
@@ -479,3 +504,41 @@ Adapter-specific: `esx_skin` and `qb-clothing` use the framework's native table 
 | `olink:client:playerReady` | client | none | Local player ready |
 | `olink:client:playerUnload` | client | none | Local player unloaded |
 | `olink:client:jobChanged` | client | `(jobData)` | Local job update |
+
+## Death lifecycle events
+
+Normalized death events emitted by the death adapters. Granular events fire alongside the canonical `playerDeathStateChanged` so consumers can subscribe to whichever fits.
+
+| Event | Side | Args |
+|-------|------|------|
+| `olink:server:playerDied` | server | `(source, data)` |
+| `olink:server:playerDowned` | server | `(source, data)` |
+| `olink:server:playerRevived` | server | `(source, data)` |
+| `olink:server:playerRespawned` | server | `(source, data)` |
+| `olink:server:playerDeathStateChanged` | server | `(source, newState, oldState, data)` |
+| `olink:client:playerDied` | client | `(data)` |
+| `olink:client:playerDowned` | client | `(data)` |
+| `olink:client:playerRevived` | client | `(data)` |
+| `olink:client:playerRespawned` | client | `(data)` |
+| `olink:client:playerDeathStateChanged` | client | `(newState, oldState, data)` |
+
+`state` is `'alive' | 'dead' | 'downed'`.
+
+`data` is a best-effort table — all fields optional. Adapters fill what their framework provides:
+
+```lua
+data = {
+    attacker = nil, -- number | nil  (server id of killer / reviver)
+    weapon   = nil, -- string | number | nil
+    cause    = nil, -- string | nil
+    coords   = nil, -- vector3 | nil
+}
+```
+
+### Per-framework caveats
+
+- **ESX (`es_extended`)** — no native downed/laststand concept; `playerDowned` never fires. Death payload includes `attacker`, `weapon`, `cause`, `coords` from `esx:onPlayerDeath`. `playerRespawned` is not emitted (ESX does not distinguish revive from respawn).
+- **QB-Core (`qb-core`)** — payloads are empty `{}` on death/downed/revive transitions because `hospital:server:SetDeathStatus` and `hospital:server:SetLaststandStatus` carry no killer info. Source-of-truth is metadata `isdead` / `inlaststand` (no statebag).
+- **QBX (`qbx_core`)** — death/downed payloads include `attacker` and `weapon`. `playerRespawned` is not emitted (qbx_medical reports respawn as a revive).
+- **oxide-death** — emits all five events including `playerRespawned`. Payloads include `cause` (causeOfDeath) and `coords`.
+- **`_default` fallback** — when no supported framework or medical resource is detected, a 500ms client poll on `IsPedDeadOrDying` emits `playerDied` / `playerRevived` only (no downed, no payload).

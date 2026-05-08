@@ -49,3 +49,27 @@ olink._register('death', {
         return exports['oxide-death']:DownPlayer(src, cause, coords, heading) == true
     end,
 })
+
+AddEventHandler('oxide:death:stateChanged', function(src, oldState, newState, deathData)
+    local data = {
+        cause = deathData and deathData.causeOfDeath or nil,
+        coords = deathData and deathData.position or nil,
+    }
+    TriggerEvent('olink:server:playerDeathStateChanged', src, newState, oldState, data)
+end)
+
+AddEventHandler('oxide:death:died', function(src)
+    TriggerEvent('olink:server:playerDied', src, {})
+end)
+
+AddEventHandler('oxide:death:downed', function(src, causeOfDeath, coords)
+    TriggerEvent('olink:server:playerDowned', src, { cause = causeOfDeath, coords = coords })
+end)
+
+AddEventHandler('oxide:death:revived', function(src, reviverSource)
+    TriggerEvent('olink:server:playerRevived', src, { attacker = reviverSource })
+end)
+
+AddEventHandler('oxide:death:respawned', function(src, hospitalCoords)
+    TriggerEvent('olink:server:playerRespawned', src, { coords = hospitalCoords })
+end)

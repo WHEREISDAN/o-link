@@ -20,10 +20,6 @@ local function GenerateId(tbl)
     return id
 end
 
--- ================================================================
--- Entity spawn / despawn
--- ================================================================
-
 ---@param entityData table
 local function SpawnEntity(entityData)
     if entityData.spawned and DoesEntityExist(entityData.spawned) then return end
@@ -120,10 +116,6 @@ local function DespawnEntity(entityData)
     entityData.spawned = nil
 end
 
--- ================================================================
--- Public API
--- ================================================================
-
 ---@param entityData table
 ---@return table
 function ClientEntity.Create(entityData)
@@ -217,10 +209,6 @@ function ClientEntity.SetOnCreate(propertyKey, handler)
     ClientEntity.OnCreates[propertyKey] = handler
 end
 
--- ================================================================
--- Network events from server entity system
--- ================================================================
-
 RegisterNetEvent('o-link:client:entity:create', function(entityData)
     if source ~= 65535 then return end
     ClientEntity.Create(entityData)
@@ -253,10 +241,6 @@ RegisterNetEvent('o-link:client:entity:update', function(id, data)
         entry.args[key] = value
     end
 end)
-
--- ================================================================
--- Resource cleanup
--- ================================================================
 
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName == GetCurrentResourceName() then

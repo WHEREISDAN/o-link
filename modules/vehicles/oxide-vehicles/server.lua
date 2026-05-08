@@ -1,11 +1,5 @@
--- Adapter for oxide-vehicles. Registers IMMEDIATELY so consumers that snapshot
--- olink across the resource boundary capture real wrapper refs, not stubs.
--- Wrappers gate on the resource being started at call time.
-
 local RESOURCE = 'oxide-vehicles'
 
--- Pure adapter: bail if the resource isn't installed so other vehicles impls
--- (qbx_vehicles, qb-garages, esx_vehicleshop) own the namespace.
 if GetResourceState(RESOURCE) == 'missing' then return end
 if not olink._guardImpl('Vehicles', RESOURCE, false) then return end
 
@@ -32,12 +26,6 @@ end
 olink._register('vehicles', {
     ---@return string
     GetResourceName = function() return RESOURCE end,
-
-    -- =========================================================
-    -- Direct DB queries (used by oxide-police MDT / field tools).
-    -- These don't require oxide-vehicles to be started — they
-    -- just need the schema, which is shared via oxmysql.
-    -- =========================================================
 
     ---@param plate string
     ---@param limit number|nil
@@ -119,10 +107,6 @@ olink._register('vehicles', {
             ownerDob     = row.date_of_birth,
         }
     end,
-
-    -- =========================================================
-    -- Resource-backed wrappers (call into oxide-vehicles exports)
-    -- =========================================================
 
     ---@return string
     GeneratePlate = function()
@@ -250,6 +234,49 @@ olink._register('vehicles', {
         if not isStarted() then return false end
         local ok, result = pcall(function() return res:ReleaseImpound(plate) end)
         return ok == true and result == true
+    end,
+
+    ---@param charId string|number stateId or numeric char_id
+    ---@param lot string|nil
+    ---@return table[]
+    GetImpoundedVehicles = function(charId, lot)
+        if not isStarted() then return {} end
+        local cid = ResolveCharId(charId)
+        if not cid then return {} end
+        local ok, rows = pcall(function() return res:GetImpoundedVehicles(cid, lot) end)
+        if not ok or type(rows) ~= 'table' then return {} end
+        local out = {}
+        for i, row in ipairs(rows) do
+            local props
+            if row.props and row.props ~= '' then
+                local okp, decoded = pcall(json.decode, row.props)
+                if okp then props = decoded end
+            end
+            out[i] = {
+                id          = row.id,
+                plate       = row.plate,
+                model       = row.model,
+                vehicleType = row.vehicle_type,
+                fee         = row.impound_fee,
+                props       = props,
+                lot         = row.garage,
+            }
+        end
+        return out
+    end,
+
+    ---@param src number
+    ---@param vehicleId number
+    ---@param lot string|nil
+    ---@return boolean, string|nil
+    RetrieveImpounded = function(src, vehicleId, lot)
+        if not isStarted() then return false, 'not_started' end
+        if not src or not vehicleId then return false, 'bad_args' end
+        local charId = ResolveCharId(olink.character.GetIdentifier(src))
+        if not charId then return false, 'no_char' end
+        local ok, success, reason = pcall(function() return res:RetrieveImpounded(src, charId, tonumber(vehicleId), lot or 'main') end)
+        if not ok then return false, 'pcall_failed' end
+        return success == true, reason
     end,
 
     ---@param plate string

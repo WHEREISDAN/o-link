@@ -61,7 +61,7 @@ function olink.supports(path)
 end
 ```
 
-This is simpler than the local `community_bridge` resource's `Bridge.RegisterModule(...)` bootstrap in [`../../community_bridge/init.lua`](../../community_bridge/init.lua): `o-link` stores namespaces directly on one exported object instead of building a mixed-capitalization module tree.
+`o-link` stores namespaces directly on one exported object rather than building a nested module tree.
 
 ## Circular Provider/Consumer Pattern
 
@@ -168,15 +168,6 @@ o-link/
     |-- gang/
     `-- jobcount/
 ```
-
-## Differences From Local community_bridge
-
-These differences are verified from the local codebase, not assumed:
-
-- `o-link` splits framework concerns across `framework`, `character`, `job`, and `money` namespaces instead of keeping all player-facing operations under one large framework module.
-- `o-link` adds `entity`, `jobcount`, and `vehicleproperties` namespaces that are not present as equivalent namespaces in the local `community_bridge/init.lua` registration list.
-- `o-link` does not ship the `community_bridge` web UI bundle or dialogue/shop/version utility layers visible in the local `community_bridge` manifest.
-- `o-link` still uses the same broad guard-clause pattern of loading many implementations and allowing the matching implementation to register itself.
 
 ## Event Naming
 

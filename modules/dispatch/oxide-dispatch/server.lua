@@ -1,11 +1,5 @@
--- Adapter for oxide-dispatch. Registers IMMEDIATELY so consumers that snapshot
--- olink across the resource boundary capture real wrapper refs, not stubs.
--- See .claude/rules/community-bridge-usage.md.
-
 local RESOURCE = 'oxide-dispatch'
 
--- Pure adapter: bail if the resource isn't installed so other dispatch impls
--- (ps-dispatch, cd_dispatch, _default event-relay, etc.) own the namespace.
 if GetResourceState(RESOURCE) == 'missing' then return end
 if not olink._guardImpl('Dispatch', RESOURCE, false) then return end
 
@@ -80,6 +74,47 @@ olink._register('dispatch', {
     CloseAlert = function(alertId, src, reason)
         if not isStarted() then return false, 'unavailable' end
         local ok, success, err = pcall(function() return res:CloseAlert(alertId, src, reason) end)
+        if not ok then return false, 'unavailable' end
+        return success, err
+    end,
+
+    ---Persist a callsign to character metadata.
+    ---@param src integer
+    ---@param callsign string
+    ---@return boolean, string|nil
+    SetCallsign = function(src, callsign)
+        if not isStarted() then return false, 'unavailable' end
+        local ok, success, err = pcall(function() return res:SetCallsign(src, callsign) end)
+        if not ok then return false, 'unavailable' end
+        return success, err
+    end,
+
+    ---Set an officer's status (broadcasts to other police).
+    ---@param src integer
+    ---@param statusId 'available'|'busy'|'code4'|'10-7'
+    ---@return boolean, string|nil
+    SetOfficerStatus = function(src, statusId)
+        if not isStarted() then return false, 'unavailable' end
+        local ok, success, err = pcall(function() return res:SetOfficerStatus(src, statusId) end)
+        if not ok then return false, 'unavailable' end
+        return success, err
+    end,
+
+    ---Read an officer's current status record.
+    ---@param src integer
+    ---@return table|nil
+    GetOfficerStatus = function(src)
+        if not isStarted() then return nil end
+        local ok, result = pcall(function() return res:GetOfficerStatus(src) end)
+        return ok and result or nil
+    end,
+
+    ---Trigger panic on behalf of an officer (server-authoritative).
+    ---@param src integer
+    ---@return boolean, string|nil
+    TriggerPanic = function(src)
+        if not isStarted() then return false, 'unavailable' end
+        local ok, success, err = pcall(function() return res:TriggerPanic(src) end)
         if not ok then return false, 'unavailable' end
         return success, err
     end,

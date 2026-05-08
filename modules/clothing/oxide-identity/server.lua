@@ -2,10 +2,37 @@ if not olink._guardImpl('Clothing', 'oxide-identity', 'oxide-identity') then ret
 
 local Players = {}
 
+-- oxide-identity keys character_clothing on the numeric char_id, not the
+-- state_id returned by olink.character.GetIdentifier.
+local function getNumericCharId(src)
+    local ok, core = pcall(function() return exports['oxide-core']:Core() end)
+    if not ok or not core or not core.Functions then return nil end
+    local player = core.Functions.GetPlayer(src)
+    if not player or not player.GetCharacter then return nil end
+    local char = player.GetCharacter()
+    if not char or not char.charId then return nil end
+    return tonumber(char.charId)
+end
+
+local function syncClothingState(src, clothing)
+    local player = Player(src)
+    if player and player.state then
+        player.state:set('oxide:clothing', clothing, true)
+    end
+end
+
+local function normalizeNativeMap(tbl)
+    local out = {}
+    for k, v in pairs(tbl or {}) do
+        out[tonumber(k) or k] = v
+    end
+    return out
+end
+
 local function getFullAppearanceData(src)
     src = tonumber(src)
     if not src then return end
-    local charId = olink.character.GetIdentifier(src)
+    local charId = getNumericCharId(src)
     if not charId then return end
     if Players[charId] then return Players[charId] end
 
@@ -13,8 +40,8 @@ local function getFullAppearanceData(src)
     if not clothingResult or not clothingResult[1] then return end
 
     local appearanceResult = MySQL.query.await('SELECT model FROM character_appearance WHERE char_id = ?', { charId })
-    local components = json.decode(clothingResult[1].components) or {}
-    local props = json.decode(clothingResult[1].props) or {}
+    local components = normalizeNativeMap(json.decode(clothingResult[1].components) or {})
+    local props = normalizeNativeMap(json.decode(clothingResult[1].props) or {})
     local model = appearanceResult and appearanceResult[1] and appearanceResult[1].model or 'mp_m_freemode_01'
     local nativeData = { components = components, props = props }
 
@@ -49,8 +76,12 @@ olink._register('clothing', {
     SetAppearance = function(src, data, updateBackup, save)
         src = tonumber(src)
         if not src then return end
-        local charId = olink.character.GetIdentifier(src)
+        local charId = getNumericCharId(src)
         if not charId then return end
+        -- Re-read DB before a fresh backup; cache isn't invalidated on external writes.
+        if not Players[charId] or not Players[charId].backup then
+            Players[charId] = nil
+        end
         local current = getFullAppearanceData(src)
         if not current then return end
 
@@ -67,6 +98,7 @@ olink._register('clothing', {
         end
         Players[charId].native = current.native
         Players[charId].converted = OxideIdentityConvertToDefault(current.native)
+        syncClothingState(src, Players[charId].native)
 
         if save then
             MySQL.update.await('UPDATE character_clothing SET components = ?, props = ? WHERE char_id = ?', {
@@ -82,7 +114,7 @@ olink._register('clothing', {
     SetAppearanceExt = function(src, data)
         local isMale = olink.clothing.IsMale(src)
         local tbl = isMale and data.male or data.female
-        olink.clothing.SetAppearance(src, tbl)
+        return olink.clothing.SetAppearance(src, tbl)
     end,
 
     ---@param src number
@@ -121,18 +153,18 @@ olink._register('clothing', {
     ---@param data table
     ---@return number|nil
     SaveOutfit = function(src, name, data)
-        local charId = olink.character.GetIdentifier(src)
+        local charId = getNumericCharId(src)
         if not charId then return nil end
         local native = OxideIdentityConvertFromDefault(data)
-        return exports['oxide-identity']:SaveOutfit(tonumber(charId), name, native.components, native.props)
+        return exports['oxide-identity']:SaveOutfit(charId, name, native.components, native.props)
     end,
 
     ---@param src number
     ---@return table[]
     GetOutfits = function(src)
-        local charId = olink.character.GetIdentifier(src)
+        local charId = getNumericCharId(src)
         if not charId then return {} end
-        local outfits = exports['oxide-identity']:GetOutfits(tonumber(charId))
+        local outfits = exports['oxide-identity']:GetOutfits(charId)
         if not outfits then return {} end
         for i, outfit in ipairs(outfits) do
             local converted = OxideIdentityConvertToDefault({ components = outfit.components, props = outfit.props })
@@ -169,7 +201,7 @@ end)
 AddEventHandler('olink:server:playerUnload', function(src)
     src = tonumber(src)
     if not src then return end
-    local charId = olink.character.GetIdentifier(src)
+    local charId = getNumericCharId(src)
     if charId then Players[charId] = nil end
 end)
 

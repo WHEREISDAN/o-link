@@ -14,17 +14,13 @@ olink._register('death', {
     ---@param src number
     ---@return boolean
     IsPlayerDead = function(src)
-        local p = ESX.GetPlayerFromId(src)
-        if not p then return false end
-        return p.get('is_dead') == true
+        return Player(src).state.isDead == true
     end,
 
     ---@param src number
     ---@return table|nil
     GetDeathState = function(src)
-        local p = ESX.GetPlayerFromId(src)
-        if not p then return nil end
-        local state = p.get('is_dead') and 'dead' or 'alive'
+        local state = Player(src).state.isDead and 'dead' or 'alive'
         return { state = state }
     end,
 
@@ -67,3 +63,42 @@ olink._register('death', {
         return true
     end,
 })
+
+local lastState = {}
+local deathContext = {}
+
+AddEventHandler('esx:onPlayerDeath', function(data)
+    local src = source
+    if not src or src <= 0 then return end
+    deathContext[src] = {
+        attacker = data and data.killerServerId or nil,
+        weapon = data and data.killedByWeapon or nil,
+        cause = data and data.deathCause or nil,
+        coords = data and data.killerCoords or nil,
+    }
+end)
+
+AddStateBagChangeHandler('isDead', nil, function(bagName, _, value)
+    local src = GetPlayerFromStateBagName(bagName)
+    if not src or src <= 0 then return end
+
+    local newState = value and 'dead' or 'alive'
+    local oldState = lastState[src] or 'alive'
+    if newState == oldState then return end
+    lastState[src] = newState
+
+    local data = deathContext[src] or {}
+    if newState == 'dead' then
+        TriggerEvent('olink:server:playerDied', src, data)
+    else
+        TriggerEvent('olink:server:playerRevived', src, data)
+        deathContext[src] = nil
+    end
+    TriggerEvent('olink:server:playerDeathStateChanged', src, newState, oldState, data)
+end)
+
+AddEventHandler('playerDropped', function()
+    local src = source
+    lastState[src] = nil
+    deathContext[src] = nil
+end)

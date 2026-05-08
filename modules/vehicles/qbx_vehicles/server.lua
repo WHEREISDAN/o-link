@@ -201,4 +201,76 @@ olink._register('vehicles', {
         local affected = MySQL.update.await('UPDATE player_vehicles SET mods = ? WHERE plate = ?', { propsJson, plate })
         return (affected or 0) > 0
     end,
+
+    ---@param charId string citizenid
+    ---@param lot string|nil
+    ---@return table[]
+    GetImpoundedVehicles = function(charId, lot)
+        if not charId then return {} end
+        local results
+        local ok = pcall(function()
+            results = exports.qbx_vehicles:GetPlayerVehicles({
+                citizenid = charId,
+                states    = { 2 },
+                garage    = (lot and lot ~= '') and lot or nil,
+            })
+        end)
+        if not ok or type(results) ~= 'table' then return {} end
+        local out = {}
+        for i, v in ipairs(results) do
+            local props = v.props
+            if not props and v.modelData then props = v.modelData end
+            out[i] = {
+                id          = v.id,
+                plate       = (v.props and v.props.plate) or v.plate,
+                model       = (v.props and v.props.model) or v.modelName,
+                vehicleType = v.vehicleType or 'car',
+                fee         = v.depotPrice or 0,
+                props       = props,
+                lot         = v.garage,
+            }
+        end
+        return out
+    end,
+
+    ---@param src number
+    ---@param vehicleId number
+    ---@param lot string|nil
+    ---@return boolean, string|nil
+    RetrieveImpounded = function(src, vehicleId, lot)
+        if not src or not vehicleId then return false, 'bad_args' end
+        local player
+        local okGet = pcall(function() player = exports.qbx_core:GetPlayer(src) end)
+        if not okGet or not player then return false, 'no_player' end
+
+        local vehicle
+        local okFind = pcall(function()
+            vehicle = exports.qbx_vehicles:GetPlayerVehicle(tonumber(vehicleId), {
+                citizenid = player.PlayerData.citizenid,
+                states    = { 2 },
+                garage    = (lot and lot ~= '') and lot or nil,
+            })
+        end)
+        if not okFind or not vehicle then return false, 'not_found' end
+
+        local fee = tonumber(vehicle.depotPrice) or 0
+        if fee > 0 then
+            local removed = false
+            local cash = (player.PlayerData.money and player.PlayerData.money.cash) or 0
+            if cash >= fee then
+                removed = player.Functions.RemoveMoney('cash', fee, 'oxide-impound')
+            end
+            if not removed then
+                removed = player.Functions.RemoveMoney('bank', fee, 'oxide-impound')
+            end
+            if not removed then return false, 'no_funds' end
+        end
+
+        local saved
+        local okSave = pcall(function()
+            saved = exports.qbx_vehicles:SaveVehicle(vehicle, { state = 0 })
+        end)
+        if not okSave or not saved then return false, 'save_failed' end
+        return true, nil
+    end,
 })

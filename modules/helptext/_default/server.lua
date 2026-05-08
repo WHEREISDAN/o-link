@@ -1,5 +1,4 @@
--- Default helptext fallback (server).
--- Mirrors community_bridge/helptext/_default: relays show/hide events to client.
+-- Default helptext fallback (server). Relays show/hide events to client.
 
 if not olink._guardImpl('HelpText', '_default', false) then return end
 if not olink._hasOverride('HelpText') and GetResourceState('cd_drawtextui') == 'started' then return end

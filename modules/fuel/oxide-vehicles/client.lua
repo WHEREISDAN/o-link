@@ -1,9 +1,5 @@
--- Adapter for oxide-vehicles (fuel, client). Registers IMMEDIATELY so consumers
--- that snapshot olink across the resource boundary capture real wrapper refs.
-
 local RESOURCE = 'oxide-vehicles'
 
--- Pure adapter: bail if oxide-vehicles isn't installed.
 if GetResourceState(RESOURCE) == 'missing' then return end
 if not olink._guardImpl('Fuel', RESOURCE, false) then return end
 

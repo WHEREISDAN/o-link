@@ -1,8 +1,4 @@
--- Community-bridge naming aliases for vehiclekey.
--- cb exposes `VehicleKey.GiveKeys(vehicle, plate)` / `VehicleKey.RemoveKeys(...)`
--- whereas o-link adapters register `Give` / `Remove`. This shim adds the cb
--- names that delegate to whichever adapter registered, so code ported from
--- community_bridge keeps working.
+-- Naming aliases: `GiveKeys`/`RemoveKeys` delegate to the adapter's `Give`/`Remove`.
 
 if not olink.vehiclekey then return end
 if olink._vehiclekeyAliasesLoaded then return end

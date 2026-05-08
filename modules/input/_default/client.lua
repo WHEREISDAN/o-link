@@ -1,5 +1,4 @@
--- Default input fallback.
--- Provides QB<->Ox schema conversion helpers mirrored from community_bridge.
+-- Default input fallback. Provides QB<->Ox schema conversion helpers.
 -- Open() is a stub: returns nil when no input UI is available.
 
 if not olink._guardImpl('Input', '_default', false) then return end

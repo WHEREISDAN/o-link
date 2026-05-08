@@ -2,7 +2,7 @@
 
 `o-link` is Oxide Studios' cross-framework bridge resource for FiveM.
 
-It follows the same broad guard-clause and bridge-implementation pattern as `community_bridge`, but its public API is reorganized around smaller namespaces such as `framework`, `character`, `job`, `money`, `inventory`, `vehicles`, `entity`, and `callback`.
+Its public API is organized into small namespaces such as `framework`, `character`, `job`, `money`, `inventory`, `vehicles`, `entity`, and `callback`. Each namespace is backed by a guard-clause adapter so the active implementation (QBCore, QBX, ESX, Oxide, etc.) is selected automatically.
 
 ## Current State
 

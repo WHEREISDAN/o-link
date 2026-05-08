@@ -1,16 +1,11 @@
--- Default clothing fallback (client).
--- Uses GTA native ped-component APIs when no dedicated clothing resource is running.
-
+-- Always loaded so the native ped applier is available regardless of which
+-- framework clothing resource is also present. Framework adapters override
+-- OpenMenu / IsMale; the SetAppearance event listener below is the only thing
+-- that actually moves the ped on a server-triggered change.
 if not olink._guardImpl('Clothing', '_default', false) then return end
-if not olink._hasOverride('Clothing') and GetResourceState('esx_skin') == 'started' then return end
-if not olink._hasOverride('Clothing') and GetResourceState('fivem-appearance') == 'started' then return end
-if not olink._hasOverride('Clothing') and GetResourceState('illenium-appearance') == 'started' then return end
-if not olink._hasOverride('Clothing') and GetResourceState('oxide-clothing') == 'started' then return end
-if not olink._hasOverride('Clothing') and GetResourceState('oxide-identity') == 'started' then return end
-if not olink._hasOverride('Clothing') and GetResourceState('qb-clothing') == 'started' then return end
-if not olink._hasOverride('Clothing') and GetResourceState('rcore_clothing') == 'started' then return end
 
 local appearanceBackup
+local componentApplyOrder = { 0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8 }
 
 local function GetAppearance(entity)
     entity = entity or PlayerPedId()
@@ -37,9 +32,23 @@ end
 local function SetAppearance(ped, skinData)
     ped = ped or PlayerPedId()
     if type(skinData) ~= 'table' then return false end
-    for _, v in pairs(skinData.components or {}) do
-        if v.component_id then
-            SetPedComponentVariation(ped, v.component_id, v.drawable, v.texture, 0)
+    local componentsById = {}
+    for key, value in pairs(skinData.components or {}) do
+        local componentId = tonumber(value and value.component_id) or tonumber(key)
+        if componentId then
+            componentsById[componentId] = value
+        end
+    end
+    for _, componentId in ipairs(componentApplyOrder) do
+        local v = componentsById[componentId]
+        if v then
+            SetPedComponentVariation(ped, componentId, tonumber(v.drawable) or 0, tonumber(v.texture) or 0, 0)
+            componentsById[componentId] = nil
+        end
+    end
+    for componentId, v in pairs(componentsById) do
+        if v then
+            SetPedComponentVariation(ped, componentId, tonumber(v.drawable) or 0, tonumber(v.texture) or 0, 0)
         end
     end
     for _, v in pairs(skinData.props or {}) do
@@ -76,12 +85,10 @@ if olink.callback then
     end)
 end
 
-RegisterNetEvent('o-link:clothing:setAppearance', function(data)
-    if source ~= '' and source ~= 65535 then return end
+RegisterNetEvent('o-link:client:clothing:setAppearance', function(data)
     SetAppearance(PlayerPedId(), data)
 end)
 
-RegisterNetEvent('o-link:clothing:restoreAppearance', function()
-    if source ~= '' and source ~= 65535 then return end
+RegisterNetEvent('o-link:client:clothing:restoreAppearance', function()
     RestoreAppearance(PlayerPedId())
 end)

@@ -5,6 +5,26 @@ local menuCallbacks = {}
 local menus = {}
 local BRIDGE_SELECT_EVENT = 'o-link:oxide-menu:select'
 
+local function NormalizeIcon(icon)
+    if type(icon) ~= 'string' or icon == '' then return nil end
+
+    local lower = icon:lower()
+    local isImage = lower:find('^https?://') ~= nil
+        or lower:find('^nui://') ~= nil
+        or lower:find('^/') ~= nil
+        or lower:find('^%.') ~= nil
+        or lower:find('%.png') ~= nil
+        or lower:find('%.jpe?g') ~= nil
+        or lower:find('%.webp') ~= nil
+        or lower:find('%.svg') ~= nil
+        or lower:find('%.gif') ~= nil
+
+    if isImage or icon:find('%s') then return icon end
+    if icon:find('^fa%-') then return 'fa-solid ' .. icon end
+
+    return 'fa-solid fa-' .. icon
+end
+
 ---@param menuId string
 ---@param options table
 ---@return table
@@ -21,7 +41,7 @@ local function ConvertOptions(menuId, options)
             id = itemId,
             title = v.title,
             description = v.description,
-            icon = v.icon,
+            icon = NormalizeIcon(v.icon),
             iconColor = v.iconColor,
             event = v.onSelect and BRIDGE_SELECT_EVENT or v.event,
             serverEvent = v.serverEvent,
@@ -69,7 +89,7 @@ local function QBToOxideMenu(id, menu)
                 id = itemId,
                 title = v.header,
                 description = v.txt,
-                icon = v.icon,
+                icon = NormalizeIcon(v.icon),
                 args = v.params and v.params.args,
                 event = BRIDGE_SELECT_EVENT,
             }

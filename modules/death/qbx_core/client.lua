@@ -26,3 +26,33 @@ olink._register('death', {
         return { state = state }
     end,
 })
+
+local lastState = 'alive'
+
+local function transitionTo(newState, data)
+    if newState == lastState then return end
+    local oldState = lastState
+    lastState = newState
+    data = data or {}
+
+    if newState == 'dead' then
+        TriggerEvent('olink:client:playerDied', data)
+    elseif newState == 'downed' then
+        TriggerEvent('olink:client:playerDowned', data)
+    elseif newState == 'alive' then
+        TriggerEvent('olink:client:playerRevived', data)
+    end
+    TriggerEvent('olink:client:playerDeathStateChanged', newState, oldState, data)
+end
+
+RegisterNetEvent('qbx_medical:client:onPlayerDied', function(attacker, weapon)
+    transitionTo('dead', { attacker = attacker, weapon = weapon })
+end)
+
+RegisterNetEvent('qbx_medical:client:onPlayerLaststand', function(attacker, weapon)
+    transitionTo('downed', { attacker = attacker, weapon = weapon })
+end)
+
+RegisterNetEvent('qbx_medical:client:playerRevived', function()
+    transitionTo('alive', {})
+end)

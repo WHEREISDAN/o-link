@@ -19,7 +19,7 @@ olink._register('notify', {
         TriggerClientEvent('o-link:client:notify', src, message, notifType, duration, title, props)
     end,
 
-    ---Community_bridge-style alias accepting title as the first data argument.
+    ---Alias accepting title as the first data argument.
     ---@param src number
     ---@param title string|nil
     ---@param message string

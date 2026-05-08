@@ -29,3 +29,28 @@ olink._register('death', {
         return { state = state }
     end,
 })
+
+local function deriveState(meta)
+    if not meta then return 'alive' end
+    if meta.isdead then return 'dead' end
+    if meta.inlaststand then return 'downed' end
+    return 'alive'
+end
+
+local lastState = deriveState((QBCore.Functions.GetPlayerData() or {}).metadata)
+
+RegisterNetEvent('QBCore:Player:SetPlayerData', function(playerData)
+    local newState = deriveState(playerData and playerData.metadata)
+    if newState == lastState then return end
+    local oldState = lastState
+    lastState = newState
+
+    if newState == 'dead' then
+        TriggerEvent('olink:client:playerDied', {})
+    elseif newState == 'downed' then
+        TriggerEvent('olink:client:playerDowned', {})
+    elseif newState == 'alive' then
+        TriggerEvent('olink:client:playerRevived', {})
+    end
+    TriggerEvent('olink:client:playerDeathStateChanged', newState, oldState, {})
+end)

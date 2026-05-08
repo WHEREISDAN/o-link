@@ -1,5 +1,4 @@
 -- Default death fallback.
--- Mirrors community_bridge/framework/_default death state stubs.
 
 if not olink._guardImpl('Death', '_default', false) then return end
 if not olink._hasOverride('Death') and GetResourceState('es_extended') == 'started' then return end
@@ -19,3 +18,27 @@ olink._registerDefault('death', {
     RespawnPlayer = function() return false end,
     DownPlayer = function() return false end,
 })
+
+local lastState = {}
+
+RegisterNetEvent('olink:_default:death', function(isDead)
+    local src = source
+    if not src or src <= 0 then return end
+
+    local newState = isDead and 'dead' or 'alive'
+    local oldState = lastState[src] or 'alive'
+    if newState == oldState then return end
+    lastState[src] = newState
+
+    if newState == 'dead' then
+        TriggerEvent('olink:server:playerDied', src, {})
+    else
+        TriggerEvent('olink:server:playerRevived', src, {})
+    end
+    TriggerEvent('olink:server:playerDeathStateChanged', src, newState, oldState, {})
+end)
+
+AddEventHandler('playerDropped', function()
+    local src = source
+    lastState[src] = nil
+end)

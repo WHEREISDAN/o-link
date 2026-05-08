@@ -11,8 +11,7 @@ olink._register('dispatch', {
     SendAlert = function(data)
         local fallbackCoords = GetEntityCoords(PlayerPedId())
         local coords = data.coords or fallbackCoords
-        -- Match community_bridge shape exactly: wasabi_mdt expects coord arrays
-        -- ({x, y, z}) for both `location` and `coords`, not tables keyed by axis.
+        -- wasabi_mdt expects coord arrays ({x, y, z}) for both `location` and `coords`.
         local coordArray = { coords.x, coords.y, coords.z }
         exports.wasabi_mdt:CreateDispatch({
             type = data.code or '10-80',

@@ -5,8 +5,7 @@ if olink._characterHelpersLoaded then return end
 olink._characterHelpersLoaded = true
 
 olink._register('character', {
-    ---Convenience wrapper: returns the player's date-of-birth string, if any.
-    ---Mirrors community_bridge's `GetPlayerDob(src)`.
+    ---Returns the player's date-of-birth string, if any.
     ---@param src number
     ---@return string|nil
     GetDob = function(src)
@@ -18,12 +17,8 @@ olink._register('character', {
     end,
 
     ---Return all character identifiers on the same account (same game license)
-    ---as the given identifier. Mirrors community_bridge's
-    ---`Framework.GetAccountCharacterIdentifiers(identifier)`.
-    ---
-    ---On ESX the identifier IS the license, so only that identifier is returned.
-    ---On QB/QBX we look up the license column and return every citizenid
-    ---associated with it.
+    ---as the given identifier. On ESX the identifier IS the license, so only that
+    ---identifier is returned. On QB/QBX, returns every citizenid sharing the license.
     ---@param identifier string
     ---@return string[]
     GetAccountCharacterIdentifiers = function(identifier)

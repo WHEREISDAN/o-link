@@ -1,5 +1,4 @@
--- Default helptext fallback (client).
--- Mirrors community_bridge by delegating to the active framework helptext methods.
+-- Default helptext fallback (client). Delegates to the active framework's helptext methods.
 
 if not olink._guardImpl('HelpText', '_default', false) then return end
 if not olink._hasOverride('HelpText') and GetResourceState('cd_drawtextui') == 'started' then return end

@@ -1,10 +1,5 @@
--- Adapter for oxide-dispatch (client). Registers IMMEDIATELY so consumers that
--- snapshot olink across the resource boundary capture real wrapper refs, not stubs.
-
 local RESOURCE = 'oxide-dispatch'
 
--- Pure adapter: bail if the resource isn't installed so other dispatch impls
--- own the namespace.
 if GetResourceState(RESOURCE) == 'missing' then return end
 if not olink._guardImpl('Dispatch', RESOURCE, false) then return end
 
@@ -75,5 +70,25 @@ olink._register('dispatch', {
     CloseAlert = function(alertId, reason)
         if not isStarted() then return false end
         return olink.callback.Trigger('oxide-dispatch:server:closeAlert', alertId, reason)
+    end,
+
+    ---Persist a callsign to character metadata.
+    ---@param callsign string
+    SetCallsign = function(callsign)
+        if not isStarted() then return false end
+        return olink.callback.Trigger('oxide-dispatch:server:setCallsign', callsign)
+    end,
+
+    ---Update officer status (broadcasts to other police).
+    ---@param statusId 'available'|'busy'|'code4'|'10-7'
+    SetOfficerStatus = function(statusId)
+        if not isStarted() then return false end
+        return olink.callback.Trigger('oxide-dispatch:server:setOfficerStatus', statusId)
+    end,
+
+    ---Trigger panic / officer-needs-backup.
+    TriggerPanic = function()
+        if not isStarted() then return false end
+        return olink.callback.Trigger('oxide-dispatch:server:panic')
     end,
 }, RESOURCE)

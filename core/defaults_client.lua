@@ -144,6 +144,7 @@ stub('dispatch', {
     'GetResourceName', 'SendAlert',
     'GetActiveAlerts', 'GetAlert', 'RespondToAlert',
     'StopResponding', 'UpdateResponderStatus', 'CloseAlert',
+    'SetCallsign', 'SetOfficerStatus', 'TriggerPanic',
 }, {
     GetResourceName = 'none',
     SendAlert = false,
@@ -152,6 +153,9 @@ stub('dispatch', {
     StopResponding = false,
     UpdateResponderStatus = false,
     CloseAlert = false,
+    SetCallsign = false,
+    SetOfficerStatus = false,
+    TriggerPanic = false,
 })
 
 stub('doorlock', {
@@ -194,4 +198,21 @@ stub('vehicleproperties', {
     'GetVehicleProperties', 'SetVehicleProperties',
 }, {
     SetVehicleProperties = false,
+})
+
+stub('logger', {
+    'GetResourceName',
+    'Trace', 'Debug', 'Info', 'Warn', 'Error', 'Fatal',
+    'Event', 'CaptureError', 'SafeCall',
+}, {
+    GetResourceName = 'none',
+    Trace = false,
+    Debug = false,
+    Info  = false,
+    Warn  = false,
+    Error = false,
+    Fatal = false,
+    Event = false,
+    CaptureError = false,
+    SafeCall = function(fn) if type(fn) == 'function' then local ok, r = pcall(fn) return ok and r or nil end end,
 })

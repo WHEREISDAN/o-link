@@ -2,7 +2,7 @@
 local caps = olink._getCapabilities()
 
 print('^2[o-link] Server modules loaded:^0')
-local modules = { 'callback', 'framework', 'character', 'job', 'money', 'inventory', 'vehicles', 'vehicleOwnership', 'banking', 'notify', 'phone', 'clothing', 'dispatch', 'doorlock', 'housing', 'bossmenu', 'skills', 'entity', 'death', 'needs', 'gang', 'jobcount', 'helptext' }
+local modules = { 'callback', 'framework', 'character', 'job', 'money', 'inventory', 'vehicles', 'vehicleOwnership', 'banking', 'notify', 'phone', 'clothing', 'dispatch', 'doorlock', 'housing', 'bossmenu', 'skills', 'entity', 'death', 'needs', 'gang', 'jobcount', 'helptext', 'logger' }
 for _, ns in ipairs(modules) do
     local state = caps[ns]
     if state and state.loaded then

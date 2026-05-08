@@ -49,7 +49,7 @@ Direct `lib.addRadialItem(...)` calls are not intercepted.
 | `weather` | client | `cd_easytime`, `night_natural_disasters`, `oxide-weather`, `qb-weathersync`, `renewed-weathersync` |
 | `vehiclekey` | client | `cd_garage`, `f_realcarkeyssystem`, `jacksam`, `mk_vehiclekeys`, `mrnewbvehiclekeys`, `mVehicle`, `okokGarage`, `oxide-vehicles`, `qb-vehiclekeys`, `qbx_vehiclekeys`, `qs-vehiclekeys`, `renewed-vehiclekeys`, `t1ger_keys`, `wasabi_carlock` |
 | `vehicleOwnership` | server | `esx_vehicleshop`, `oxide-vehicles`, `qb-garages`, `qbx_vehicles` |
-| `death` | server + client | `es_extended`, `oxide-death`, `qb-core`, `qbx_core` |
+| `death` | server + client | `_default`, `es_extended`, `oxide-death`, `qb-core`, `qbx_core` (all emit `olink:*:playerDied/Downed/Revived/Respawned/playerDeathStateChanged` — see API.md for per-provider caveats) |
 | `needs` | server | `es_extended`, `oxide-needs`, `qb-core`, `qbx_core` |
 | `gang` | server + client | `es_extended`, `oxide-core`, `qb-core`, `qbx_core` |
 
@@ -65,6 +65,7 @@ Direct `lib.addRadialItem(...)` calls are not intercepted.
 | `housing` | server + client | `bcs-housing`, `esx_property`, `ps-housing`, `qb-appartments`, `qb-houses` |
 | `bossmenu` | server + client | `esx_society`, `qb-management`, `qbx_management` |
 | `skills` | server + client | `_default`, `evolent_skills`, `ot_skills`, `pickle_xp` |
+| `logger` | server + client | `oxide-logger` (optional, free) |
 
 ## Lifecycle Adapters
 

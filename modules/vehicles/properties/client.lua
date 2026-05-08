@@ -1,6 +1,6 @@
 -- Vehicle property serialization/deserialization.
 -- Pure GTA native calls — no external resource dependency.
--- Derived from ESX/QBCore/community_bridge vehicle property handlers (GPLv3).
+-- Derived from ESX/QBCore vehicle property handlers (GPLv3).
 
 if not olink._guardImpl('VehicleProperties', 'vehicleproperties', false) then return end
 local gameBuild = GetGameBuildNumber()

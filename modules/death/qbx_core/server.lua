@@ -81,3 +81,49 @@ olink._register('death', {
         return true
     end,
 })
+
+-- qbx_medical/config/shared.lua: deathState = { ALIVE = 1, LAST_STAND = 2, DEAD = 3 }
+local STATE_MAP = { [1] = 'alive', [2] = 'downed', [3] = 'dead' }
+
+local lastState = {}
+local deathContext = {}
+
+RegisterNetEvent('qbx_medical:server:onPlayerDied', function(attacker, weapon)
+    local src = source
+    if not src or src <= 0 then return end
+    deathContext[src] = { attacker = attacker, weapon = weapon }
+end)
+
+RegisterNetEvent('qbx_medical:server:onPlayerLaststand', function(attacker, weapon)
+    local src = source
+    if not src or src <= 0 then return end
+    deathContext[src] = { attacker = attacker, weapon = weapon }
+end)
+
+AddStateBagChangeHandler('qbx_medical:deathState', nil, function(bagName, _, value)
+    local src = GetPlayerFromStateBagName(bagName)
+    if not src or src <= 0 then return end
+
+    local newState = STATE_MAP[value]
+    if not newState then return end
+    local oldState = lastState[src] or 'alive'
+    if newState == oldState then return end
+    lastState[src] = newState
+
+    local data = deathContext[src] or {}
+    if newState == 'dead' then
+        TriggerEvent('olink:server:playerDied', src, data)
+    elseif newState == 'downed' then
+        TriggerEvent('olink:server:playerDowned', src, data)
+    elseif newState == 'alive' then
+        TriggerEvent('olink:server:playerRevived', src, data)
+        deathContext[src] = nil
+    end
+    TriggerEvent('olink:server:playerDeathStateChanged', src, newState, oldState, data)
+end)
+
+AddEventHandler('playerDropped', function()
+    local src = source
+    lastState[src] = nil
+    deathContext[src] = nil
+end)

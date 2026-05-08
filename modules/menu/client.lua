@@ -1,7 +1,4 @@
--- Community_bridge naming alias for menu.
--- cb exposes `Menu.OpenMenu(id, data, useQBinput)` (id as first argument).
--- o-link adapters register `Open(data, useQb)` where the id lives inside
--- `data.id`. This shim adds cb's signature, delegating to the adapter.
+-- Alias: `OpenMenu(id, data, useQBinput)` delegates to `Open(data)` with id moved into data.id.
 
 if not olink.menu then return end
 if olink._menuAliasesLoaded then return end

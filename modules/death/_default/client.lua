@@ -13,3 +13,24 @@ olink._registerDefault('death', {
     IsPlayerDead = function() return IsPedDeadOrDying(PlayerPedId(), true) end,
     GetDeathState = function() return nil end,
 })
+
+CreateThread(function()
+    local lastState = 'alive'
+    while true do
+        Wait(500)
+        local newState = IsPedDeadOrDying(PlayerPedId(), true) and 'dead' or 'alive'
+        if newState ~= lastState then
+            local oldState = lastState
+            lastState = newState
+
+            if newState == 'dead' then
+                TriggerEvent('olink:client:playerDied', {})
+                TriggerServerEvent('olink:_default:death', true)
+            else
+                TriggerEvent('olink:client:playerRevived', {})
+                TriggerServerEvent('olink:_default:death', false)
+            end
+            TriggerEvent('olink:client:playerDeathStateChanged', newState, oldState, {})
+        end
+    end
+end)
