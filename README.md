@@ -51,3 +51,11 @@ ensure o-link
 ensure oxide-police
 ensure oxide-shops
 ```
+
+## Credits & License
+
+`o-link` is derived from [community_bridge](https://github.com/TheOrderFivem/community_bridge) by TheOrderFivem and contributors, licensed under GPL v3. The bridge concept, module taxonomy (`modules/<namespace>/<implementation>/`), per-vendor adapter layout, and significant portions of the public API surface originate from community_bridge. The codebase has been modified for Oxide Studios' use.
+
+`o-link` is licensed under GPL v3. See [`LICENSE`](./LICENSE).
+
+Thanks to TheOrderFivem and the community_bridge contributors for the original design and for making the work available to the community.
