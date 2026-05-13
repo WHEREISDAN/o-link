@@ -1,10 +1,21 @@
--- Inventory event sync shim. Fires an inventory-updated event to the client
--- on AddItem/RemoveItem regardless of which adapter registered.
--- Loads after adapters via alphabetical glob order.
+-- Underscore prefix keeps this out of the `**/server.lua` adapter glob so it
+-- loads once via its explicit fxmanifest entry, after all adapters.
 
 if not olink.inventory then return end
-if olink._inventorySyncLoaded then return end
-olink._inventorySyncLoaded = true
+
+local realGetImagePath = olink.inventory.GetImagePath
+
+olink._register('inventory', {
+    GetImagePath = function(item)
+        local base = Config and Config.ImageBaseUrl
+        if type(base) == 'string' and base ~= '' and type(item) == 'string' and item ~= '' then
+            if not base:match('/$') then base = base .. '/' end
+            local stripped = item:gsub('%.png$', ''):gsub('%.webp$', '')
+            return base .. stripped .. '.png'
+        end
+        return realGetImagePath and realGetImagePath(item) or ''
+    end,
+}, 'o-link')
 
 local realAdd = olink.inventory.AddItem
 local realRemove = olink.inventory.RemoveItem

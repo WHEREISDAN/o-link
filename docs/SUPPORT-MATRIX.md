@@ -13,6 +13,7 @@ It lists implementation folders that exist today. It does not guarantee every im
 | `character` | server + client | `es_extended`, `oxide-core`, `qb-core`, `qbx_core` |
 | `job` | server + client | `es_extended`, `oxide-core`, `qb-core`, `qbx_core` |
 | `money` | server | `es_extended`, `oxide-accounts`, `qb-core`, `qbx_core` |
+| `license` | server | `es_extended`, `oxide-core`, `qb-core`, `qbx_core` |
 | `inventory` | server + client | `codem-inventory`, `core_inventory`, `jpr-inventory`, `origen_inventory`, `oxide-inventory`, `ox_inventory`, `ps-inventory`, `qb-inventory`, `qs-inventory`, `tgiann-inventory` |
 | `vehicles` | server | `esx_vehicleshop`, `oxide-vehicles`, `qb-garages`, `qbx_vehicles` |
 | `vehicleproperties` | client | `modules/vehicles/properties` |

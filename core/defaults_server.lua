@@ -52,6 +52,20 @@ stub('money', {
     GetBalanceOffline = 0,
 })
 
+stub('license', {
+    'Has', 'Grant', 'Revoke', 'GetAll',
+    'HasOffline', 'GrantOffline', 'RevokeOffline', 'GetAllOffline',
+}, {
+    Has = false,
+    Grant = false,
+    Revoke = false,
+    GetAll = function() return {} end,
+    HasOffline = false,
+    GrantOffline = false,
+    RevokeOffline = false,
+    GetAllOffline = function() return {} end,
+})
+
 stub('inventory', {
     'GetItemCount', 'HasItem', 'AddItem', 'RemoveItem', 'GetItemBySlot',
     'GetPlayerInventory', 'OpenPlayerInventory', 'RegisterStash', 'OpenStash',

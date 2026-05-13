@@ -38,3 +38,7 @@ Config.Overrides = {
 }
 
 Config.Debug = true
+
+-- When set, every `olink.inventory.GetImagePath` call returns `<base>/<item>.png`.
+-- Example: 'https://r2.qbox.re/myserver/inventory/'
+Config.ImageBaseUrl = nil

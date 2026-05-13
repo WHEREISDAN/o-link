@@ -131,6 +131,28 @@ olink.supports('vehicleproperties.GetVehicleProperties')
 | `RemoveOffline(identifier, accountType, amount)` | `identifier: string, accountType: string, amount: number` | `boolean` | Remove money offline |
 | `GetBalanceOffline(identifier, accountType)` | `identifier: string, accountType: string` | `number` | Offline balance |
 
+## Module: license (server only)
+
+Licenses are bool flags keyed by license type (`'driver'`, `'weapon'`, `'business'`, etc.). The bridge does not validate type names — the consumer (e.g. oxide-police) owns the type catalogue. On QB/QBX/Oxide, types are arbitrary strings stored in player metadata. On ESX, types must exist in the `licenses` table (`esx_license`) for ESX-aware UIs to label them; the bridge will still write rows for unknown types but server owners should seed the table for consistency.
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Has(src, type)` | `src: number, type: string` | `boolean` | Whether the online player has this license |
+| `Grant(src, type)` | `src: number, type: string` | `boolean` | Grant the license to an online player |
+| `Revoke(src, type)` | `src: number, type: string` | `boolean` | Revoke the license from an online player |
+| `GetAll(src)` | `src: number` | `table` | All licenses for an online player as `{ [type]=true\|false }` |
+| `HasOffline(identifier, type)` | `identifier: string, type: string` | `boolean` | Whether the offline character has this license |
+| `GrantOffline(identifier, type)` | `identifier: string, type: string` | `boolean` | Grant the license to an offline character |
+| `RevokeOffline(identifier, type)` | `identifier: string, type: string` | `boolean` | Revoke the license from an offline character |
+| `GetAllOffline(identifier)` | `identifier: string` | `table` | All licenses for an offline character |
+
+`identifier` matches `character.GetIdentifier(src)` — citizenid on QB/QBX, ESX identifier on es_extended, state_id (or numeric char_id) on oxide-core.
+
+Storage:
+- **qb-core / qbx_core** — `players.metadata.licences` (British spelling) as `{ [type]=bool }`.
+- **es_extended** — rows in `user_licenses` keyed by player identifier.
+- **oxide-core** — `characters.metadata.licenses` as `{ [type]=bool }`.
+
 ## Module: inventory (server + client)
 
 ### Server
@@ -146,7 +168,7 @@ olink.supports('vehicleproperties.GetVehicleProperties')
 | `RegisterStash(id, label, slots, weight, owner?)` | | `boolean` | Register stash |
 | `OpenStash(src, stashId)` | | `nil` | Open stash |
 | `GetItemInfo(item)` | `item: string` | `table` | Item definition or `{}` |
-| `GetImagePath(item)` | `item: string` | `string` | Image path or `''` |
+| `GetImagePath(item)` | `item: string` | `string` | Image path. When `Config.ImageBaseUrl` is set in `o-link/config.lua`, always returns `<base>/<item>.png`; otherwise returns the adapter's path or `''`. |
 
 ### Client
 | Function | Args | Returns | Description |
@@ -155,7 +177,7 @@ olink.supports('vehicleproperties.GetVehicleProperties')
 | `GetItemCount(item)` | `item: string` | `number` | Count item |
 | `HasItem(item, count?)` | `item: string, count?: number` | `boolean` | Inventory check |
 | `GetItemInfo(item)` | `item: string` | `table` | Item definition or `{}` |
-| `GetImagePath(item)` | `item: string` | `string` | Image path or `''` |
+| `GetImagePath(item)` | `item: string` | `string` | Image path. When `Config.ImageBaseUrl` is set in `o-link/config.lua`, always returns `<base>/<item>.png`; otherwise returns the adapter's path or `''`. |
 
 ## Module: vehicles (server only)
 
