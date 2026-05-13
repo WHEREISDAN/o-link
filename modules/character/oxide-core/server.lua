@@ -73,32 +73,35 @@ olink._register('character', {
         return char.IsBoss()
     end,
 
-    ---@param query string Name or state_id to search
+    ---Search characters by state_id (prefix), first/last name, or full name in
+    ---either "first last" or "last first" order. Multi-word queries match
+    ---against the concatenated name; LIKE wildcards in user input are escaped.
+    ---@param query string
     ---@param limit number|nil Max results (default 20)
     ---@return table[] CharacterData[]
     Search = function(query, limit)
         limit = limit or 20
-        if not query or #query < 2 then return {} end
+        local q = type(query) == 'string' and query:match('^%s*(.-)%s*$') or ''
+        if #q < 2 then return {} end
 
-        local results
+        local escaped = q:gsub('\\', '\\\\'):gsub('([%%_])', '\\%1')
+        local like    = '%' .. escaped .. '%'
+        local prefix  = escaped .. '%'
 
-        if query:match('^%w+$') and #query <= 8 then
-            results = MySQL.query.await([[
-                SELECT char_id, first_name, last_name, date_of_birth, gender, state_id, job
-                FROM characters
-                WHERE state_id = ? AND deleted_at IS NULL
-                LIMIT ?
-            ]], { query, limit })
-        end
-
-        if not results or #results == 0 then
-            results = MySQL.query.await([[
-                SELECT char_id, first_name, last_name, date_of_birth, gender, state_id, job
-                FROM characters
-                WHERE (first_name LIKE ? OR last_name LIKE ?) AND deleted_at IS NULL
-                LIMIT ?
-            ]], { '%' .. query .. '%', '%' .. query .. '%', limit })
-        end
+        local results = MySQL.query.await([[
+            SELECT char_id, first_name, last_name, date_of_birth, gender, state_id, job, last_played
+            FROM characters
+            WHERE deleted_at IS NULL
+              AND (
+                    state_id LIKE ?
+                 OR first_name LIKE ?
+                 OR last_name LIKE ?
+                 OR CONCAT(first_name, ' ', last_name) LIKE ?
+                 OR CONCAT(last_name, ' ', first_name) LIKE ?
+              )
+            ORDER BY last_played IS NULL, last_played DESC
+            LIMIT ?
+        ]], { prefix, like, like, like, like, limit })
 
         if not results then return {} end
 

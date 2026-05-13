@@ -8,6 +8,26 @@ local function GetPlayer(src)
     return ESX.GetPlayerFromId(src)
 end
 
+-- Detect optional `users` columns. esx_identity adds firstname/lastname/
+-- dateofbirth/sex; ESX Legacy ≥ 1.13.3 adds ssn. Cached after the first
+-- successful probe so we don't hit information_schema on every search.
+local columnCache
+local function detectColumns()
+    if columnCache then return columnCache end
+    local rows = MySQL.query.await([[
+        SELECT column_name AS name FROM information_schema.columns
+        WHERE table_schema = DATABASE() AND table_name = 'users'
+          AND column_name IN ('firstname', 'lastname', 'dateofbirth', 'sex', 'ssn')
+    ]]) or {}
+    local present = {}
+    for _, row in ipairs(rows) do present[row.name or row.column_name] = true end
+    columnCache = {
+        hasIdentity = present.firstname and present.lastname,
+        hasSsn      = present.ssn == true,
+    }
+    return columnCache
+end
+
 olink._register('character', {
     ---@param src number
     ---@return string|nil
@@ -73,19 +93,49 @@ olink._register('character', {
         return xPlayer.getMeta('isBoss') == true
     end,
 
+    ---Search users by identifier (exact), SSN (prefix), first/last name, or
+    ---full name in either order. The firstname/lastname/dateofbirth/sex
+    ---columns come from esx_identity; if it isn't installed, name search is
+    ---disabled and only identifier/SSN lookups run. LIKE wildcards in user
+    ---input are escaped.
     ---@param query string
     ---@param limit number|nil
     ---@return table[]
     Search = function(query, limit)
         limit = limit or 20
-        if not query or #query < 2 then return {} end
+        local q = type(query) == 'string' and query:match('^%s*(.-)%s*$') or ''
+        if #q < 2 then return {} end
 
-        local rows = MySQL.query.await([[
-            SELECT identifier, firstname, lastname, dateofbirth, sex, job, job_grade
-            FROM users
-            WHERE firstname LIKE ? OR lastname LIKE ? OR identifier = ?
-            LIMIT ?
-        ]], { '%' .. query .. '%', '%' .. query .. '%', query, limit })
+        local cols = detectColumns()
+        local escaped = q:gsub('\\', '\\\\'):gsub('([%%_])', '\\%1')
+        local like    = '%' .. escaped .. '%'
+        local prefix  = escaped .. '%'
+
+        local select  = 'identifier, job, job_grade'
+        if cols.hasIdentity then select = select .. ', firstname, lastname, dateofbirth, sex' end
+        if cols.hasSsn      then select = select .. ', ssn' end
+
+        local where, params = { 'identifier = ?' }, { q }
+        if cols.hasSsn then
+            where[#where + 1] = 'ssn LIKE ?'
+            params[#params + 1] = prefix
+        end
+        if cols.hasIdentity then
+            where[#where + 1] = 'firstname LIKE ?'
+            where[#where + 1] = 'lastname LIKE ?'
+            where[#where + 1] = "CONCAT(firstname, ' ', lastname) LIKE ?"
+            where[#where + 1] = "CONCAT(lastname, ' ', firstname) LIKE ?"
+            params[#params + 1] = like
+            params[#params + 1] = like
+            params[#params + 1] = like
+            params[#params + 1] = like
+        end
+        params[#params + 1] = limit
+
+        local rows = MySQL.query.await(
+            ('SELECT %s FROM users WHERE %s LIMIT ?'):format(select, table.concat(where, ' OR ')),
+            params
+        )
 
         if not rows then return {} end
 
@@ -97,7 +147,7 @@ olink._register('character', {
                 lastName  = row.lastname,
                 dob       = row.dateofbirth,
                 gender    = row.sex == 'f' and 1 or 0,
-                stateId   = row.identifier,
+                stateId   = row.ssn or row.identifier,
                 job       = { name = row.job or 'unemployed', label = row.job or 'Unemployed', grade = tostring(row.job_grade or 0), gradeLabel = tostring(row.job_grade or 0), rank = row.job_grade or 0 },
             }
         end

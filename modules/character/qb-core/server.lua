@@ -73,20 +73,39 @@ olink._register('character', {
         return player.PlayerData.job.isboss or false
     end,
 
+    ---Search players by citizenid (prefix), charinfo first/last name, full
+    ---name in either order, or phone number. LIKE wildcards in user input are
+    ---escaped.
     ---@param query string
     ---@param limit number|nil
     ---@return table[]
     Search = function(query, limit)
         limit = limit or 20
-        if not query or #query < 2 then return {} end
+        local q = type(query) == 'string' and query:match('^%s*(.-)%s*$') or ''
+        if #q < 2 then return {} end
+
+        local escaped = q:gsub('\\', '\\\\'):gsub('([%%_])', '\\%1')
+        local like    = '%' .. escaped .. '%'
+        local prefix  = escaped .. '%'
 
         local rows = MySQL.query.await([[
-            SELECT citizenid, charinfo, job FROM players
-            WHERE JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.firstname')) LIKE ?
-               OR JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.lastname')) LIKE ?
-               OR citizenid = ?
+            SELECT citizenid, charinfo, job, last_updated
+            FROM players
+            WHERE citizenid LIKE ?
+               OR JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.firstname')) LIKE ?
+               OR JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.lastname'))  LIKE ?
+               OR CONCAT(
+                    JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.firstname')), ' ',
+                    JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.lastname'))
+                  ) LIKE ?
+               OR CONCAT(
+                    JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.lastname')), ' ',
+                    JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.firstname'))
+                  ) LIKE ?
+               OR JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.phone')) LIKE ?
+            ORDER BY last_updated DESC
             LIMIT ?
-        ]], { '%' .. query .. '%', '%' .. query .. '%', query, limit })
+        ]], { prefix, like, like, like, like, like, limit })
 
         if not rows then return {} end
 
