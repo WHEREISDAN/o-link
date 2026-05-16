@@ -18,10 +18,12 @@ olink._register('framework', {
     end,
 
     ShowHelpText = function(message, _position)
+        if GetResourceState('esx_textui') ~= 'started' then return end
         return exports.esx_textui:TextUI(message, 'info')
     end,
 
     HideHelpText = function()
+        if GetResourceState('esx_textui') ~= 'started' then return end
         return exports.esx_textui:HideUI()
     end,
 })

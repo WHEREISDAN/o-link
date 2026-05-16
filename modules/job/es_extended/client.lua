@@ -17,7 +17,7 @@ olink._register('job', {
             gradeLabel = job.grade_label or 'Default',
             rank       = job.grade or 0,
             isBoss     = (job.grade_name == 'boss'),
-            onDuty     = job.onduty or false,
+            onDuty     = job.onDuty or false,
         }
     end,
 
@@ -25,6 +25,6 @@ olink._register('job', {
     GetDuty = function()
         local playerData = ESX.GetPlayerData()
         if not playerData or not playerData.job then return false end
-        return playerData.job.onduty or false
+        return playerData.job.onDuty or false
     end,
 })

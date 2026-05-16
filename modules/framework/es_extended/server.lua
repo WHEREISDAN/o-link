@@ -37,8 +37,11 @@ olink._register('framework', {
 
     ---@param src number
     ---@return boolean
+    -- Delegate to ESX so group-based admins (Config.AdminGroups) match too,
+    -- not just Ace-allowed players.
     IsAdmin = function(src)
-        return IsPlayerAceAllowed(tostring(src), 'command')
+        local xPlayer = ESX.GetPlayerFromId(src)
+        return xPlayer and xPlayer.isAdmin() or false
     end,
 
     ---@param itemName string
@@ -54,11 +57,12 @@ olink._register('framework', {
 
     ---@param src number
     ---@return boolean
+    -- ESX's esx:playerLogout handler already dispatches esx:onPlayerLogout
+    -- to the client; do not fire it a second time here.
     Logout = function(src)
         local xPlayer = ESX.GetPlayerFromId(src)
         if not xPlayer then return false end
         TriggerEvent('esx:playerLogout', src)
-        TriggerClientEvent('esx:onPlayerLogout', src)
         return true
     end,
 

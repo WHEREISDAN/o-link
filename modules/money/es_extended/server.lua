@@ -25,7 +25,9 @@ olink._register('money', {
         if amount <= 0 then return false end
         local xPlayer = GetPlayer(src)
         if not xPlayer then return false end
-        xPlayer.addAccountMoney(NormalizeType(accountType), amount, reason)
+        local esxType = NormalizeType(accountType)
+        if not xPlayer.getAccount(esxType) then return false end
+        xPlayer.addAccountMoney(esxType, amount, reason)
         return true
     end,
 
@@ -60,21 +62,16 @@ olink._register('money', {
     ---@param accountType string 'cash'|'bank'
     ---@param amount number
     ---@return boolean
+    -- ESX stores users.accounts as a dict { [name] = money }, not an array.
     AddOffline = function(identifier, accountType, amount)
         if amount <= 0 then return false end
         local esxType = NormalizeType(accountType)
         local row = MySQL.single.await('SELECT accounts FROM users WHERE identifier = ?', { identifier })
         if not row or not row.accounts then return false end
-        local accounts = json.decode(row.accounts)
-        if not accounts then return false end
-        for _, acc in ipairs(accounts) do
-            if acc.name == esxType then
-                acc.money = (acc.money or 0) + amount
-                MySQL.update.await('UPDATE users SET accounts = ? WHERE identifier = ?', { json.encode(accounts), identifier })
-                return true
-            end
-        end
-        return false
+        local accounts = json.decode(row.accounts) or {}
+        accounts[esxType] = (accounts[esxType] or 0) + amount
+        MySQL.update.await('UPDATE users SET accounts = ? WHERE identifier = ?', { json.encode(accounts), identifier })
+        return true
     end,
 
     ---@param identifier string ESX identifier
@@ -86,17 +83,12 @@ olink._register('money', {
         local esxType = NormalizeType(accountType)
         local row = MySQL.single.await('SELECT accounts FROM users WHERE identifier = ?', { identifier })
         if not row or not row.accounts then return false end
-        local accounts = json.decode(row.accounts)
-        if not accounts then return false end
-        for _, acc in ipairs(accounts) do
-            if acc.name == esxType then
-                if (acc.money or 0) < amount then return false end
-                acc.money = acc.money - amount
-                MySQL.update.await('UPDATE users SET accounts = ? WHERE identifier = ?', { json.encode(accounts), identifier })
-                return true
-            end
-        end
-        return false
+        local accounts = json.decode(row.accounts) or {}
+        local current = accounts[esxType] or 0
+        if current < amount then return false end
+        accounts[esxType] = current - amount
+        MySQL.update.await('UPDATE users SET accounts = ? WHERE identifier = ?', { json.encode(accounts), identifier })
+        return true
     end,
 
     ---@param identifier string ESX identifier
@@ -106,13 +98,7 @@ olink._register('money', {
         local esxType = NormalizeType(accountType)
         local row = MySQL.single.await('SELECT accounts FROM users WHERE identifier = ?', { identifier })
         if not row or not row.accounts then return 0 end
-        local accounts = json.decode(row.accounts)
-        if not accounts then return 0 end
-        for _, acc in ipairs(accounts) do
-            if acc.name == esxType then
-                return acc.money or 0
-            end
-        end
-        return 0
+        local accounts = json.decode(row.accounts) or {}
+        return accounts[esxType] or 0
     end,
 })

@@ -23,7 +23,7 @@ olink._register('job', {
             gradeLabel = job.grade_label or 'Default',
             rank       = job.grade or 0,
             isBoss     = (job.grade_name == 'boss'),
-            onDuty     = job.onduty or false,
+            onDuty     = job.onDuty or false,
         }
     end,
 
@@ -62,7 +62,7 @@ olink._register('job', {
         if not xPlayer then return false end
         local job = xPlayer.getJob()
         if not job then return false end
-        return job.onduty or false
+        return job.onDuty or false
     end,
 
     ---@param jobName string

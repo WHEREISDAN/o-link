@@ -8,6 +8,13 @@ local function GetPlayer(src)
     return ESX.GetPlayerFromId(src)
 end
 
+-- ESX's clearMeta errors when key is unset and Config.EnableDebug is true.
+-- Probe the metadata table directly (xPlayer.getMeta also errors under debug).
+local function safeClearMeta(xPlayer, key)
+    if not xPlayer.metadata or xPlayer.metadata[key] == nil then return end
+    xPlayer.clearMeta(key)
+end
+
 -- Detect optional `users` columns. esx_identity adds firstname/lastname/
 -- dateofbirth/sex; ESX Legacy ≥ 1.13.3 adds ssn. Cached after the first
 -- successful probe so we don't hit information_schema on every search.
@@ -48,20 +55,31 @@ olink._register('character', {
     ---@param src number
     ---@param key string
     ---@return any|nil
+    -- Read xPlayer.metadata directly; xPlayer.getMeta errors on unset keys
+    -- when Config.EnableDebug is true.
     GetMetadata = function(src, key)
         local xPlayer = GetPlayer(src)
-        if not xPlayer then return nil end
-        return xPlayer.getMeta(key)
+        if not xPlayer or not xPlayer.metadata then return nil end
+        return xPlayer.metadata[key]
     end,
 
     ---@param src number
     ---@param key string
     ---@param value any
     ---@return boolean
+    -- ESX's setMeta only accepts number/string/table. Normalize booleans/nil
+    -- so consumers can write `SetMetadata(src, 'ishandcuffed', true/false/nil)`
+    -- portably across frameworks. Truthy checks on the read side still work.
     SetMetadata = function(src, key, value)
         local xPlayer = GetPlayer(src)
         if not xPlayer then return false end
-        xPlayer.setMeta(key, value)
+        if value == nil or value == false then
+            safeClearMeta(xPlayer, key)
+        elseif value == true then
+            xPlayer.setMeta(key, 1)
+        else
+            xPlayer.setMeta(key, value)
+        end
         return true
     end,
 
@@ -76,21 +94,25 @@ olink._register('character', {
     ---@param src number
     ---@param isBoss boolean
     ---@return boolean
-    -- ESX has no native boss concept — stored in metadata as fallback
+    -- ESX has no native boss concept — stored in metadata as fallback.
+    -- setMeta rejects booleans, so flag is stored as 1 (truthy) / cleared.
     SetBoss = function(src, isBoss)
         local xPlayer = GetPlayer(src)
         if not xPlayer then return false end
-        xPlayer.setMeta('isBoss', isBoss)
+        if isBoss then
+            xPlayer.setMeta('isBoss', 1)
+        else
+            safeClearMeta(xPlayer, 'isBoss')
+        end
         return true
     end,
 
     ---@param src number
     ---@return boolean
-    -- ESX has no native boss concept — reads from metadata fallback
     IsBoss = function(src)
         local xPlayer = GetPlayer(src)
-        if not xPlayer then return false end
-        return xPlayer.getMeta('isBoss') == true
+        if not xPlayer or not xPlayer.metadata then return false end
+        return xPlayer.metadata.isBoss and true or false
     end,
 
     ---Search users by identifier (exact), SSN (prefix), first/last name, or
