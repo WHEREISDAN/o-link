@@ -115,7 +115,7 @@ olink._register('vehicles', {
         return ok and result or ''
     end,
 
-    ---@param charId number
+    ---@param charId string|number stateId or numeric char_id
     ---@param model string
     ---@param plate string
     ---@param props table|nil
@@ -123,8 +123,10 @@ olink._register('vehicles', {
     ---@return boolean
     RegisterVehicle = function(charId, model, plate, props, vehicleType)
         if not isStarted() then return false end
-        local ok, result = pcall(function() return res:RegisterVehicle(charId, model, plate, props, vehicleType) end)
-        return ok and result == true
+        local cid = ResolveCharId(charId)
+        if not cid then return false end
+        local ok, result = pcall(function() return res:RegisterVehicle(cid, model, plate, props, vehicleType) end)
+        return ok and result ~= nil and result ~= false
     end,
 
     ---@param plate string
