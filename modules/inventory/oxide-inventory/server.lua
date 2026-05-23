@@ -128,7 +128,12 @@ olink._register('inventory', {
     GetPlayerInventory = function(src)
         local charId = GetCharId(src)
         if not charId then return {} end
-        return GetInv().GetAllItems(charId) or {}
+        local ok, items = pcall(function() return GetInv().GetAllItems(charId) end)
+        if not ok then
+            olink.logger.Warn('o-link', 'inventory', 'get_all_items_failed', { src = src, charId = charId, err = tostring(items) })
+            return {}
+        end
+        return items or {}
     end,
 
     ---@param src number
