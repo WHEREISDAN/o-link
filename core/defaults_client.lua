@@ -136,8 +136,13 @@ stub('phone', {
 
 stub('clothing', {
     'GetResourceName', 'OpenMenu',
+    'GetAppearance', 'SetAppearance', 'RestoreAppearance', 'IsMale',
 }, {
     GetResourceName = 'none',
+    GetAppearance = function() return {} end,
+    SetAppearance = false,
+    RestoreAppearance = false,
+    IsMale = false,
 })
 
 stub('dispatch', {
