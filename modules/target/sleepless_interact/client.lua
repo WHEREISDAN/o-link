@@ -30,9 +30,10 @@ olink._register('target', {
         return 'sleepless_interact'
     end,
 
-    ---sleepless_interact doesn't expose a global toggle; no-op by design.
+    ---Toggle interaction display globally (sets state.hideInteract internally).
     ---@param bool boolean
     DisableTargeting = function(bool)
+        sleepless:disableInteract(bool)
     end,
 
     ---@param name string
