@@ -118,7 +118,7 @@ olink._register('character', {
                 firstName = charinfo.firstname,
                 lastName  = charinfo.lastname,
                 dob       = charinfo.birthdate,
-                gender    = charinfo.gender == 'male' and 0 or 1,
+                gender    = (charinfo.gender == 1 or charinfo.gender == 'female') and 1 or 0,
                 stateId   = row.citizenid,
                 job       = { name = job.name, label = job.label, grade = job.grade and job.grade.name, gradeLabel = job.grade and job.grade.name, rank = job.grade and job.grade.level or 0 },
             }
@@ -140,7 +140,7 @@ olink._register('character', {
             firstName = charinfo.firstname,
             lastName  = charinfo.lastname,
             dob       = charinfo.birthdate,
-            gender    = charinfo.gender == 'male' and 0 or 1,
+            gender    = (charinfo.gender == 1 or charinfo.gender == 'female') and 1 or 0,
             stateId   = row.citizenid,
             job       = { name = job.name, label = job.label, grade = job.grade and job.grade.name, gradeLabel = job.grade and job.grade.name, rank = job.grade and job.grade.level or 0 },
         }
