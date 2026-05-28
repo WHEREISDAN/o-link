@@ -24,6 +24,13 @@ stub('job', {
     GetDuty = false,
 })
 
+stub('multichar', {
+    'GetResourceName', 'OnboardNewCharacter',
+}, {
+    GetResourceName = 'none',
+    OnboardNewCharacter = function(_, _, onDone) if onDone then onDone(true) end end,
+})
+
 stub('inventory', {
     'GetPlayerInventory', 'GetItemCount', 'HasItem', 'GetItemInfo',
     'GetImagePath', 'Items',
@@ -135,10 +142,12 @@ stub('phone', {
 })
 
 stub('clothing', {
-    'GetResourceName', 'OpenMenu',
+    'GetResourceName', 'OpenMenu', 'StartCreation', 'ApplyPlayerAppearance',
     'GetAppearance', 'SetAppearance', 'RestoreAppearance', 'IsMale',
 }, {
     GetResourceName = 'none',
+    StartCreation = function(_, onDone) if onDone then onDone(false) end end,
+    ApplyPlayerAppearance = false,
     GetAppearance = function() return {} end,
     SetAppearance = false,
     RestoreAppearance = false,

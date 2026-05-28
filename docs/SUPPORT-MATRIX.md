@@ -11,6 +11,7 @@ It lists implementation folders that exist today. It does not guarantee every im
 | `callback` | shared | built-in shared module |
 | `framework` | server + client | `es_extended`, `oxide-core`, `qb-core`, `qbx_core` |
 | `character` | server + client | `es_extended`, `oxide-core`, `qb-core`, `qbx_core` |
+| `multichar` | server + client | `oxide-core` (`qbx_core`, `qb-core`, `es_extended` planned) |
 | `job` | server + client | `es_extended`, `oxide-core`, `qb-core`, `qbx_core` |
 | `money` | server | `es_extended`, `oxide-accounts`, `qb-core`, `qbx_core` |
 | `license` | server | `es_extended`, `oxide-core`, `qb-core`, `qbx_core` |

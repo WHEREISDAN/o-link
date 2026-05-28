@@ -88,6 +88,30 @@ olink.supports('vehicleproperties.GetVehicleProperties')
 | `GetName()` | | `string\|nil, string\|nil` | `firstName, lastName` |
 | `GetMetadata(key)` | `key: string` | `any\|nil` | Metadata value |
 
+## Module: multichar (server + client)
+
+Character lifecycle (list/create/select/delete) for a framework-agnostic multicharacter resource. The provider is the framework core (`oxide-core` today; `qbx_core`/`qb-core`/`es_extended` planned). When no provider is installed the defaults return empty results.
+
+### Server
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `List(src)` | `src: number` | `table[]` | Player's character slot DTOs (`charId, stateId, firstName, lastName, fullName, dob, gender, position, lastPlayed`) |
+| `Create(src, data)` | `src: number, data: { firstName, lastName, dob, gender }` | `{ ok: boolean, charId?, error? }` | Create a character (enforces slot limit) |
+| `Select(src, charId)` | `src: number, charId: any` | `{ ok: boolean, position?, error? }` | Load + activate a character; `position` is returned when the consumer should teleport (Oxide has no spawn manager) |
+| `Delete(src, charId)` | `src: number, charId: any` | `boolean` | Delete a character slot (never the active one) |
+| `GetSlotInfo(src)` | `src: number` | `{ used: number, max: number }` | Slot usage |
+| `Logout(src)` | `src: number` | `boolean` | Clear the active character and return the client to selection |
+
+### Client
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetResourceName()` | | `string` | Active provider name |
+| `OnboardNewCharacter(charId, opts, onDone)` | `charId: any, opts: { gender: 0\|1 }, onDone: fun(success: boolean)` | `nil` | Post-creation onboarding for a fresh character. The adapter runs whatever the framework natively does here — apartment selector, spawn picker, appearance editor — in the framework-native order. Called by the multichar resource once after `Create` + `Select` + spawn. |
+
+The client adapter bridges the framework's native "show character selection" trigger to a unified `olink:client:startCharacterSelect` event (fired on boot and after `Logout`).
+
+`OnboardNewCharacter` is the single onboarding seam — it folds together apartment selection (QBX `apartments:client:setupSpawnUI`, QB `qb-spawn:client:setupSpawns`), default-spawn selection, and first-character clothing (`qb-clothes:client:CreateFirstCharacter`) per framework. The oxide-core adapter currently just calls `olink.clothing.StartCreation` since Oxide has no housing/spawn resources yet; when those land, slot them in ahead of the clothing call and the multichar resource itself stays untouched.
+
 ## Module: job (server + client)
 
 ### Server
@@ -468,6 +492,7 @@ Functions common across `esx_skin`, `qb-clothing`, `fivem-appearance`, `illenium
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
 | `GetAppearance(src, fullData?)` | `src: number, fullData?: boolean` | `table\|nil` | Converted skin data, or full data when `fullData` is true |
+| `GetOfflineAppearance(charId)` | `charId: number\|string` | `table\|nil` | Appearance snapshot keyed by character id, shaped for `SetAppearance(ped, data)` — used to dress multichar preview peds |
 | `SetAppearance(src, data, updateBackup?, save?)` | | `table\|nil` | Apply appearance and (optionally) persist to DB |
 | `SetAppearanceExt(src, data)` | | `nil` | Apply gender-specific data (`{ male = ..., female = ... }`) |
 | `Revert(src)` | `src: number` | `table\|nil` | Restore previous backup appearance |
@@ -480,6 +505,14 @@ Functions common across `esx_skin`, `qb-clothing`, `fivem-appearance`, `illenium
 | `Save(src)` | `src: number` | `boolean` | Flush cached skin to DB (esx_skin) |
 
 Adapter-specific: `esx_skin` and `qb-clothing` use the framework's native table (`users.skin` / `playerskins`); `fivem-appearance` mirrors QB-style storage. The shared helpers (`EsxSkinConvertTo/FromDefault`, `QbClothingConvertTo/FromDefault`) live in each adapter's `shared.lua`.
+
+**Clothing creator flow (client)**
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `StartCreation(gender, onDone)` | `gender: 0\|1, onDone: fun(success: boolean)` | `nil` | Open the framework's appearance editor for a new character and persist the result to the active character; `onDone(success)` fires when finished |
+| `ApplyPlayerAppearance()` | | `nil` | Apply the loaded character's stored appearance to the player ped (no-op on frameworks that auto-apply on load) |
+| `SetAppearance(ped, data)` | `ped: number, data: table` | `boolean` | Apply an appearance snapshot to a specific ped (used for preview peds) |
 
 **Vehicles helpers (server)**
 

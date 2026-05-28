@@ -27,6 +27,7 @@ end
 local overrideKeyMap = {
     framework = 'Framework',
     character = 'Character',
+    multichar = 'Multichar',
     job = 'Job',
     money = 'Money',
     inventory = 'Inventory',

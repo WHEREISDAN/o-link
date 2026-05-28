@@ -47,6 +47,24 @@ olink._register('clothing', {
         exports['oxide-identity']:OpenClothing()
     end,
 
+    -- Open the appearance creator for a brand-new character. The framework
+    -- persists the result to the active character; onDone(success) fires after.
+    StartCreation = function(gender, onDone)
+        -- Let the creator set a fresh freemode model for the chosen gender.
+        exports['oxide-identity']:OpenCreator(gender, function(appearance)
+            if appearance then
+                TriggerServerEvent('o-link:clothing:saveCreationAppearance', appearance)
+            end
+            if onDone then onDone(appearance ~= nil) end
+        end)
+    end,
+
+    -- Apply the loaded character's stored appearance to the player ped. On
+    -- frameworks whose clothing resource applies on load this is a no-op.
+    ApplyPlayerAppearance = function()
+        exports['oxide-identity']:ApplyAll()
+    end,
+
     -- Returns a full-fidelity snapshot of the player's appearance:
     --   * _default-shape `components` + `props` for backward-compat consumers
     --   * `framework = 'oxide-identity'` marker so SetAppearance knows which

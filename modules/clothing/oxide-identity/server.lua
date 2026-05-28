@@ -68,6 +68,32 @@ olink._register('clothing', {
         return fullData and data or data.converted
     end,
 
+    ---Offline appearance snapshot keyed by char_id, shaped to match the client
+    ---SetAppearance payload so it can be applied to a preview ped directly.
+    ---@param charId number|string
+    ---@return table|nil
+    GetOfflineAppearance = function(charId)
+        charId = tonumber(charId)
+        if not charId then return nil end
+
+        local appearance = exports['oxide-identity']:GetAppearance(charId)
+        local clothing = exports['oxide-identity']:GetClothing(charId)
+        if not appearance and not clothing then return nil end
+
+        local defaultShape = OxideIdentityConvertToDefault(clothing or {})
+
+        return {
+            framework  = 'oxide-identity',
+            model      = appearance and appearance.model or 'mp_m_freemode_01',
+            components = defaultShape.components,
+            props      = defaultShape.props,
+            face       = appearance and appearance.face,
+            hair       = appearance and appearance.hair,
+            eyeColor   = appearance and appearance.eyeColor,
+            tattoos    = exports['oxide-identity']:GetTattoos(charId),
+        }
+    end,
+
     ---@param src number
     ---@param data table
     ---@param updateBackup boolean|nil
@@ -191,6 +217,32 @@ olink._register('clothing', {
         return exports['oxide-identity']:DeleteOutfit(tonumber(outfitId))
     end,
 })
+
+-- Persist appearance captured by the creator (clothing.StartCreation) to the
+-- character that is now active for this source.
+RegisterNetEvent('o-link:clothing:saveCreationAppearance', function(appearance)
+    local src = source
+    if type(appearance) ~= 'table' then return end
+
+    local charId = getNumericCharId(src)
+    if not charId then return end
+
+    local gender = (appearance.model == 'mp_f_freemode_01') and 1 or 0
+
+    exports['oxide-identity']:SaveAppearance(charId, appearance.face, appearance.hair, appearance.model, appearance.eyeColor)
+
+    local clothing = exports['oxide-identity']:GetDefaultClothing(gender)
+    if clothing then
+        exports['oxide-identity']:SaveClothing(charId, clothing.components, clothing.props)
+    end
+
+    -- SaveAppearance/SaveClothing write the DB but don't refresh state bags, so
+    -- mirror oxide-identity's SyncToClient to keep the session in sync.
+    Players[charId] = nil
+    local state = Player(src).state
+    state:set('oxide:appearance', exports['oxide-identity']:GetAppearance(charId), true)
+    state:set('oxide:clothing', exports['oxide-identity']:GetClothing(charId), true)
+end)
 
 AddEventHandler('olink:server:playerReady', function(src)
     src = tonumber(src)

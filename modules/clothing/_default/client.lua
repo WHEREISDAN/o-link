@@ -68,6 +68,10 @@ olink._registerDefault('clothing', {
     GetResourceName = function() return '_default' end,
     OpenMenu = function() end,
 
+    -- No appearance editor available; report no customization happened.
+    StartCreation = function(_, onDone) if onDone then onDone(false) end end,
+    ApplyPlayerAppearance = function() end,
+
     IsMale = function()
         local ped = PlayerPedId()
         if not DoesEntityExist(ped) then return false end

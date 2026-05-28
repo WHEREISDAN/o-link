@@ -32,6 +32,18 @@ stub('character', {
     SetMetadata = false,
 })
 
+stub('multichar', {
+    'GetResourceName', 'List', 'Create', 'Select', 'Delete', 'GetSlotInfo', 'Logout',
+}, {
+    GetResourceName = 'none',
+    List = function() return {} end,
+    Create = function() return { ok = false, error = 'No multichar provider' } end,
+    Select = function() return { ok = false, error = 'No multichar provider' } end,
+    Delete = false,
+    GetSlotInfo = function() return { used = 0, max = 0 } end,
+    Logout = false,
+})
+
 stub('job', {
     'Get', 'Set', 'SetDuty', 'GetDuty', 'GetPlayersWithJob',
 }, {
@@ -171,12 +183,13 @@ stub('phone', {
 })
 
 stub('clothing', {
-    'DeleteOutfit', 'GetAppearance', 'GetOutfits', 'GetResourceName', 'IsMale',
-    'OpenMenu', 'Revert', 'SaveOutfit', 'SetAppearance', 'SetAppearanceExt',
-    'UpdateOutfit',
+    'DeleteOutfit', 'GetAppearance', 'GetOfflineAppearance', 'GetOutfits',
+    'GetResourceName', 'IsMale', 'OpenMenu', 'Revert', 'SaveOutfit',
+    'SetAppearance', 'SetAppearanceExt', 'UpdateOutfit',
 }, {
     DeleteOutfit = false,
     GetAppearance = function() return {} end,
+    GetOfflineAppearance = function() return nil end,
     GetOutfits = function() return {} end,
     GetResourceName = 'none',
     IsMale = true,

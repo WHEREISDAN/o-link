@@ -8,6 +8,7 @@ Config = {}
 Config.Overrides = {
     -- Framework         = 'oxide-core',
     -- Character         = 'oxide-core',
+    -- Multichar         = 'oxide-core',
     -- Job               = 'oxide-core',
     -- Money             = 'oxide-accounts',
     -- Inventory         = 'oxide-inventory',

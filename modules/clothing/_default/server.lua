@@ -34,6 +34,7 @@ olink._registerDefault('clothing', {
 
     IsMale = IsMale,
     GetAppearance = GetAppearance,
+    GetOfflineAppearance = function() return nil end,
     SetAppearance = SetAppearance,
 
     SetAppearanceExt = function(src, data)
