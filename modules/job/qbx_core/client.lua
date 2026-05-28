@@ -6,7 +6,7 @@ olink._register('job', {
     ---@return table|nil JobData { name, label, grade, gradeLabel, rank, isBoss, onDuty }
     Get = function()
         local playerData = QBox.GetPlayerData()
-        if not playerData then
+        if not playerData or not playerData.job then
             return { name = 'unemployed', label = 'Unemployed', grade = 'default', gradeLabel = 'Default', rank = 0, isBoss = false, onDuty = false }
         end
         local job = playerData.job
@@ -24,7 +24,7 @@ olink._register('job', {
     ---@return boolean
     GetDuty = function()
         local playerData = QBox.GetPlayerData()
-        if not playerData then return false end
+        if not playerData or not playerData.job then return false end
         return playerData.job.onduty or false
     end,
 })
