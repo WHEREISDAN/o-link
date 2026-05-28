@@ -73,50 +73,44 @@ olink._register('character', {
         return char.IsBoss()
     end,
 
-    ---Search characters by state_id (prefix), first/last name, or full name in
-    ---either "first last" or "last first" order. Multi-word queries match
-    ---against the concatenated name; LIKE wildcards in user input are escaped.
+    ---Search characters by state_id, first/last name, or full name in either
+    ---"first last" or "last first" order. Match logic runs in Lua against
+    ---normalized fields (collation-immune, whitespace-tolerant).
     ---@param query string
     ---@param limit number|nil Max results (default 20)
     ---@return table[] CharacterData[]
     Search = function(query, limit)
         limit = limit or 20
-        local q = type(query) == 'string' and query:match('^%s*(.-)%s*$') or ''
-        if #q < 2 then return {} end
+        local needle = olink._character.normalizeSearch(query)
+        if #needle < 2 then return {} end
 
-        local escaped = q:gsub('\\', '\\\\'):gsub('([%%_])', '\\%1')
-        local like    = '%' .. escaped .. '%'
-        local prefix  = escaped .. '%'
-
-        local results = MySQL.query.await([[
+        local rows = MySQL.query.await([[
             SELECT char_id, first_name, last_name, date_of_birth, gender, state_id, job, last_played
             FROM characters
             WHERE deleted_at IS NULL
-              AND (
-                    state_id LIKE ?
-                 OR first_name LIKE ?
-                 OR last_name LIKE ?
-                 OR CONCAT(first_name, ' ', last_name) LIKE ?
-                 OR CONCAT(last_name, ' ', first_name) LIKE ?
-              )
             ORDER BY last_played IS NULL, last_played DESC
             LIMIT ?
-        ]], { prefix, like, like, like, like, limit })
+        ]], { olink._character.SEARCH_FETCH_CAP })
 
-        if not results then return {} end
+        if not rows then return {} end
 
-        for i, row in ipairs(results) do
-            local job = row.job
-            if type(job) == 'string' then job = json.decode(job) or {} end
-            results[i] = {
-                charId    = tostring(row.state_id),
-                firstName = row.first_name,
-                lastName  = row.last_name,
-                dob       = row.date_of_birth,
-                gender    = row.gender,
-                stateId   = row.state_id,
-                job       = job and { name = job.jobName, label = job.jobLabel, grade = job.gradeName, gradeLabel = job.gradeLabel, rank = job.gradeRank } or nil,
-            }
+        local results = {}
+        for _, row in ipairs(rows) do
+            if #results >= limit then break end
+
+            if olink._character.matchesSearch(needle, row.first_name, row.last_name, row.state_id) then
+                local job = row.job
+                if type(job) == 'string' then job = json.decode(job) or {} end
+                results[#results + 1] = {
+                    charId    = tostring(row.state_id),
+                    firstName = row.first_name,
+                    lastName  = row.last_name,
+                    dob       = row.date_of_birth,
+                    gender    = row.gender,
+                    stateId   = row.state_id,
+                    job       = job and { name = job.jobName, label = job.jobLabel, grade = job.gradeName, gradeLabel = job.gradeLabel, rank = job.gradeRank } or nil,
+                }
+            end
         end
 
         return results

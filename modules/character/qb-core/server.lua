@@ -73,55 +73,45 @@ olink._register('character', {
         return player.PlayerData.job.isboss or false
     end,
 
-    ---Search players by citizenid (prefix), charinfo first/last name, full
-    ---name in either order, or phone number. LIKE wildcards in user input are
-    ---escaped.
+    ---Search players by citizenid, first/last name, full name in either
+    ---order, or charinfo phone. Match logic runs in Lua against normalized
+    ---fields (collation-immune, whitespace-tolerant, JSON-encoding-immune).
     ---@param query string
     ---@param limit number|nil
     ---@return table[]
     Search = function(query, limit)
         limit = limit or 20
-        local q = type(query) == 'string' and query:match('^%s*(.-)%s*$') or ''
-        if #q < 2 then return {} end
-
-        local escaped = q:gsub('\\', '\\\\'):gsub('([%%_])', '\\%1')
-        local like    = '%' .. escaped .. '%'
-        local prefix  = escaped .. '%'
+        local needle = olink._character.normalizeSearch(query)
+        if #needle < 2 then return {} end
 
         local rows = MySQL.query.await([[
             SELECT citizenid, charinfo, job, last_updated
             FROM players
-            WHERE citizenid LIKE ?
-               OR JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.firstname')) LIKE ?
-               OR JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.lastname'))  LIKE ?
-               OR CONCAT(
-                    JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.firstname')), ' ',
-                    JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.lastname'))
-                  ) LIKE ?
-               OR CONCAT(
-                    JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.lastname')), ' ',
-                    JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.firstname'))
-                  ) LIKE ?
-               OR JSON_UNQUOTE(JSON_EXTRACT(charinfo, '$.phone')) LIKE ?
             ORDER BY last_updated DESC
             LIMIT ?
-        ]], { prefix, like, like, like, like, like, limit })
+        ]], { olink._character.SEARCH_FETCH_CAP })
 
         if not rows then return {} end
 
         local results = {}
         for _, row in ipairs(rows) do
+            if #results >= limit then break end
+
             local charinfo = type(row.charinfo) == 'string' and json.decode(row.charinfo) or row.charinfo or {}
-            local job = type(row.job) == 'string' and json.decode(row.job) or row.job or {}
-            results[#results + 1] = {
-                charId    = row.citizenid,
-                firstName = charinfo.firstname,
-                lastName  = charinfo.lastname,
-                dob       = charinfo.birthdate,
-                gender    = (charinfo.gender == 1 or charinfo.gender == 'female') and 1 or 0,
-                stateId   = row.citizenid,
-                job       = { name = job.name, label = job.label, grade = job.grade and job.grade.name, gradeLabel = job.grade and job.grade.name, rank = job.grade and job.grade.level or 0 },
-            }
+            local job      = type(row.job)      == 'string' and json.decode(row.job)      or row.job      or {}
+
+            local extras = charinfo.phone and { tostring(charinfo.phone) } or nil
+            if olink._character.matchesSearch(needle, charinfo.firstname, charinfo.lastname, row.citizenid, extras) then
+                results[#results + 1] = {
+                    charId    = row.citizenid,
+                    firstName = charinfo.firstname,
+                    lastName  = charinfo.lastname,
+                    dob       = charinfo.birthdate,
+                    gender    = (charinfo.gender == 1 or charinfo.gender == 'female') and 1 or 0,
+                    stateId   = row.citizenid,
+                    job       = { name = job.name, label = job.label, grade = job.grade and job.grade.name, gradeLabel = job.grade and job.grade.name, rank = job.grade and job.grade.level or 0 },
+                }
+            end
         end
         return results
     end,

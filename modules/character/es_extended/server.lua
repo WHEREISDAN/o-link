@@ -125,53 +125,42 @@ olink._register('character', {
     ---@return table[]
     Search = function(query, limit)
         limit = limit or 20
-        local q = type(query) == 'string' and query:match('^%s*(.-)%s*$') or ''
-        if #q < 2 then return {} end
+        local needle = olink._character.normalizeSearch(query)
+        if #needle < 2 then return {} end
 
         local cols = detectColumns()
-        local escaped = q:gsub('\\', '\\\\'):gsub('([%%_])', '\\%1')
-        local like    = '%' .. escaped .. '%'
-        local prefix  = escaped .. '%'
 
-        local select  = 'identifier, job, job_grade'
+        local select = 'identifier, job, job_grade'
         if cols.hasIdentity then select = select .. ', firstname, lastname, dateofbirth, sex' end
         if cols.hasSsn      then select = select .. ', ssn' end
 
-        local where, params = { 'identifier = ?' }, { q }
-        if cols.hasSsn then
-            where[#where + 1] = 'ssn LIKE ?'
-            params[#params + 1] = prefix
-        end
-        if cols.hasIdentity then
-            where[#where + 1] = 'firstname LIKE ?'
-            where[#where + 1] = 'lastname LIKE ?'
-            where[#where + 1] = "CONCAT(firstname, ' ', lastname) LIKE ?"
-            where[#where + 1] = "CONCAT(lastname, ' ', firstname) LIKE ?"
-            params[#params + 1] = like
-            params[#params + 1] = like
-            params[#params + 1] = like
-            params[#params + 1] = like
-        end
-        params[#params + 1] = limit
-
         local rows = MySQL.query.await(
-            ('SELECT %s FROM users WHERE %s LIMIT ?'):format(select, table.concat(where, ' OR ')),
-            params
+            ('SELECT %s FROM users LIMIT ?'):format(select),
+            { olink._character.SEARCH_FETCH_CAP }
         )
-
         if not rows then return {} end
 
         local results = {}
         for _, row in ipairs(rows) do
-            results[#results + 1] = {
-                charId    = row.identifier,
-                firstName = row.firstname,
-                lastName  = row.lastname,
-                dob       = row.dateofbirth,
-                gender    = row.sex == 'f' and 1 or 0,
-                stateId   = row.ssn or row.identifier,
-                job       = { name = row.job or 'unemployed', label = row.job or 'Unemployed', grade = tostring(row.job_grade or 0), gradeLabel = tostring(row.job_grade or 0), rank = row.job_grade or 0 },
-            }
+            if #results >= limit then break end
+
+            -- esx_identity may be absent — firstname/lastname will be nil and
+            -- matchesSearch will skip the name predicates accordingly, leaving
+            -- identifier + ssn as the only viable search keys.
+            local extras
+            if row.ssn then extras = { tostring(row.ssn) } end
+
+            if olink._character.matchesSearch(needle, row.firstname, row.lastname, row.identifier, extras) then
+                results[#results + 1] = {
+                    charId    = row.identifier,
+                    firstName = row.firstname,
+                    lastName  = row.lastname,
+                    dob       = row.dateofbirth,
+                    gender    = row.sex == 'f' and 1 or 0,
+                    stateId   = row.ssn or row.identifier,
+                    job       = { name = row.job or 'unemployed', label = row.job or 'Unemployed', grade = tostring(row.job_grade or 0), gradeLabel = tostring(row.job_grade or 0), rank = row.job_grade or 0 },
+                }
+            end
         end
         return results
     end,
