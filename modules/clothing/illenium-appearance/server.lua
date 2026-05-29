@@ -170,6 +170,36 @@ olink._register('clothing', {
         )
         return affected and affected > 0
     end,
+
+    ---Offline appearance snapshot keyed by citizenid. illenium stores the
+    ---rich appearance object directly in playerskins.skin (components/props
+    ---are already default-shape), so we just decode and tag the payload.
+    ---@param charId string citizenid
+    ---@return table|nil
+    GetOfflineAppearance = function(charId)
+        if not charId then return nil end
+        local row = MySQL.single.await(
+            'SELECT model, skin FROM playerskins WHERE citizenid = ? AND active = ?',
+            { tostring(charId), 1 }
+        )
+        if not row or not row.skin then return nil end
+
+        local skin = type(row.skin) == 'string' and json.decode(row.skin) or row.skin
+        if type(skin) ~= 'table' then return nil end
+
+        return {
+            framework    = 'illenium-appearance',
+            model        = row.model or skin.model or 'mp_m_freemode_01',
+            components   = skin.components or {},
+            props        = skin.props or {},
+            headBlend    = skin.headBlend,
+            faceFeatures = skin.faceFeatures,
+            headOverlays = skin.headOverlays,
+            hair         = skin.hair,
+            eyeColor     = skin.eyeColor,
+            tattoos      = skin.tattoos,
+        }
+    end,
 })
 
 AddEventHandler('olink:server:playerReady', function(src)

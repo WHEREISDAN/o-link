@@ -40,7 +40,7 @@ stub('multichar', {
     Create = function() return { ok = false, error = 'No multichar provider' } end,
     Select = function() return { ok = false, error = 'No multichar provider' } end,
     Delete = false,
-    GetSlotInfo = function() return { used = 0, max = 0 } end,
+    GetSlotInfo = function() return { used = 0 } end,
     Logout = false,
 })
 

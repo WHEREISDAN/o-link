@@ -139,13 +139,16 @@ olink._register('multichar', {
         return true
     end,
 
+    ---Returns the number of existing characters. The maximum is configured in
+    ---oxide-multichar's config.lua (Config.MaxCharacters); this adapter never
+    ---touches slot-max policy.
     ---@param src number
-    ---@return table { used, max }
+    ---@return table { used }
     GetSlotInfo = function(src)
         local player = GetPlayer(src)
-        if not player then return { used = 0, max = 0 } end
-        local used, max = player.GetCharacterSlots()
-        return { used = used or 0, max = max or 0 }
+        if not player then return { used = 0 } end
+        local used = player.GetCharacterSlots()
+        return { used = used or 0 }
     end,
 
     ---Clear the active character and return the client to selection.

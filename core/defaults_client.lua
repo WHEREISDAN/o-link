@@ -25,10 +25,12 @@ stub('job', {
 })
 
 stub('multichar', {
-    'GetResourceName', 'OnboardNewCharacter',
+    'GetResourceName', 'OnboardNewCharacter', 'SpawnCharacter',
 }, {
     GetResourceName = 'none',
     OnboardNewCharacter = function(_, _, onDone) if onDone then onDone(true) end end,
+    -- Default: not handled, so the caller falls back to its own teleport.
+    SpawnCharacter = false,
 })
 
 stub('inventory', {

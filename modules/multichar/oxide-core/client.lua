@@ -20,6 +20,14 @@ olink._register('multichar', {
             onDone(true)
         end
     end,
+
+    -- Oxide has no spawn selector yet; spawn at the last saved position. Return
+    -- false so oxide-multichar does its default teleport. When oxide-housing /
+    -- a spawn picker exists, branch here the same way the QB adapters do.
+    ---@return boolean handled
+    SpawnCharacter = function()
+        return false
+    end,
 })
 
 -- Bridge the framework's "show character selection" triggers to a unified event

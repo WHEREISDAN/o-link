@@ -216,6 +216,30 @@ olink._register('clothing', {
         savePlayerDressing(charId, dressing)
         return true
     end,
+
+    ---Offline appearance snapshot keyed by ESX identifier. esx_skin stores a
+    ---flat numeric table (`{ tshirt_1 = 0, pants_1 = 0, ... }`) which we
+    ---convert to default shape for cross-framework preview rendering.
+    ---@param charId string ESX identifier (e.g. "char1:license:abc")
+    ---@return table|nil
+    GetOfflineAppearance = function(charId)
+        if not charId then return nil end
+        local row = MySQL.single.await('SELECT skin, sex FROM users WHERE identifier = ?', { tostring(charId) })
+        if not row or not row.skin then return nil end
+
+        local skin = type(row.skin) == 'string' and json.decode(row.skin) or row.skin
+        if type(skin) ~= 'table' then return nil end
+
+        local converted = EsxSkinConvertToDefault(skin)
+        local model = (skin.sex == 1 or row.sex == 'f' or row.sex == 'F') and 'mp_f_freemode_01' or 'mp_m_freemode_01'
+        return {
+            framework  = 'esx_skin',
+            model      = model,
+            components = converted.components,
+            props      = converted.props,
+            skin       = skin,
+        }
+    end,
 })
 
 AddEventHandler('olink:server:playerReady', function(src)

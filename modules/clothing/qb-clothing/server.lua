@@ -186,6 +186,32 @@ olink._register('clothing', {
         )
         return affected and affected > 0
     end,
+
+    ---Offline appearance snapshot keyed by citizenid. qb-clothing stores a
+    ---flat-keyed skin table (`{ ["pants"] = {item, texture}, ... }`) which we
+    ---convert to default shape for cross-framework preview rendering.
+    ---@param charId string citizenid
+    ---@return table|nil
+    GetOfflineAppearance = function(charId)
+        if not charId then return nil end
+        local row = MySQL.single.await(
+            'SELECT model, skin FROM playerskins WHERE citizenid = ? AND active = ?',
+            { tostring(charId), 1 }
+        )
+        if not row or not row.skin then return nil end
+
+        local skin = type(row.skin) == 'string' and json.decode(row.skin) or row.skin
+        if type(skin) ~= 'table' then return nil end
+
+        local converted = QbClothingConvertToDefault(skin)
+        return {
+            framework  = 'qb-clothing',
+            model      = row.model or 'mp_m_freemode_01',
+            components = converted.components,
+            props      = converted.props,
+            skin       = skin,
+        }
+    end,
 })
 
 AddEventHandler('olink:server:playerReady', function(src)
