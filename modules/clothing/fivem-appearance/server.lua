@@ -118,6 +118,42 @@ olink._register('clothing', {
         if not ped or not DoesEntityExist(ped) then return false end
         return GetEntityModel(ped) == GetHashKey('mp_m_freemode_01')
     end,
+
+    ---Persist a full look produced by oxide-multichar's built-in creator.
+    ---fivem-appearance stores the rich appearance object directly, so the
+    ---translated illenium-shape skin is written to the framework's backing store
+    ---(ESX `users.skin`, otherwise `playerskins`).
+    ---@param src number
+    ---@param data table canonical creator appearance
+    ---@param save boolean|nil unused (always persists)
+    ---@return boolean
+    SaveCreatorAppearance = function(src, data, save)
+        src = tonumber(src)
+        if not src or type(data) ~= 'table' then return false end
+        local charId = olink.character.GetIdentifier(src)
+        if not charId then return false end
+
+        local skin = OlinkCreatorToIllenium(data)
+        local encoded = json.encode(skin)
+
+        if olink.framework.GetName() == 'es_extended' then
+            MySQL.update.await('UPDATE users SET skin = ? WHERE identifier = ?', { encoded, charId })
+        else
+            local affected = MySQL.update.await(
+                'UPDATE playerskins SET skin = ?, model = ? WHERE citizenid = ? AND active = ?',
+                { encoded, skin.model, charId, 1 }
+            )
+            if not affected or affected == 0 then
+                MySQL.insert.await(
+                    'INSERT INTO playerskins (citizenid, model, skin, active) VALUES (?, ?, ?, ?)',
+                    { charId, skin.model, encoded, 1 }
+                )
+            end
+        end
+
+        Players[charId] = nil
+        return true
+    end,
 })
 
 AddEventHandler('olink:server:playerReady', function(src)

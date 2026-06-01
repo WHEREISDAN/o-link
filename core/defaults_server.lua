@@ -184,8 +184,8 @@ stub('phone', {
 
 stub('clothing', {
     'DeleteOutfit', 'GetAppearance', 'GetOfflineAppearance', 'GetOutfits',
-    'GetResourceName', 'IsMale', 'OpenMenu', 'Revert', 'SaveOutfit',
-    'SetAppearance', 'SetAppearanceExt', 'UpdateOutfit',
+    'GetResourceName', 'IsMale', 'OpenMenu', 'Revert', 'SaveCreatorAppearance',
+    'SaveOutfit', 'SetAppearance', 'SetAppearanceExt', 'UpdateOutfit',
 }, {
     DeleteOutfit = false,
     GetAppearance = function() return {} end,
@@ -193,6 +193,9 @@ stub('clothing', {
     GetOutfits = function() return {} end,
     GetResourceName = 'none',
     IsMale = true,
+    -- Returns false when no backend implements it (e.g. esx_skin) so
+    -- oxide-multichar falls back to the framework's native first-char editor.
+    SaveCreatorAppearance = false,
     SaveOutfit = false,
     SetAppearance = false,
     SetAppearanceExt = false,
@@ -224,10 +227,15 @@ stub('doorlock', {
     ToggleDoorLock = false,
 })
 
+-- GetOwnedProperties entries: { id, kind, label, coords? } where coords is the
+-- property's exterior { x, y, z } when the backend can resolve it (optional).
 stub('housing', {
-    'GetResourceName',
+    'GetResourceName', 'GetOwnedProperties', 'CreateStartingApartment', 'SpawnInside',
 }, {
     GetResourceName = 'none',
+    GetOwnedProperties = function() return {} end,
+    CreateStartingApartment = false,
+    SpawnInside = false,
 })
 
 stub('bossmenu', {

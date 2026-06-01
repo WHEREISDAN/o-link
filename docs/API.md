@@ -494,6 +494,7 @@ Functions common across `esx_skin`, `qb-clothing`, `fivem-appearance`, `illenium
 | `GetAppearance(src, fullData?)` | `src: number, fullData?: boolean` | `table\|nil` | Converted skin data, or full data when `fullData` is true |
 | `GetOfflineAppearance(charId)` | `charId: number\|string` | `table\|nil` | Appearance snapshot keyed by character id, shaped for `SetAppearance(ped, data)` — used to dress multichar preview peds |
 | `SetAppearance(src, data, updateBackup?, save?)` | | `table\|nil` | Apply appearance and (optionally) persist to DB |
+| `SaveCreatorAppearance(src, data, save?)` | `src: number, data: table` | `boolean` | Persist a full look from a built-in creator (face + clothing + tattoos). `data` is the native-indexed canonical shape (features 0-19, overlays 0-12 with 1-based style, components/props maps). Implemented by `oxide-identity`, `illenium-appearance`, `qb-clothing`, `fivem-appearance`; returns `false` on backends that can't store it (e.g. `esx_skin`) so callers can fall back |
 | `SetAppearanceExt(src, data)` | | `nil` | Apply gender-specific data (`{ male = ..., female = ... }`) |
 | `Revert(src)` | `src: number` | `table\|nil` | Restore previous backup appearance |
 | `OpenMenu(src)` | `src: number` | `nil` | Open the adapter's clothing menu for the player |
@@ -513,6 +514,16 @@ Adapter-specific: `esx_skin` and `qb-clothing` use the framework's native table 
 | `StartCreation(gender, onDone)` | `gender: 0\|1, onDone: fun(success: boolean)` | `nil` | Open the framework's appearance editor for a new character and persist the result to the active character; `onDone(success)` fires when finished |
 | `ApplyPlayerAppearance()` | | `nil` | Apply the loaded character's stored appearance to the player ped (no-op on frameworks that auto-apply on load) |
 | `SetAppearance(ped, data)` | `ped: number, data: table` | `boolean` | Apply an appearance snapshot to a specific ped (used for preview peds) |
+
+**Housing helpers (server, adapter-dependent)**
+
+For the unified multichar spawn flow. `GetOwnedProperties` lists for a selector; `SpawnInside` delegates placement to the property resource (which owns the interior coords / routing bucket); `CreateStartingApartment` grants + enters a free apartment on creation. Implemented by `qb-apartments` (also bridges `qb-houses`), `qbx_properties`, and `esx_property`. o-link only processes the data — the caller (oxide-multichar) owns the apartment definition.
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `GetOwnedProperties(src, identifier?)` | `src: number, identifier?: string` | `{ id, kind, label, coords? }[]` | Properties the character owns; `kind` is `'apartment'`/`'house'`/`'property'`. `id` is the resource's own property identifier, passed back to `SpawnInside`. `coords` is the property's exterior `{ x, y, z }` when the backend can resolve it (used to place spawn-selector map markers; absent if unknown). Pass `identifier` (citizenid on QB/QBX, ESX identifier) to query a character that isn't loaded yet — used by the spawn selector before login |
+| `CreateStartingApartment(src, def)` | `src: number, def: table` | `{ id, label }\|false` | Grant + enter a free starter apartment. `def` is the caller-supplied definition the active backend reads — qb-apartments expects `{ type, label }`; qbx_properties expects `{ label, interior, enter, interact[], stash }` (the qbx_properties apartmentOptions shape). Returns `false` where unsupported (e.g. `esx_property`, which has no free-property concept, or when `def` is missing) so callers spawn at a preset instead |
+| `SpawnInside(src, id)` | `src: number, id: any` | `boolean` | Place the player inside an owned property (verifies ownership). Delegates the interior load to the property resource |
 
 **Vehicles helpers (server)**
 

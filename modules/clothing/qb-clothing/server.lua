@@ -212,6 +212,41 @@ olink._register('clothing', {
             skin       = skin,
         }
     end,
+
+    ---Persist a full look produced by oxide-multichar's built-in creator.
+    ---Writes the rich illenium-shape fields (honored when illenium-appearance is
+    ---the active appearance resource on qb-core) plus qb-clothing's flat clothing
+    ---keys (so legacy qb-clothing still applies the outfit). Face features only
+    ---take effect on appearance resources that read them.
+    ---@param src number
+    ---@param data table canonical creator appearance
+    ---@param save boolean|nil unused (always persists)
+    ---@return boolean
+    SaveCreatorAppearance = function(src, data, save)
+        src = tonumber(src)
+        if not src or type(data) ~= 'table' then return false end
+        local citId = getCitId(src)
+        if not citId then return false end
+
+        local skin = OlinkCreatorToIllenium(data)
+        local flat = QbClothingConvertFromDefault({ components = skin.components, props = skin.props })
+        for k, v in pairs(flat) do skin[k] = v end
+
+        local encoded = json.encode(skin)
+        local affected = MySQL.update.await(
+            'UPDATE playerskins SET skin = ?, model = ? WHERE citizenid = ? AND active = ?',
+            { encoded, skin.model, citId, 1 }
+        )
+        if not affected or affected == 0 then
+            MySQL.insert.await(
+                'INSERT INTO playerskins (citizenid, model, skin, active) VALUES (?, ?, ?, ?)',
+                { citId, skin.model, encoded, 1 }
+            )
+        end
+
+        Players[citId] = nil
+        return true
+    end,
 })
 
 AddEventHandler('olink:server:playerReady', function(src)

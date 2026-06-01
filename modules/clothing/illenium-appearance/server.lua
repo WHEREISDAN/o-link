@@ -200,6 +200,38 @@ olink._register('clothing', {
             tattoos      = skin.tattoos,
         }
     end,
+
+    ---Persist a full look produced by oxide-multichar's built-in creator.
+    ---The canonical object is translated into illenium's `skin` shape and
+    ---upserted into the active playerskins row. The live ped is already set by
+    ---the creator; illenium re-applies from here on the next character load.
+    ---@param src number
+    ---@param data table canonical creator appearance
+    ---@param save boolean|nil unused (always persists)
+    ---@return boolean
+    SaveCreatorAppearance = function(src, data, save)
+        src = tonumber(src)
+        if not src or type(data) ~= 'table' then return false end
+        local charId = olink.character.GetIdentifier(src)
+        if not charId then return false end
+
+        local skin = OlinkCreatorToIllenium(data)
+        local encoded = json.encode(skin)
+
+        local affected = MySQL.update.await(
+            'UPDATE playerskins SET skin = ?, model = ? WHERE citizenid = ? AND active = ?',
+            { encoded, skin.model, charId, 1 }
+        )
+        if not affected or affected == 0 then
+            MySQL.insert.await(
+                'INSERT INTO playerskins (citizenid, model, skin, active) VALUES (?, ?, ?, ?)',
+                { charId, skin.model, encoded, 1 }
+            )
+        end
+
+        Players[charId] = nil
+        return true
+    end,
 })
 
 AddEventHandler('olink:server:playerReady', function(src)

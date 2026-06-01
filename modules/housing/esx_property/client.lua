@@ -1,8 +1,13 @@
-if not olink._guardImpl('Housing', 'esx_property', 'esx_property') then return end
+local RESOURCE = 'esx_property'
+
+if GetResourceState(RESOURCE) == 'missing' then return end
+if not olink._guardImpl('Housing', RESOURCE, false) then return end
+
+-- Bounce: server adapter -> here -> the native client->server enter event.
+RegisterNetEvent('o-link:housing:esx:enter', function(id)
+    TriggerServerEvent('esx_property:enter', id)
+end)
 
 olink._register('housing', {
-    ---@return string
-    GetResourceName = function()
-        return 'esx_property'
-    end,
+    GetResourceName = function() return RESOURCE end,
 })

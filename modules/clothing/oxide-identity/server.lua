@@ -94,6 +94,42 @@ olink._register('clothing', {
         }
     end,
 
+    ---Persist a full look produced by oxide-multichar's built-in creator. The
+    ---canonical object is already oxide-identity's native-indexed shape, so this
+    ---splits it into the appearance / clothing / tattoo stores and re-syncs the
+    ---state bags (mirroring oxide-identity's own SyncToClient).
+    ---@param src number
+    ---@param data table canonical creator appearance
+    ---@param save boolean|nil persist to DB (default true)
+    ---@return boolean
+    SaveCreatorAppearance = function(src, data, save)
+        src = tonumber(src)
+        if not src or type(data) ~= 'table' then return false end
+        local charId = getNumericCharId(src)
+        if not charId then return false end
+
+        local face = {
+            headBlend = data.headBlend,
+            features = data.features,
+            overlays = data.overlays,
+        }
+
+        exports['oxide-identity']:SaveAppearance(charId, face, data.hair, data.model, data.eyeColor)
+        exports['oxide-identity']:SaveClothing(charId, data.components or {}, data.props or {})
+        if data.tattoos then
+            exports['oxide-identity']:SaveTattoos(charId, data.tattoos)
+        end
+
+        -- Drop the clothing cache so GetAppearance re-reads, then mirror
+        -- oxide-identity's state-bag sync (its exports write the DB only).
+        Players[charId] = nil
+        local state = Player(src).state
+        state:set('oxide:appearance', exports['oxide-identity']:GetAppearance(charId), true)
+        state:set('oxide:clothing', exports['oxide-identity']:GetClothing(charId), true)
+        state:set('oxide:tattoos', exports['oxide-identity']:GetTattoos(charId) or {}, true)
+        return true
+    end,
+
     ---@param src number
     ---@param data table
     ---@param updateBackup boolean|nil

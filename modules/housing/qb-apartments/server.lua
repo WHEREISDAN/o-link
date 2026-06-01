@@ -1,0 +1,144 @@
+-- QBCore housing provider. Bridges qb-apartments (starter apartments) and
+-- qb-houses (owned homes) behind the single o-link `housing` namespace, since a
+-- QBCore server commonly runs both. Each function gates on the specific resource
+-- at call time so whichever of the two is installed is used.
+
+local APARTMENTS = 'qb-apartments'
+local HOUSES = 'qb-houses'
+
+if GetResourceState(APARTMENTS) == 'missing' and GetResourceState(HOUSES) == 'missing' then return end
+if not olink._guardImpl('Housing', APARTMENTS, false) then return end
+
+local function aptStarted() return GetResourceState(APARTMENTS) == 'started' end
+local function housesStarted() return GetResourceState(HOUSES) == 'started' end
+
+-- Presence relay (kept from the former qb-houses adapter): mirror the player's
+-- inside/outside state into the housing relay.
+RegisterNetEvent('qb-houses:server:SetInsideMeta', function(insideId, bool)
+    local src = source
+    TriggerEvent('o-link:server:OnPlayerInside', src, bool and insideId or nil)
+end)
+
+local function getCitizenId(src)
+    local ok, player = pcall(function() return exports['qb-core']:GetPlayer(src) end)
+    if ok and player and player.PlayerData then return player.PlayerData.citizenid end
+    return nil
+end
+
+-- Mirror qb-apartments' CreateApartmentId: a random, unused apartment name.
+local function makeApartmentId(aptType)
+    for _ = 1, 100 do
+        local num = math.random(1, 1000000)
+        local id = aptType .. num
+        if not MySQL.scalar.await('SELECT 1 FROM apartments WHERE name = ?', { id }) then
+            return id, num
+        end
+    end
+end
+
+-- qb-apartments keeps building exteriors only in its own config (no DB column, no
+-- export). Sandbox-load that config once to map apartment `type` -> exterior {x,y,z}
+-- for spawn-selector markers. Best-effort: on any failure apartments list without coords.
+local function loadAptCoords()
+    local src = LoadResourceFile(APARTMENTS, 'config.lua')
+    if not src then return {} end
+
+    local vec = function(x, y, z) return { x = x, y = y, z = z } end
+    local env = { Apartments = {}, vector4 = vec, vector3 = vec, vec4 = vec, vec3 = vec }
+    local chunk = load(src, '@qb-apartments/config.lua', 't', env)
+    if not chunk or not pcall(chunk) then return {} end
+
+    local out = {}
+    for aptType, data in pairs(env.Apartments.Locations or {}) do
+        local e = data.coords and data.coords.enter
+        if type(e) == 'table' and e.x then
+            out[aptType] = { x = e.x, y = e.y, z = e.z }
+        end
+    end
+    return out
+end
+
+local aptCoords = loadAptCoords()
+
+olink._register('housing', {
+    GetResourceName = function()
+        if aptStarted() then return APARTMENTS end
+        if housesStarted() then return HOUSES end
+        return APARTMENTS
+    end,
+
+    GetOwnedProperties = function(src, identifier)
+        local cid = identifier or getCitizenId(src)
+        if not cid then return {} end
+        local out = {}
+        if aptStarted() then
+            local rows = MySQL.query.await('SELECT name, label, type FROM apartments WHERE citizenid = ?', { cid }) or {}
+            for _, a in ipairs(rows) do
+                out[#out + 1] = { id = a.name, kind = 'apartment', label = a.label, coords = aptCoords[a.type] }
+            end
+        end
+        if housesStarted() then
+            local rows = MySQL.query.await(
+                'SELECT pl.house AS id, hl.label AS label, hl.coords AS coords FROM player_houses pl LEFT JOIN houselocations hl ON hl.name = pl.house WHERE pl.citizenid = ?',
+                { cid }) or {}
+            for _, h in ipairs(rows) do
+                local entry = { id = h.id, kind = 'house', label = h.label or h.id }
+                local ok, c = pcall(json.decode, h.coords)
+                if ok and type(c) == 'table' then
+                    local e = c.enter or c
+                    if type(e) == 'table' and e.x then entry.coords = { x = e.x, y = e.y, z = e.z } end
+                end
+                out[#out + 1] = entry
+            end
+        end
+        return out
+    end,
+
+    -- `def` is supplied by the caller (oxide-multichar); expects `type` (a key in
+    -- qb-apartments' Apartments.Locations) and `label`.
+    CreateStartingApartment = function(src, def)
+        if not aptStarted() then return false end
+        local cid = getCitizenId(src)
+        if not cid then return false end
+
+        -- Already owns an apartment: enter it rather than create a duplicate.
+        local existing = MySQL.single.await('SELECT name, type, label FROM apartments WHERE citizenid = ?', { cid })
+        if existing then
+            TriggerClientEvent('apartments:client:SpawnInApartment', src, existing.name, existing.type)
+            return { id = existing.name, label = existing.label }
+        end
+
+        if type(def) ~= 'table' or not def.type then return false end
+        local id, num = makeApartmentId(def.type)
+        if not id then return false end
+        local label = ('%s %s'):format(def.label or 'Apartment', num)
+
+        MySQL.insert.await('INSERT INTO apartments (name, type, label, citizenid) VALUES (?, ?, ?, ?)',
+            { id, def.type, label, cid })
+        TriggerClientEvent('apartments:client:SpawnInApartment', src, id, def.type)
+        TriggerClientEvent('apartments:client:SetHomeBlip', src, def.type)
+        return { id = id, label = label }
+    end,
+
+    SpawnInside = function(src, id)
+        if not id then return false end
+        local cid = getCitizenId(src)
+        if not cid then return false end
+
+        if aptStarted() then
+            local apt = MySQL.single.await('SELECT type, citizenid FROM apartments WHERE name = ?', { id })
+            if apt then
+                if apt.citizenid ~= cid then return false end
+                TriggerClientEvent('apartments:client:SpawnInApartment', src, id, apt.type)
+                return true
+            end
+        end
+        if housesStarted() then
+            if MySQL.scalar.await('SELECT 1 FROM player_houses WHERE house = ? AND citizenid = ?', { id, cid }) then
+                TriggerClientEvent('qb-houses:client:SpawnInApartment', src, id)
+                return true
+            end
+        end
+        return false
+    end,
+})
