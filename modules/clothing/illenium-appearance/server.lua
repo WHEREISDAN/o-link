@@ -4,6 +4,52 @@ if not olink._hasOverride('Clothing') and GetResourceState('17mov_CharacterSyste
 
 local Players = {}
 
+-- illenium stores the active skin in a different place per framework: QBCore/OX
+-- use the `playerskins` table (keyed by citizenid); ESX stores it in `users.skin`
+-- (keyed by identifier). The o-link key (olink.character.GetIdentifier / List
+-- charId) is the full ESX identifier ("char1:license:..."), which matches
+-- illenium's own Player.identifier — so the same key works for both schemas.
+local IS_ESX = GetResourceState('es_extended') == 'started'
+
+---Read the active skin for a character key.
+---@param key string citizenid (QB/OX) or identifier (ESX)
+---@return string|nil model, table|nil skin
+local function readActiveSkin(key)
+    if not key then return nil end
+    local row
+    if IS_ESX then
+        row = MySQL.single.await('SELECT skin FROM users WHERE identifier = ?', { tostring(key) })
+    else
+        row = MySQL.single.await('SELECT model, skin FROM playerskins WHERE citizenid = ? AND active = ?', { tostring(key), 1 })
+    end
+    if not row or not row.skin then return nil end
+    local skin = type(row.skin) == 'string' and json.decode(row.skin) or row.skin
+    if type(skin) ~= 'table' then return nil end
+    return row.model or skin.model or 'mp_m_freemode_01', skin
+end
+
+---Persist the active skin for a character key. ESX updates users.skin (the row
+---always exists); QB/OX upsert the active playerskins row.
+---@param key string
+---@param model string
+---@param encoded string json-encoded skin
+local function writeActiveSkin(key, model, encoded)
+    if IS_ESX then
+        MySQL.update.await('UPDATE users SET skin = ? WHERE identifier = ?', { encoded, tostring(key) })
+        return
+    end
+    local affected = MySQL.update.await(
+        'UPDATE playerskins SET skin = ?, model = ? WHERE citizenid = ? AND active = ?',
+        { encoded, model, tostring(key), 1 }
+    )
+    if not affected or affected == 0 then
+        MySQL.insert.await(
+            'INSERT INTO playerskins (citizenid, model, skin, active) VALUES (?, ?, ?, ?)',
+            { tostring(key), model, encoded, 1 }
+        )
+    end
+end
+
 local function getFullAppearanceData(src)
     src = tonumber(src)
     if not src then return end
@@ -11,11 +57,8 @@ local function getFullAppearanceData(src)
     if not charId then return end
     if Players[charId] then return Players[charId] end
 
-    local result = MySQL.query.await('SELECT * FROM playerskins WHERE citizenid = ? AND active = ?', { charId, 1 })
-    if not result or not result[1] then return end
-
-    local model = result[1].model
-    local skinData = json.decode(result[1].skin)
+    local model, skinData = readActiveSkin(charId)
+    if not skinData then return end
 
     Players[charId] = { model = model, skin = skinData, converted = skinData }
     return Players[charId]
@@ -65,9 +108,15 @@ olink._register('clothing', {
         Players[charId].converted = data
 
         if save then
-            MySQL.update.await('UPDATE playerskins SET skin = ? WHERE citizenid = ? AND active = ?', {
-                json.encode(current.skin), charId, 1,
-            })
+            if IS_ESX then
+                MySQL.update.await('UPDATE users SET skin = ? WHERE identifier = ?', {
+                    json.encode(current.skin), charId,
+                })
+            else
+                MySQL.update.await('UPDATE playerskins SET skin = ? WHERE citizenid = ? AND active = ?', {
+                    json.encode(current.skin), charId, 1,
+                })
+            end
         end
         TriggerClientEvent('o-link:client:clothing:setAppearance', src, Players[charId].converted)
         return Players[charId]
@@ -171,25 +220,20 @@ olink._register('clothing', {
         return affected and affected > 0
     end,
 
-    ---Offline appearance snapshot keyed by citizenid. illenium stores the
-    ---rich appearance object directly in playerskins.skin (components/props
-    ---are already default-shape), so we just decode and tag the payload.
-    ---@param charId string citizenid
+    ---Offline appearance snapshot for a character. illenium stores the rich
+    ---appearance object directly in its skin blob (components/props are already
+    ---default-shape); readActiveSkin pulls it from the right place per framework
+    ---(playerskins for QB/OX, users.skin for ESX), so we just tag the payload.
+    ---@param charId string citizenid (QB/OX) or identifier (ESX)
     ---@return table|nil
     GetOfflineAppearance = function(charId)
         if not charId then return nil end
-        local row = MySQL.single.await(
-            'SELECT model, skin FROM playerskins WHERE citizenid = ? AND active = ?',
-            { tostring(charId), 1 }
-        )
-        if not row or not row.skin then return nil end
-
-        local skin = type(row.skin) == 'string' and json.decode(row.skin) or row.skin
-        if type(skin) ~= 'table' then return nil end
+        local model, skin = readActiveSkin(charId)
+        if not skin then return nil end
 
         return {
             framework    = 'illenium-appearance',
-            model        = row.model or skin.model or 'mp_m_freemode_01',
+            model        = model or skin.model or 'mp_m_freemode_01',
             components   = skin.components or {},
             props        = skin.props or {},
             headBlend    = skin.headBlend,
@@ -203,8 +247,9 @@ olink._register('clothing', {
 
     ---Persist a full look produced by oxide-multichar's built-in creator.
     ---The canonical object is translated into illenium's `skin` shape and
-    ---upserted into the active playerskins row. The live ped is already set by
-    ---the creator; illenium re-applies from here on the next character load.
+    ---written to the active skin store via writeActiveSkin (users.skin on ESX,
+    ---playerskins on QB/OX). The live ped is already set by the creator;
+    ---illenium re-applies from here on the next character load.
     ---@param src number
     ---@param data table canonical creator appearance
     ---@param save boolean|nil unused (always persists)
@@ -216,18 +261,7 @@ olink._register('clothing', {
         if not charId then return false end
 
         local skin = OlinkCreatorToIllenium(data)
-        local encoded = json.encode(skin)
-
-        local affected = MySQL.update.await(
-            'UPDATE playerskins SET skin = ?, model = ? WHERE citizenid = ? AND active = ?',
-            { encoded, skin.model, charId, 1 }
-        )
-        if not affected or affected == 0 then
-            MySQL.insert.await(
-                'INSERT INTO playerskins (citizenid, model, skin, active) VALUES (?, ?, ?, ?)',
-                { charId, skin.model, encoded, 1 }
-            )
-        end
+        writeActiveSkin(charId, skin.model, json.encode(skin))
 
         Players[charId] = nil
         return true

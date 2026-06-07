@@ -131,6 +131,14 @@ olink._register('multichar', {
             return { ok = true, position = p and { x = p.x, y = p.y, z = p.z, w = p.w } or nil }
         end
 
+        -- Ownership check: the citizenid must belong to this license, otherwise a
+        -- client could forge any cid and log into another player's character.
+        local owned = MySQL.scalar.await(
+            'SELECT 1 FROM players WHERE citizenid = ? AND license = ? LIMIT 1',
+            { cid, getLicense(src) or '__none__' }
+        )
+        if not owned then return { ok = false, error = 'Character not owned' } end
+
         local ok, success = pcall(function() return QBCore.Player.Login(src, cid) end)
         if not ok or not success then return { ok = false, error = 'QBCore Login failed' } end
 
@@ -151,8 +159,28 @@ olink._register('multichar', {
     Delete = function(src, charId)
         if not isStarted() or not QBCore then return false end
         local cid = tostring(charId)
-        local ok, result = pcall(function() return QBCore.Player.DeleteCharacter(src, cid) end)
-        return ok and result == true
+
+        -- Owner check: prevent deleting a character belonging to another license.
+        local row = MySQL.single.await('SELECT license FROM players WHERE citizenid = ?', { cid })
+        if not row or row.license ~= getLicense(src) then return false end
+
+        local ok = pcall(function() QBCore.Player.DeleteCharacter(src, cid) end)
+        if not ok then return false end
+
+        -- DeleteCharacter runs an async MySQL.transaction and returns nothing, so
+        -- its return value can't signal success (the old `result == true` check
+        -- always failed, surfacing a false "delete failed" even though the row was
+        -- removed). Wait until the authoritative row is actually gone: this reports
+        -- real success and keeps the list refresh that fires right after from
+        -- racing the transaction and re-showing the deleted character.
+        local deadline = GetGameTimer() + 2000
+        repeat
+            Wait(50)
+            if not MySQL.scalar.await('SELECT 1 FROM players WHERE citizenid = ? LIMIT 1', { cid }) then
+                return true
+            end
+        until GetGameTimer() > deadline
+        return false
     end,
 
     ---Returns the number of existing characters. The maximum is configured in

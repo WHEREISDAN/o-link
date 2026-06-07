@@ -83,3 +83,78 @@ function QbClothingConvertFromDefault(defaultData)
     end
     return components
 end
+
+-- Canonical head-overlay index -> qb-clothing flat key. qb reads the overlay
+-- colour from `.texture` and hardcodes opacity, so only the colour is carried.
+local OverlayToQb = {
+    [1] = 'beard', [2] = 'eyebrows', [3] = 'ageing',
+    [4] = 'makeup', [5] = 'blush', [8] = 'lipstick',
+}
+
+-- Canonical face-feature index -> qb-clothing flat key. qb stores value*10 and
+-- divides by 10 on load (note the misspelled keys are intentional — qb's own).
+local FeatureToQb = {
+    [0] = 'nose_0', [1] = 'nose_1', [2] = 'nose_2', [3] = 'nose_3', [4] = 'nose_4',
+    [5] = 'nose_5', [6] = 'eyebrown_high', [7] = 'eyebrown_forward', [8] = 'cheek_1',
+    [9] = 'cheek_2', [10] = 'cheek_3', [11] = 'eye_opening', [12] = 'lips_thickness',
+    [13] = 'jaw_bone_width', [14] = 'jaw_bone_back_lenght', [15] = 'chimp_bone_lowering',
+    [16] = 'chimp_bone_lenght', [17] = 'chimp_bone_width', [18] = 'chimp_hole',
+    [19] = 'neck_thikness',
+}
+
+-- Maps survive a JSON round-trip with either int or string keys.
+local function pick(map, index)
+    if type(map) ~= 'table' then return nil end
+    return map[index] or map[tostring(index)]
+end
+
+-- Canonical overlay style is 1-based (0 = none); qb wants a 0-based index, 255 = none.
+local function qbOverlayItem(style)
+    style = tonumber(style) or 0
+    if style <= 0 then return 255 end
+    return style - 1
+end
+
+---Translate the native-indexed creator object into qb-clothing's flat HEAD skin:
+---head blend, face features, head overlays, hair colour and eye colour. Clothing
+---and props are produced separately by QbClothingConvertFromDefault. qb-clothing's
+---loader indexes every one of these keys unconditionally, so all are emitted.
+---@param data table canonical creator appearance
+---@return table flat qb-clothing head fields
+function QbClothingHeadFromCreator(data)
+    data = data or {}
+    local hb = data.headBlend or {}
+    local hair = data.hair or {}
+
+    local skin = {
+        face  = { item = tonumber(hb.shapeFirst) or 0,  texture = tonumber(hb.skinFirst) or 0 },
+        face2 = { item = tonumber(hb.shapeSecond) or 0, texture = tonumber(hb.skinSecond) or 0 },
+        facemix = {
+            shapeMix        = tonumber(hb.shapeMix) or 0.5,
+            skinMix         = tonumber(hb.skinMix) or 0.5,
+            defaultShapeMix = tonumber(hb.shapeMix) or 0.5,
+            defaultSkinMix  = tonumber(hb.skinMix) or 0.5,
+        },
+        hair      = { item = tonumber(hair.style) or 0, texture = tonumber(hair.color) or 0 },
+        eye_color = { item = tonumber(data.eyeColor) or 0, texture = 0 },
+    }
+
+    for index, key in pairs(OverlayToQb) do
+        local ov = pick(data.overlays, index) or {}
+        skin[key] = { item = qbOverlayItem(ov.style), texture = tonumber(ov.color) or 0 }
+    end
+
+    -- Moles/freckles (overlay 9) is the one overlay whose `.texture` is opacity*10.
+    local moles = pick(data.overlays, 9) or {}
+    local molesStyle = tonumber(moles.style) or 0
+    skin.moles = {
+        item = molesStyle > 0 and (molesStyle - 1) or 0,
+        texture = math.floor(((tonumber(moles.opacity) or 0) * 10) + 0.5),
+    }
+
+    for index, key in pairs(FeatureToQb) do
+        skin[key] = { item = (tonumber(pick(data.features, index)) or 0.0) * 10, texture = 0 }
+    end
+
+    return skin
+end

@@ -232,15 +232,29 @@ olink._register('clothing', {
         local flat = QbClothingConvertFromDefault({ components = skin.components, props = skin.props })
         for k, v in pairs(flat) do skin[k] = v end
 
+        -- qb-clothing's loader (loadPlayerClothing) reads a flat skin and indexes
+        -- face/feature/overlay keys unconditionally. The illenium fields above
+        -- don't supply them, so merge in the qb-flat head fields (these also
+        -- correct the hair entry written by the clothing flatten, which lacks the
+        -- hair colour). Without this the player spawns with a default face.
+        local head = QbClothingHeadFromCreator(data)
+        for k, v in pairs(head) do skin[k] = v end
+
+        -- The `model` column is read back by qb-clothing's loader, which runs
+        -- tonumber() on it (it stores GetEntityModel, a numeric hash). The skin
+        -- blob keeps the name-string model for illenium-appearance; the column
+        -- must be the numeric hash or tonumber() yields nil and SetPlayerModel
+        -- never runs, leaving the player on the default spawn ped.
+        local modelHash = GetHashKey(skin.model)
         local encoded = json.encode(skin)
         local affected = MySQL.update.await(
             'UPDATE playerskins SET skin = ?, model = ? WHERE citizenid = ? AND active = ?',
-            { encoded, skin.model, citId, 1 }
+            { encoded, modelHash, citId, 1 }
         )
         if not affected or affected == 0 then
             MySQL.insert.await(
                 'INSERT INTO playerskins (citizenid, model, skin, active) VALUES (?, ?, ?, ?)',
-                { citId, skin.model, encoded, 1 }
+                { citId, modelHash, encoded, 1 }
             )
         end
 

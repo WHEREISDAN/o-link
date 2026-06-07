@@ -168,13 +168,15 @@ olink._register('vehicles', {
     end,
 
     ---@param plate string
-    ---@param newCharId number
+    ---@param newCharId string|number stateId or char_id
     ---@return boolean
     TransferOwnership = function(plate, newCharId)
         plate = NormalizePlate(plate)
         if not plate or plate == '' then return false end
         if not isStarted() then return false end
-        local ok, result = pcall(function() return res:TransferOwnership(plate, tonumber(newCharId)) end)
+        local cid = ResolveCharId(newCharId)
+        if not cid then return false end
+        local ok, result = pcall(function() return res:TransferOwnership(plate, cid) end)
         return ok and result == true
     end,
 
@@ -222,10 +224,10 @@ olink._register('vehicles', {
         plate = NormalizePlate(plate)
         if not plate or plate == '' then return false end
         if not isStarted() then return false end
-        local ok = pcall(function()
-            res:ImpoundVehicle(plate, tonumber(fee) or 0, lot or 'main')
+        local ok, result = pcall(function()
+            return res:ImpoundVehicle(plate, tonumber(fee) or 0, lot or 'main')
         end)
-        return ok == true
+        return ok == true and result == true
     end,
 
     ---@param plate string

@@ -161,6 +161,10 @@ olink._register('multichar', {
         local character = player.GetCharacter()
         if character then
             TriggerEvent('oxide:core:characterUnloading', src, player, character)
+            -- Persist before unload. SetActiveCharacter(nil) clears statebags but
+            -- never saves, so without this the logout-to-selection path loses
+            -- everything since the last autosave tick (QBX/ESX save on logout).
+            Oxide.Functions.SaveCharacter(character)
         end
 
         player.SetActiveCharacter(nil)

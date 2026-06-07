@@ -70,15 +70,21 @@ olink._register('clothing', {
         }
     end,
 
-    -- Apply a default-shape snapshot to any ped (preview or player). For a
-    -- qb-clothing-tagged payload on the LOCAL player we route through
-    -- qb-clothing's loadPlayerClothing event (full flat-skin); for everything
-    -- else we use the native default-shape applier.
+    -- Apply a snapshot to any ped (preview or player). When the payload carries a
+    -- qb-clothing flat-skin blob we route through qb-clothing's loadPlayerClothing
+    -- event, which is ped-agnostic and applies the FULL look (head blend, face
+    -- features, overlays, hair + clothing) to whatever ped is passed — so preview
+    -- peds get skin data, not just clothing. Without a skin blob we fall back to
+    -- the native default-shape applier (clothing components/props only).
     SetAppearance = function(ped, data)
         ped = ped or PlayerPedId()
         if type(data) ~= 'table' then return false end
 
-        if data.framework == 'qb-clothing' and ped == PlayerPedId() and type(data.skin) == 'table' then
+        -- loadPlayerClothing indexes flat skin keys (face, nose_*, overlays...)
+        -- unconditionally, so only route there when the blob is actually flat
+        -- (has `face`). Older/foreign payloads without it fall back to the
+        -- clothing-only applier rather than erroring mid-render.
+        if data.framework == 'qb-clothing' and type(data.skin) == 'table' and data.skin.face ~= nil then
             TriggerEvent('qb-clothing:client:loadPlayerClothing', data.skin, ped)
             return true
         end

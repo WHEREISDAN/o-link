@@ -36,10 +36,11 @@ local function makeApartmentId(aptType)
     end
 end
 
--- qb-apartments keeps building exteriors only in its own config (no DB column, no
--- export). Sandbox-load that config once to map apartment `type` -> exterior {x,y,z}
--- for spawn-selector markers. Best-effort: on any failure apartments list without coords.
-local function loadAptCoords()
+-- qb-apartments keeps apartment definitions (label + building exterior) only in its
+-- own config (no DB column, no export). Sandbox-load that config once to map
+-- apartment `type` -> { label, coords } for spawn-selector markers and the
+-- starter-apartment picker. Best-effort: on any failure apartments list without coords.
+local function loadAptDefs()
     local src = LoadResourceFile(APARTMENTS, 'config.lua')
     if not src then return {} end
 
@@ -51,14 +52,16 @@ local function loadAptCoords()
     local out = {}
     for aptType, data in pairs(env.Apartments.Locations or {}) do
         local e = data.coords and data.coords.enter
-        if type(e) == 'table' and e.x then
-            out[aptType] = { x = e.x, y = e.y, z = e.z }
-        end
+        out[aptType] = {
+            type = aptType,
+            label = data.label or aptType,
+            coords = (type(e) == 'table' and e.x) and { x = e.x, y = e.y, z = e.z } or nil,
+        }
     end
     return out
 end
 
-local aptCoords = loadAptCoords()
+local aptDefs = loadAptDefs()
 
 olink._register('housing', {
     GetResourceName = function()
@@ -74,7 +77,8 @@ olink._register('housing', {
         if aptStarted() then
             local rows = MySQL.query.await('SELECT name, label, type FROM apartments WHERE citizenid = ?', { cid }) or {}
             for _, a in ipairs(rows) do
-                out[#out + 1] = { id = a.name, kind = 'apartment', label = a.label, coords = aptCoords[a.type] }
+                local def = aptDefs[a.type]
+                out[#out + 1] = { id = a.name, kind = 'apartment', label = a.label, coords = def and def.coords }
             end
         end
         if housesStarted() then
@@ -94,8 +98,26 @@ olink._register('housing', {
         return out
     end,
 
+    -- Selectable starter apartments for the multichar picker: every location
+    -- qb-apartments defines, each with its building exterior for the marker.
+    ListStarterApartments = function()
+        if not aptStarted() then return {} end
+        local out = {}
+        for _, def in pairs(aptDefs) do
+            out[#out + 1] = { key = def.type, label = def.label, coords = def.coords }
+        end
+        table.sort(out, function(a, b) return a.key < b.key end)
+        return out
+    end,
+
     -- `def` is supplied by the caller (oxide-multichar); expects `type` (a key in
     -- qb-apartments' Apartments.Locations) and `label`.
+    --
+    -- Entry goes through `LastLocationHouse` (new=false), NOT `SpawnInApartment`
+    -- (new=true). The latter flags qb-interior's new-character state, which fires
+    -- `qb-clothes:client:CreateFirstCharacter` ~750ms after the interior loads —
+    -- a second clothing editor. multichar's own creator already set the look, so
+    -- every o-link entry path must avoid that flag.
     CreateStartingApartment = function(src, def)
         if not aptStarted() then return false end
         local cid = getCitizenId(src)
@@ -104,7 +126,7 @@ olink._register('housing', {
         -- Already owns an apartment: enter it rather than create a duplicate.
         local existing = MySQL.single.await('SELECT name, type, label FROM apartments WHERE citizenid = ?', { cid })
         if existing then
-            TriggerClientEvent('apartments:client:SpawnInApartment', src, existing.name, existing.type)
+            TriggerClientEvent('qb-apartments:client:LastLocationHouse', src, existing.type, existing.name)
             return { id = existing.name, label = existing.label }
         end
 
@@ -115,7 +137,7 @@ olink._register('housing', {
 
         MySQL.insert.await('INSERT INTO apartments (name, type, label, citizenid) VALUES (?, ?, ?, ?)',
             { id, def.type, label, cid })
-        TriggerClientEvent('apartments:client:SpawnInApartment', src, id, def.type)
+        TriggerClientEvent('qb-apartments:client:LastLocationHouse', src, def.type, id)
         TriggerClientEvent('apartments:client:SetHomeBlip', src, def.type)
         return { id = id, label = label }
     end,
@@ -129,7 +151,8 @@ olink._register('housing', {
             local apt = MySQL.single.await('SELECT type, citizenid FROM apartments WHERE name = ?', { id })
             if apt then
                 if apt.citizenid ~= cid then return false end
-                TriggerClientEvent('apartments:client:SpawnInApartment', src, id, apt.type)
+                -- LastLocationHouse (new=false): enter without re-opening the editor.
+                TriggerClientEvent('qb-apartments:client:LastLocationHouse', src, apt.type, id)
                 return true
             end
         end

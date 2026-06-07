@@ -112,6 +112,16 @@ olink._register('multichar', {
             return { ok = true, position = p and { x = p.x, y = p.y, z = p.z, w = p.w } or nil }
         end
 
+        -- Ownership check: the citizenid must belong to one of this player's
+        -- licenses, otherwise a client could forge any cid and load another
+        -- player's character.
+        local row = MySQL.single.await('SELECT license FROM players WHERE citizenid = ?', { cid })
+        if not row then return { ok = false, error = 'Character not owned' } end
+        local license2, license = getLicenses(src)
+        if row.license ~= license2 and row.license ~= license then
+            return { ok = false, error = 'Character not owned' }
+        end
+
         local ok, success = pcall(function()
             return lib.callback.await('o-link:multichar:qbx:select', src, cid)
         end)
