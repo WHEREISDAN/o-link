@@ -5,7 +5,7 @@ lua54 'yes'
 name 'o-link'
 author 'Oxide Studios'
 description 'Oxide Studios framework bridge'
-version '1.3.0'
+version '1.4.0'
 
 escrow_ignore {
     'config.lua',

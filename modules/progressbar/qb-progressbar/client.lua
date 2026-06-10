@@ -19,7 +19,7 @@ local function convertFromOx(options)
             disableCarMovement = options.disable.car,
             disableMouse       = options.disable.mouse,
             disableCombat      = options.disable.combat,
-        } or nil,
+        } or {},
         animation = options.anim and {
             animDict = options.anim.dict,
             anim     = options.anim.clip,
