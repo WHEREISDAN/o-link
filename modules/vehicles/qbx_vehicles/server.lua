@@ -40,6 +40,21 @@ local function PlateExists(plate)
     return MySQL.scalar.await('SELECT plate FROM player_vehicles WHERE plate = ? LIMIT 1', { plate }) ~= nil
 end
 
+---QB-ecosystem plate format: 1 digit, 2 letters, 3 digits, 2 letters.
+local function RandomPlate()
+    local function letters(n)
+        local out = ''
+        for _ = 1, n do out = out .. string.char(math.random(65, 90)) end
+        return out
+    end
+    local function digits(n)
+        local out = ''
+        for _ = 1, n do out = out .. math.random(0, 9) end
+        return out
+    end
+    return digits(1) .. letters(2) .. digits(3) .. letters(2)
+end
+
 olink._register('vehicles', {
     ---@param plate string
     ---@param limit number|nil
@@ -117,6 +132,53 @@ olink._register('vehicles', {
             ownerStateId = row.citizenid,
             ownerDob   = charinfo.birthdate,
         }
+    end,
+
+    ---@return string unique plate, or '' when generation failed
+    GeneratePlate = function()
+        for _ = 1, 10 do
+            local plate = RandomPlate()
+            if not PlateExists(plate) then return plate end
+        end
+        return ''
+    end,
+
+    ---@param charId string citizenid
+    ---@param model string
+    ---@param plate string
+    ---@param props table|nil ox_lib vehicle properties
+    ---@param vehicleType string|nil unused — qbx_vehicles derives type from the model
+    ---@return boolean
+    RegisterVehicle = function(charId, model, plate, props, vehicleType)
+        plate = NormalizePlate(plate)
+        if not charId or not model or not plate or plate == '' then return false end
+        if PlateExists(plate) then return false end
+
+        props = type(props) == 'table' and props or {}
+        props.plate = plate
+        -- No garage in the request → row is created with state OUT; the caller
+        -- spawns the vehicle itself.
+        local ok, vehicleId = pcall(function()
+            return exports.qbx_vehicles:CreatePlayerVehicle({
+                model     = model,
+                citizenid = charId,
+                props     = props,
+            })
+        end)
+        return ok and tonumber(vehicleId) ~= nil
+    end,
+
+    ---@param plate string
+    ---@return boolean
+    UnregisterVehicle = function(plate)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' then return false end
+        local vehicleId = ResolveVehicleIdByPlate(plate)
+        if not vehicleId then return false end
+        local ok, success = pcall(function()
+            return exports.qbx_vehicles:DeletePlayerVehicles('vehicleId', vehicleId)
+        end)
+        return ok and success == true
     end,
 
     ---@param plate string

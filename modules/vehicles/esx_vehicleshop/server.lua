@@ -20,6 +20,25 @@ local function ColumnExists(tableName, columnName)
     return columnCache[key]
 end
 
+---esx_vehicleshop plate format (stock config: 3 letters, space, 3 digits).
+local function RandomPlate()
+    local out = ''
+    for _ = 1, 3 do out = out .. string.char(math.random(65, 90)) end
+    out = out .. ' '
+    for _ = 1, 3 do out = out .. math.random(0, 9) end
+    return out
+end
+
+---Map a FiveM vehicle type to the owned_vehicles.type convention
+---(esx_boat uses 'boat'; aircraft addons use 'aircraft'; default 'car').
+---@param vehicleType string|nil
+---@return string
+local function EsxVehicleType(vehicleType)
+    if vehicleType == 'boat' or vehicleType == 'submarine' then return 'boat' end
+    if vehicleType == 'heli' or vehicleType == 'plane' or vehicleType == 'blimp' then return 'aircraft' end
+    return 'car'
+end
+
 olink._register('vehicles', {
     ---@param plate string
     ---@param limit number|nil
@@ -105,6 +124,59 @@ olink._register('vehicles', {
             ownerStateId = row.identifier,
             ownerDob   = row.dateofbirth,
         }
+    end,
+
+    ---@return string unique plate, or '' when generation failed
+    GeneratePlate = function()
+        for _ = 1, 10 do
+            local plate = RandomPlate()
+            if not MySQL.scalar.await('SELECT plate FROM owned_vehicles WHERE plate = ? LIMIT 1', { plate }) then
+                return plate
+            end
+        end
+        return ''
+    end,
+
+    ---@param charId string ESX identifier
+    ---@param model string
+    ---@param plate string
+    ---@param props table|nil ESX vehicle properties (stored in the vehicle JSON blob)
+    ---@param vehicleType string|nil
+    ---@return boolean
+    RegisterVehicle = function(charId, model, plate, props, vehicleType)
+        plate = NormalizePlate(plate)
+        if not charId or not model or not plate or plate == '' then return false end
+        if MySQL.scalar.await('SELECT plate FROM owned_vehicles WHERE plate = ? LIMIT 1', { plate }) then return false end
+
+        if type(props) == 'table' then
+            props.plate = plate
+            props.model = props.model or joaat(model)
+        else
+            props = { model = joaat(model), plate = plate }
+        end
+
+        -- plate is the PK (no auto-increment), so success is affected rows.
+        -- stored defaults to 0 (out); the caller spawns the vehicle itself.
+        local affected
+        if ColumnExists('owned_vehicles', 'type') then
+            affected = MySQL.update.await(
+                'INSERT INTO owned_vehicles (owner, plate, vehicle, type) VALUES (?, ?, ?, ?)',
+                { charId, plate, json.encode(props), EsxVehicleType(vehicleType) })
+        else
+            affected = MySQL.update.await(
+                'INSERT INTO owned_vehicles (owner, plate, vehicle) VALUES (?, ?, ?)',
+                { charId, plate, json.encode(props) })
+        end
+        return (affected or 0) > 0
+    end,
+
+    ---@param plate string
+    ---@return boolean
+    UnregisterVehicle = function(plate)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' then return false end
+        local affected = MySQL.update.await('DELETE FROM owned_vehicles WHERE plate = ?', { plate })
+        return (affected or 0) > 0
     end,
 
     ---@param plate string

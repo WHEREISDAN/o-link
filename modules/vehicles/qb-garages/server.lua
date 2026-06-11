@@ -21,6 +21,21 @@ local function ColumnExists(tableName, columnName)
     return columnCache[key]
 end
 
+---qb-vehicleshop plate format: 1 digit, 2 letters, 3 digits, 2 letters.
+local function RandomPlate()
+    local function letters(n)
+        local out = ''
+        for _ = 1, n do out = out .. string.char(math.random(65, 90)) end
+        return out
+    end
+    local function digits(n)
+        local out = ''
+        for _ = 1, n do out = out .. math.random(0, 9) end
+        return out
+    end
+    return digits(1) .. letters(2) .. digits(3) .. letters(2)
+end
+
 olink._register('vehicles', {
     ---@param plate string
     ---@param limit number|nil
@@ -98,6 +113,52 @@ olink._register('vehicles', {
             ownerStateId = row.citizenid,
             ownerDob   = charinfo.birthdate,
         }
+    end,
+
+    ---@return string unique plate, or '' when generation failed
+    GeneratePlate = function()
+        for _ = 1, 10 do
+            local plate = RandomPlate()
+            if not MySQL.scalar.await('SELECT plate FROM player_vehicles WHERE plate = ? LIMIT 1', { plate }) then
+                return plate
+            end
+        end
+        return ''
+    end,
+
+    ---@param charId string citizenid
+    ---@param model string
+    ---@param plate string
+    ---@param props table|nil
+    ---@param vehicleType string|nil unused — stock player_vehicles has no type column
+    ---@return boolean
+    RegisterVehicle = function(charId, model, plate, props, vehicleType)
+        plate = NormalizePlate(plate)
+        if not charId or not model or not plate or plate == '' then return false end
+        if MySQL.scalar.await('SELECT plate FROM player_vehicles WHERE plate = ? LIMIT 1', { plate }) then return false end
+
+        -- Mirrors qb-vehicleshop's insert; state 0 = out (caller spawns it),
+        -- garage stays NULL until the player first stores the vehicle.
+        local id = MySQL.insert.await([[
+            INSERT INTO player_vehicles (license, citizenid, vehicle, hash, mods, plate, state)
+            VALUES ((SELECT license FROM players WHERE citizenid = @citizenid), @citizenid, @vehicle, @hash, @mods, @plate, 0)
+        ]], {
+            citizenid = charId,
+            vehicle   = model,
+            hash      = joaat(model),
+            mods      = type(props) == 'table' and json.encode(props) or '{}',
+            plate     = plate,
+        })
+        return (tonumber(id) or 0) > 0
+    end,
+
+    ---@param plate string
+    ---@return boolean
+    UnregisterVehicle = function(plate)
+        plate = NormalizePlate(plate)
+        if not plate or plate == '' then return false end
+        local affected = MySQL.update.await('DELETE FROM player_vehicles WHERE plate = ?', { plate })
+        return (affected or 0) > 0
     end,
 
     ---@param plate string
