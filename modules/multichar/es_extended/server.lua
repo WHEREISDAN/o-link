@@ -37,6 +37,23 @@ local function charIdentifier(slot, base)
     return ('%s%s:%s'):format(PREFIX, slot, base)
 end
 
+-- `users.ssn` only exists on ESX Legacy 1.13.3+ and is added by a KVP-gated
+-- migration, so even newer servers can lack it. Every query touching ssn must
+-- gate on this; when absent, toSlot falls back to the full identifier.
+local ssnColumnExists
+local function hasSsnColumn()
+    if ssnColumnExists == nil then
+        local count = MySQL.scalar.await([[
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'users'
+              AND COLUMN_NAME = 'ssn'
+        ]])
+        ssnColumnExists = (count or 0) > 0
+    end
+    return ssnColumnExists
+end
+
 ---Mirrors `Core.generateSSN()` from es_extended/server/functions.lua. ESX uses
 ---US Social Security Number format (XXX-XX-XXXX) with the historically
 ---blocked combinations excluded (area 666, the 987-65-432X range, the three
@@ -132,12 +149,14 @@ olink._register('multichar', {
         --   SELECT identifier, accounts, job, job_grade, firstname, lastname,
         --          dateofbirth, sex, skin, disabled FROM users
         --   WHERE identifier LIKE ? LIMIT ?
-        -- plus `ssn` so we can surface a short public-facing State ID. Disabled
-        -- chars are returned (matching native — the UI decides how to render
-        -- them) rather than filtered out in the WHERE clause.
+        -- plus `ssn` (when the schema has it) so we can surface a short
+        -- public-facing State ID. Disabled chars are returned (matching
+        -- native — the UI decides how to render them) rather than filtered
+        -- out in the WHERE clause.
         local likeFilter = ('%s%%:%s'):format(PREFIX, base)
         local rows = MySQL.query.await(
-            "SELECT identifier, ssn, accounts, job, job_grade, firstname, lastname, dateofbirth, sex, skin, disabled FROM users WHERE identifier LIKE ? LIMIT ?",
+            ('SELECT identifier, %saccounts, job, job_grade, firstname, lastname, dateofbirth, sex, skin, disabled FROM users WHERE identifier LIKE ? LIMIT ?')
+                :format(hasSsnColumn() and 'ssn, ' or ''),
             { likeFilter, 50 }
         )
         if not rows then return {} end
@@ -182,23 +201,33 @@ olink._register('multichar', {
         local sex = (tonumber(data.gender) == 1) and 'f' or 'm'
 
         -- ssn is generated here because we bypass es_extended's createESXPlayer
-        -- (which would normally generate it). Schema declares ssn NOT NULL
-        -- UNIQUE, so omitting it leaves the column empty on lax MySQL configs
-        -- and breaks every consumer that looks the player up by ssn.
+        -- (which would normally generate it). The 1.13.3+ schema declares ssn
+        -- NOT NULL UNIQUE, so omitting it there leaves the column empty on lax
+        -- MySQL configs and breaks every consumer that looks the player up by
+        -- ssn.
+        local columns = { 'identifier', 'accounts', 'firstname', 'lastname', 'dateofbirth', 'sex', 'height' }
+        local values = {
+            identifier,
+            json.encode({ bank = 0, money = 0, black_money = 0 }),
+            data.firstName,
+            data.lastName,
+            data.dob,
+            sex,
+            tonumber(data.height) or 180,
+        }
+        if hasSsnColumn() then
+            table.insert(columns, 2, 'ssn')
+            table.insert(values, 2, generateSSN())
+        end
+
         local ok = pcall(function()
-            MySQL.insert.await([[
-                INSERT INTO users (identifier, ssn, accounts, firstname, lastname, dateofbirth, sex, height)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ]], {
-                identifier,
-                generateSSN(),
-                json.encode({ bank = 0, money = 0, black_money = 0 }),
-                data.firstName,
-                data.lastName,
-                data.dob,
-                sex,
-                tonumber(data.height) or 180,
-            })
+            MySQL.insert.await(
+                ('INSERT INTO users (%s) VALUES (%s)'):format(
+                    table.concat(columns, ', '),
+                    ('?, '):rep(#columns - 1) .. '?'
+                ),
+                values
+            )
         end)
         if not ok then return { ok = false, error = 'INSERT failed' } end
 
