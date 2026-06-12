@@ -33,9 +33,12 @@ olink._register('multichar', {
 
     -- Post-creation onboarding. If qbx_apartments is installed, hand off to it
     -- (it natively triggers qb-clothes:client:CreateFirstCharacter when the
-    -- apartment is confirmed, AND fires OnPlayerLoaded). Otherwise we fire
-    -- OnPlayerLoaded ourselves then open the appearance creator — mirroring
-    -- native spawnDefault() which fires the event before CreateFirstCharacter.
+    -- apartment is confirmed, AND fires OnPlayerLoaded). Otherwise we fire the
+    -- OnPlayerLoaded pair (server + client) then open the appearance creator —
+    -- mirroring native spawnDefault(), which sends both. Only ever send the pair
+    -- from our own spawn paths, never from a Client:OnPlayerLoaded listener
+    -- (qb-style cores echo Server:OnPlayerLoaded back down — a listener-based
+    -- re-emit feeds that echo and ping-pongs forever).
     OnboardNewCharacter = function(charId, opts, onDone)
         local gender = opts and opts.gender or 0
 
@@ -45,6 +48,7 @@ olink._register('multichar', {
             return
         end
 
+        TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
         TriggerEvent('QBCore:Client:OnPlayerLoaded')
 
         if olink.clothing and olink.clothing.StartCreation then
@@ -57,8 +61,8 @@ olink._register('multichar', {
     -- Existing-character spawn. With the selector enabled and a spawn/apartments
     -- resource present, hand off to the framework's native spawn UI (it owns the
     -- teleport, screen, and OnPlayerLoaded). Returning true tells oxide-multichar
-    -- to stop. Otherwise we fire OnPlayerLoaded and return false so oxide does
-    -- its default teleport + appearance apply.
+    -- to stop. Otherwise we fire the OnPlayerLoaded pair and return false so
+    -- oxide does its default teleport + appearance apply.
     ---@return boolean handled
     SpawnCharacter = function(charId, position, useSelector)
         if useSelector and GetResourceState('qbx_apartments') == 'started' then
@@ -71,6 +75,7 @@ olink._register('multichar', {
             return true
         end
 
+        TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
         TriggerEvent('QBCore:Client:OnPlayerLoaded')
         return false
     end,
@@ -84,14 +89,6 @@ end)
 
 RegisterNetEvent('o-link:multichar:startSelect', function()
     TriggerEvent('olink:client:startCharacterSelect')
-end)
-
--- Mirror native qbx_core/client/character.lua spawnDefault/spawnLastLocation:
--- when Client:OnPlayerLoaded fires (now from our server adapter), bounce it
--- back as Server:OnPlayerLoaded so third-party server resources hooked into
--- that event also get notified.
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
 end)
 
 -- Replaces qbx_core's native boot trigger (we comment out the chooseCharacter()

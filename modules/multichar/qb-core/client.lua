@@ -8,9 +8,12 @@ olink._register('multichar', {
 
     -- Post-creation onboarding. If qb-apartments is installed, hand off to it
     -- (it natively triggers qb-clothes:client:CreateFirstCharacter on submit,
-    -- AND fires OnPlayerLoaded). Otherwise we fire OnPlayerLoaded ourselves then
-    -- open the appearance creator — mirroring native qb-multicharacter's
-    -- closeNUIdefault path which fires the event before CreateFirstCharacter.
+    -- AND fires OnPlayerLoaded). Otherwise we fire the OnPlayerLoaded pair
+    -- (server + client, like native qb-multicharacter) then open the appearance
+    -- creator. The pair must only ever be sent from our own spawn paths — qb-core
+    -- answers Server:OnPlayerLoaded with a net Client:OnPlayerLoaded, so emitting
+    -- it from a Client:OnPlayerLoaded listener feeds back into that echo and
+    -- ping-pongs forever.
     OnboardNewCharacter = function(charId, opts, onDone)
         local gender = opts and opts.gender or 0
 
@@ -20,6 +23,7 @@ olink._register('multichar', {
             return
         end
 
+        TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
         TriggerEvent('QBCore:Client:OnPlayerLoaded')
 
         if olink.clothing and olink.clothing.StartCreation then
@@ -32,8 +36,8 @@ olink._register('multichar', {
     -- Existing-character spawn. With the selector enabled and a spawn/apartments
     -- resource present, hand off to the framework's native spawn UI (it owns the
     -- teleport, screen, and OnPlayerLoaded). Returning true tells oxide-multichar
-    -- to stop. Otherwise we fire OnPlayerLoaded and return false so oxide does
-    -- its default teleport + appearance apply.
+    -- to stop. Otherwise we fire the OnPlayerLoaded pair and return false so
+    -- oxide does its default teleport + appearance apply.
     ---@return boolean handled
     SpawnCharacter = function(charId, position, useSelector)
         if useSelector and GetResourceState('qb-apartments') == 'started' then
@@ -46,6 +50,7 @@ olink._register('multichar', {
             return true
         end
 
+        TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
         TriggerEvent('QBCore:Client:OnPlayerLoaded')
         return false
     end,
@@ -61,15 +66,6 @@ end)
 
 RegisterNetEvent('o-link:multichar:startSelect', function()
     TriggerEvent('olink:client:startCharacterSelect')
-end)
-
--- Mirror native qb-multicharacter / qb-spawn: when Client:OnPlayerLoaded fires
--- (now from our server adapter), bounce it back as Server:OnPlayerLoaded so
--- third-party server resources hooked into that event also get notified.
--- Without this, server-side resources (qb-banking financetimer, qb-houses,
--- qb-management, etc.) never know the player loaded.
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    TriggerServerEvent('QBCore:Server:OnPlayerLoaded')
 end)
 
 -- Replaces qb-multicharacter's boot trigger (its server-side playerConnecting
