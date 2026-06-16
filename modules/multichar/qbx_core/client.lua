@@ -28,6 +28,20 @@ lib.callback.register('o-link:multichar:qbx:select', function(citizenId)
     return ok and success ~= false
 end)
 
+-- Delete is bridged here too. The qbx_core DeleteCharacter export is
+-- ForceDeleteCharacter, which runs the delete in a detached thread and returns
+-- before the transaction commits — so the deleting player's character lingers
+-- in the selection menu until relog. qbx_core:server:deleteCharacter awaits the
+-- transaction synchronously, so routing through it makes Delete actually
+-- complete before we report success.
+lib.callback.register('o-link:multichar:qbx:delete', function(citizenId)
+    if not isStarted() then return false end
+    local ok, success = pcall(function()
+        return lib.callback.await('qbx_core:server:deleteCharacter', false, citizenId)
+    end)
+    return ok and success ~= false
+end)
+
 olink._register('multichar', {
     GetResourceName = function() return RESOURCE end,
 

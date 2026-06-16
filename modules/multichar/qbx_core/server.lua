@@ -150,8 +150,14 @@ olink._register('multichar', {
         local license2, license = getLicenses(src)
         if row.license ~= license2 and row.license ~= license then return false end
 
-        local ok = pcall(function() exports.qbx_core:DeleteCharacter(cid) end)
-        return ok
+        -- Bridge to qbx_core's synchronous delete callback rather than the
+        -- exported (async, fire-and-forget) DeleteCharacter, so the row is gone
+        -- before we return — otherwise the immediate getCharacters re-query
+        -- still sees the character and it lingers in the menu until relog.
+        local ok, success = pcall(function()
+            return lib.callback.await('o-link:multichar:qbx:delete', src, cid)
+        end)
+        return ok and success
     end,
 
     ---Returns the number of existing characters. The maximum is configured in
