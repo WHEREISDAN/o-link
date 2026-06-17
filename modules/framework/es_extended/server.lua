@@ -41,7 +41,10 @@ olink._register('framework', {
     -- not just Ace-allowed players.
     IsAdmin = function(src)
         local xPlayer = ESX.GetPlayerFromId(src)
-        return xPlayer and xPlayer.isAdmin() or false
+        if xPlayer and xPlayer.isAdmin() then return true end
+        -- Fall back to ACE so ACE-based admins on ESX servers also resolve.
+        local p = tostring(src)
+        return IsPlayerAceAllowed(p, 'command') or IsPlayerAceAllowed(p, 'admin')
     end,
 
     ---@param itemName string
