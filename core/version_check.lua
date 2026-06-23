@@ -1,9 +1,10 @@
 -- Startup update lifecycle. Compares this resource's version against the
 -- version field in fxmanifest.lua on the public repo's main branch and, when
 -- Config.AutoDownloadUpdates is set, downloads the newer files over o-link's
--- own folder. The owner's config.lua is never overwritten, and o-link never
--- restarts itself unattended (that crashes the server) -- new files apply on
--- the next restart or via the `olink:applyupdate` console command.
+-- own folder. The owner's config.lua is never overwritten. o-link never
+-- restarts anything itself: a resource restart would desync every consumer
+-- that snapshotted o-link's exports at boot, so the new files apply only on
+-- the next full server restart.
 
 if not Config.CheckForUpdates then return end
 
@@ -120,17 +121,9 @@ local function applyUpdate(fromVer, toVer)
 
     print('^2========================================================^0')
     print(('^2[o-link] Update %s downloaded (%d files written).^0'):format(toVer, written))
-    print('^2[o-link] Restart o-link to apply: run ^3olink:applyupdate^2 or restart the server.^0')
+    print('^2[o-link] Restart your server to apply. Do NOT restart o-link alone --^0')
+    print('^2[o-link] dependent resources cache its exports and would desync.^0')
     print('^2========================================================^0')
-
-    RegisterCommand('olink:applyupdate', function()
-        print('^3[o-link] Restarting to apply update...^0')
-        -- Deferred so this command's stack unwinds before the restart fires;
-        -- restarting the current resource synchronously crashes the server.
-        SetTimeout(500, function()
-            ExecuteCommand('restart ' .. RESOURCE)
-        end)
-    end, true)
 
     return true
 end
