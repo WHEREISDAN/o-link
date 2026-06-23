@@ -46,9 +46,9 @@ Config.CheckForUpdates = true
 
 -- When true, a detected update is downloaded and written over o-link's own
 -- files automatically (your config.lua is never touched). The new files take
--- effect after a restart: o-link prints a notice and registers the console
--- command `olink:applyupdate` to restart itself on demand. Leave false to be
--- notified only. Has no effect unless CheckForUpdates is also true.
+-- effect on your next full server restart -- o-link never restarts anything
+-- itself, as that would desync resources that cache its exports. Leave false
+-- to be notified only. Has no effect unless CheckForUpdates is also true.
 Config.AutoDownloadUpdates = false
 
 -- When set, every `olink.inventory.GetImagePath` call returns `<base>/<item>.png`.
