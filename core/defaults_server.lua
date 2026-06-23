@@ -12,7 +12,7 @@ end
 
 stub('framework', {
     'GetName', 'GetIsPlayerLoaded', 'GetPlayers', 'GetJobs', 'IsAdmin',
-    'RegisterUsableItem', 'Logout',
+    'RegisterUsableItem', 'Logout', 'GetPlayerInventory', 'ItemList', 'GetStatus',
 }, {
     GetName = 'none',
     GetIsPlayerLoaded = false,
@@ -20,16 +20,19 @@ stub('framework', {
     GetJobs = function() return {} end,
     IsAdmin = false,
     Logout = false,
+    GetPlayerInventory = function() return {} end,
+    ItemList = function() return {} end,
 })
 
 stub('character', {
     'GetIdentifier', 'GetName', 'GetMetadata', 'SetMetadata', 'GetAllMetadata',
-    'SetBoss', 'IsBoss', 'Search', 'GetOffline',
+    'SetBoss', 'IsBoss', 'Search', 'GetOffline', 'GetDob', 'GetAccountCharacterIdentifiers',
 }, {
     Search = function() return {} end,
     IsBoss = false,
     SetBoss = false,
     SetMetadata = false,
+    GetAccountCharacterIdentifiers = function() return {} end,
 })
 
 stub('multichar', {
@@ -45,12 +48,13 @@ stub('multichar', {
 })
 
 stub('job', {
-    'Get', 'Set', 'SetDuty', 'GetDuty', 'GetPlayersWithJob',
+    'Get', 'Set', 'SetDuty', 'GetDuty', 'GetPlayersWithJob', 'DoesPlayerHaveJob',
 }, {
     Set = false,
     SetDuty = false,
     GetDuty = false,
     GetPlayersWithJob = function() return {} end,
+    DoesPlayerHaveJob = false,
 })
 
 stub('money', {
@@ -83,8 +87,9 @@ stub('inventory', {
     'GetPlayerInventory', 'OpenPlayerInventory', 'RegisterStash', 'OpenStash',
     'GetItemInfo', 'GetImagePath', 'CanCarryItem', 'ClearStash', 'GetStashItems',
     'Items', 'OpenShop', 'RegisterShop', 'RemoveStashItem', 'AddStashItem',
-    'SetMetadata', 'UpdatePlate', 'AddTrunkItems',
+    'SetMetadata', 'UpdatePlate', 'AddTrunkItems', 'AddStashItems',
 }, {
+    AddStashItems = false,
     GetItemCount = 0,
     HasItem = false,
     AddItem = false,
@@ -114,7 +119,11 @@ stub('vehicles', {
     'GetOwnedVehicles', 'GetVehicleByPlate', 'GiveKey', 'RemoveKey', 'HasKey',
     'GetKeysForPlayer', 'IsVehicleLocked', 'SetVehicleLocked', 'RepairVehicle',
     'AddSharedVehicle', 'RemoveSharedVehicle', 'GetSharedVehicles',
+    'IsOwnedBy', 'GetOwnedPlates', 'TransferOwnership',
 }, {
+    IsOwnedBy = false,
+    GetOwnedPlates = function() return {} end,
+    TransferOwnership = false,
     SearchByPlate = function() return {} end,
     GetByOwner = function() return {} end,
     ImpoundVehicle = false,
@@ -170,7 +179,7 @@ stub('banking', {
 })
 
 stub('notify', {
-    'Send', 'Confirm',
+    'Send', 'Confirm', 'SendNotification', 'SendNotify',
 })
 
 stub('phone', {
@@ -183,20 +192,24 @@ stub('phone', {
 })
 
 stub('clothing', {
-    'DeleteOutfit', 'GetAppearance', 'GetOfflineAppearance', 'GetOutfits',
-    'GetResourceName', 'IsMale', 'OpenMenu', 'Revert', 'SaveCreatorAppearance',
-    'SaveOutfit', 'SetAppearance', 'SetAppearanceExt', 'UpdateOutfit',
+    'DeleteOutfit', 'GetAppearance', 'GetCanonicalAppearance', 'GetOfflineAppearance', 'GetOutfits',
+    'GetResourceName', 'GetTattoos', 'IsMale', 'OpenMenu', 'Revert', 'SaveCreatorAppearance',
+    'SaveOutfit', 'SaveTattoos', 'SetAppearance', 'SetAppearanceExt', 'UpdateOutfit', 'Save',
 }, {
+    Save = false,
     DeleteOutfit = false,
     GetAppearance = function() return {} end,
+    GetCanonicalAppearance = function() return nil end,
     GetOfflineAppearance = function() return nil end,
     GetOutfits = function() return {} end,
     GetResourceName = 'none',
+    GetTattoos = function() return {} end,
     IsMale = true,
     -- Returns false when no backend implements it (e.g. esx_skin) so
     -- oxide-multichar falls back to the framework's native first-char editor.
     SaveCreatorAppearance = false,
     SaveOutfit = false,
+    SaveTattoos = false,
     SetAppearance = false,
     SetAppearanceExt = false,
     UpdateOutfit = false,
@@ -231,11 +244,13 @@ stub('doorlock', {
 -- property's exterior { x, y, z } when the backend can resolve it (optional).
 stub('housing', {
     'GetResourceName', 'GetOwnedProperties', 'CreateStartingApartment', 'SpawnInside',
+    'ListStarterApartments',
 }, {
     GetResourceName = 'none',
     GetOwnedProperties = function() return {} end,
     CreateStartingApartment = false,
     SpawnInside = false,
+    ListStarterApartments = function() return {} end,
 })
 
 stub('bossmenu', {
@@ -281,10 +296,25 @@ stub('needs', {
     SetNeed = false,
 })
 
+stub('medical', {
+    'GetResourceName',
+    'GetRecord', 'GetBloodType', 'GetDNA', 'GetImmunity', 'GetConditions', 'HasCondition',
+    'AddCondition', 'TreatCondition', 'RemoveCondition', 'GetOfflineRecord',
+}, {
+    GetResourceName = 'none',
+    GetImmunity = 100,
+    GetConditions = function() return {} end,
+    HasCondition = false,
+    AddCondition = false,
+    TreatCondition = false,
+    RemoveCondition = false,
+})
+
 stub('gang', {
-    'Get', 'Set',
+    'Get', 'Set', 'DoesPlayerHaveGang',
 }, {
     Set = false,
+    DoesPlayerHaveGang = false,
 })
 
 stub('helptext', {

@@ -38,10 +38,8 @@ olink._register('framework', {
     ---@param src number
     ---@return boolean
     IsAdmin = function(src)
-        local p = tostring(src)
-        -- Accept either the `command` ACE (superadmin convention) or the `admin`
-        -- ACE namespace (group.admin convention) so both resolve as admin.
-        return IsPlayerAceAllowed(p, 'command') or IsPlayerAceAllowed(p, 'admin')
+        -- the `admin` ACE node, not the `group.admin` principal (principals aren't aces)
+        return IsPlayerAceAllowed(tostring(src), 'admin')
     end,
 
     ---@param itemName string

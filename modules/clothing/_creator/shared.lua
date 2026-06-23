@@ -120,3 +120,70 @@ function OlinkCreatorToIllenium(data)
         tattoos = mapTattoos(data.tattoos),
     }
 end
+
+---Inverse of OlinkCreatorToIllenium: translate an illenium-shape skin back into
+---the native-indexed canonical appearance object. Used by the illenium /
+---fivem-appearance adapters' GetCanonicalAppearance so a partial edit (e.g. a
+---barbershop) can merge over the full current look without resetting anything.
+---@param skin table illenium-style appearance object
+---@return table canonical
+function OlinkIlleniumToCanonical(skin)
+    skin = type(skin) == 'table' and skin or {}
+    local A = olink._appearance
+    local canonical = {
+        framework = 'illenium-appearance',
+        model = skin.model or 'mp_m_freemode_01',
+        components = A.componentsToMap(skin.components),
+        props = A.propsToMap(skin.props),
+        features = {},
+        overlays = {},
+        eyeColor = tonumber(skin.eyeColor) or 0,
+    }
+
+    if type(skin.hair) == 'table' then
+        canonical.hair = {
+            style = tonumber(skin.hair.style) or 0,
+            texture = tonumber(skin.hair.texture) or 0,
+            color = tonumber(skin.hair.color) or 0,
+            highlight = tonumber(skin.hair.highlight) or 0,
+        }
+    end
+
+    if type(skin.headBlend) == 'table' then
+        local hb = skin.headBlend
+        canonical.headBlend = {
+            shapeFirst = tonumber(hb.shapeFirst) or 0,
+            shapeSecond = tonumber(hb.shapeSecond) or 0,
+            skinFirst = tonumber(hb.skinFirst) or 0,
+            skinSecond = tonumber(hb.skinSecond) or 0,
+            shapeMix = tonumber(hb.shapeMix) or 0.5,
+            skinMix = tonumber(hb.skinMix) or 0.5,
+        }
+    end
+
+    if type(skin.faceFeatures) == 'table' then
+        for index, key in pairs(FEATURE_KEYS) do
+            local v = skin.faceFeatures[key]
+            if v ~= nil then canonical.features[index] = (tonumber(v) or 0.0) + 0.0 end
+        end
+    end
+
+    if type(skin.headOverlays) == 'table' then
+        for index, key in pairs(OVERLAY_KEYS) do
+            local ov = skin.headOverlays[key]
+            if type(ov) == 'table' then
+                local style = tonumber(ov.style)
+                -- illenium style is 0-based (255 = none); canonical is 1-based (0 = none).
+                canonical.overlays[index] = {
+                    style = (not style or style == 255) and 0 or (style + 1),
+                    opacity = (tonumber(ov.opacity) or 0.0) + 0.0,
+                    color = tonumber(ov.color) or 0,
+                    secondColor = tonumber(ov.secondColor) or 0,
+                }
+            end
+        end
+    end
+
+    if type(skin.tattoos) == 'table' then canonical.tattoos = skin.tattoos end
+    return canonical
+end

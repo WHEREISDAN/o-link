@@ -139,6 +139,59 @@ local function applyCompat(namespace, impl, implName)
         if type(impl.Hide) == 'function' and type(impl.HideHelpText) ~= 'function' then
             impl.HideHelpText = impl.Hide
         end
+    elseif ns == 'clothing' then
+        if implName and type(impl.GetResourceName) ~= 'function' then
+            impl.GetResourceName = function()
+                return implName
+            end
+        end
+
+        -- Server SetAppearance accepts two payload shapes. Bare clothing
+        -- (`{components, props}` with positional updateBackup/save) runs the
+        -- backend's own applier. A canonical payload carrying hair/overlays/etc.
+        -- (with an opts table) is merged over the current look and persisted
+        -- through the creator-appearance writer, then re-rendered live. Rich looks
+        -- persist only when opts.save is set, and merge only when the backend can
+        -- supply a rich base, so a partial edit leaves unedited fields intact.
+        if side == 'server' and type(impl.SetAppearance) == 'function' then
+            local rawSet = impl.SetAppearance
+            impl.SetAppearance = function(src, data, a3, a4)
+                local opts
+                if type(a3) == 'table' then
+                    opts = a3
+                else
+                    opts = { backup = a3, save = a4 }
+                end
+
+                local A = olink._appearance
+                if not (A and A.isRich(data)) then
+                    return rawSet(src, data, opts.backup, opts.save)
+                end
+
+                local payload = data
+                if type(olink.clothing.GetCanonicalAppearance) == 'function' then
+                    local base = olink.clothing.GetCanonicalAppearance(src)
+                    if type(base) == 'table' then payload = A.merge(base, data) end
+                end
+
+                local persisted = false
+                if opts.save == true and type(olink.clothing.SaveCreatorAppearance) == 'function' then
+                    persisted = olink.clothing.SaveCreatorAppearance(src, payload, true) and true or false
+                end
+                if opts.save == true and not persisted then
+                    -- Backend can't store rich appearance; persist clothing only.
+                    local norm = A.normalize(payload)
+                    rawSet(src, {
+                        components = A.componentsToArray(norm.components),
+                        props = A.propsToArray(norm.props),
+                    }, opts.backup, true)
+                    olink._warnMissing('clothing', 'SaveCreatorAppearance')
+                end
+
+                TriggerClientEvent('o-link:client:clothing:setAppearance', src, payload)
+                return payload
+            end
+        end
     end
 end
 

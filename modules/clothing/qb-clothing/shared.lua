@@ -158,3 +158,88 @@ function QbClothingHeadFromCreator(data)
 
     return skin
 end
+
+---Translate a stored qb-clothing skin into the canonical appearance object (merge
+---base for partial edits, e.g. a barbershop). Two skin shapes exist: pure qb-flat
+---(from qb's own creator) and a hybrid that also carries illenium-shape keys. The
+---hybrid is read through the illenium inverse, with hair taken from the qb keys
+---(where the hybrid keeps it).
+---@param skin table
+---@return table canonical
+function QbHeadToCanonical(skin)
+    skin = type(skin) == 'table' and skin or {}
+    local A = olink._appearance
+
+    if type(skin.headOverlays) == 'table' or type(skin.headBlend) == 'table' then
+        local canonical = OlinkIlleniumToCanonical(skin)
+        canonical.framework = 'qb-clothing'
+        -- The hybrid stores hair in qb shape ({ item, texture }), not illenium.
+        if type(skin.hair) == 'table' and skin.hair.style == nil then
+            canonical.hair = {
+                style = tonumber(skin.hair.item) or 0, texture = 0,
+                color = tonumber(skin.hair.texture) or 0, highlight = 0,
+            }
+        end
+        return canonical
+    end
+
+    -- Pure qb-flat skin.
+    local default = QbClothingConvertToDefault(skin)
+    local canonical = {
+        framework = 'qb-clothing',
+        components = A.componentsToMap(default.components),
+        props = A.propsToMap(default.props),
+        features = {},
+        overlays = {},
+    }
+
+    if type(skin.hair) == 'table' then
+        canonical.hair = {
+            style = tonumber(skin.hair.item) or 0, texture = 0,
+            color = tonumber(skin.hair.texture) or 0, highlight = 0,
+        }
+    end
+    if type(skin.eye_color) == 'table' then
+        canonical.eyeColor = tonumber(skin.eye_color.item) or 0
+    end
+    if type(skin.face) == 'table' then
+        canonical.headBlend = {
+            shapeFirst = tonumber(skin.face.item) or 0,
+            skinFirst = tonumber(skin.face.texture) or 0,
+            shapeSecond = type(skin.face2) == 'table' and tonumber(skin.face2.item) or 0,
+            skinSecond = type(skin.face2) == 'table' and tonumber(skin.face2.texture) or 0,
+            shapeMix = type(skin.facemix) == 'table' and tonumber(skin.facemix.shapeMix) or 0.5,
+            skinMix = type(skin.facemix) == 'table' and tonumber(skin.facemix.skinMix) or 0.5,
+        }
+    end
+
+    -- Overlays (qb stores colour only; opacity isn't persisted, so default to 1).
+    for index, key in pairs(OverlayToQb) do
+        local ov = skin[key]
+        if type(ov) == 'table' then
+            local item = tonumber(ov.item)
+            canonical.overlays[index] = {
+                style = (not item or item == 255) and 0 or (item + 1),
+                opacity = 1.0,
+                color = tonumber(ov.texture) or 0,
+                secondColor = 0,
+            }
+        end
+    end
+    if type(skin.moles) == 'table' then
+        local item = tonumber(skin.moles.item) or 0
+        canonical.overlays[9] = {
+            style = item > 0 and (item + 1) or 0,
+            opacity = (tonumber(skin.moles.texture) or 0) / 10,
+            color = 0, secondColor = 0,
+        }
+    end
+    for index, key in pairs(FeatureToQb) do
+        local f = skin[key]
+        if type(f) == 'table' and f.item ~= nil then
+            canonical.features[index] = (tonumber(f.item) or 0) / 10
+        end
+    end
+
+    return canonical
+end

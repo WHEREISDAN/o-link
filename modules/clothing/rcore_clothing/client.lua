@@ -15,3 +15,14 @@ olink._register('clothing', {
 RegisterNetEvent('o-link:client:clothing:setAppearance', function(data)
     TriggerEvent('o-link:clothing:applyAppearance', data)
 end)
+
+-- Apply a canonical look to the player ped, then (when persisting) let rcore
+-- snapshot the now-updated ped into its own correctly-encoded current outfit.
+-- Applying first is synchronous, so saveCurrentSkin captures the new look.
+RegisterNetEvent('o-link:rcore:applyPersist', function(data, persist)
+    local ped = PlayerPedId()
+    olink._appearance.applyToPed(ped, data)
+    if persist then
+        TriggerEvent('rcore_clothing:saveCurrentSkin')
+    end
+end)

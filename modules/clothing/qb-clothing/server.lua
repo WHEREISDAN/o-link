@@ -48,6 +48,18 @@ olink._register('clothing', {
         return fullData and data or data.converted
     end,
 
+    ---Rich canonical snapshot (merge base for partial appearance edits). Inverts
+    ---the stored qb skin (flat, or oxide's illenium+qb hybrid) into canonical.
+    ---@param src number
+    ---@return table|nil
+    GetCanonicalAppearance = function(src)
+        local data = getFullAppearanceData(src)
+        if not data or type(data.skin) ~= 'table' then return nil end
+        local canonical = QbHeadToCanonical(data.skin)
+        canonical.model = data.model or 'mp_m_freemode_01'
+        return canonical
+    end,
+
     ---@param src number
     ---@param data table
     ---@param updateBackup boolean|nil
@@ -261,6 +273,7 @@ olink._register('clothing', {
         Players[citId] = nil
         return true
     end,
+
 })
 
 AddEventHandler('olink:server:playerReady', function(src)

@@ -60,6 +60,42 @@ olink._register('clothing', {
         return fullData and data or data.converted
     end,
 
+    ---Rich canonical snapshot (merge base for partial appearance edits). esx_skin
+    ---stores the full skinchanger skin in users.skin, so invert it into canonical.
+    ---@param src number
+    ---@return table|nil
+    GetCanonicalAppearance = function(src)
+        local data = getFullAppearanceData(src)
+        if not data or type(data.skin) ~= 'table' then return nil end
+        return EsxSkinToCanonical(data.skin)
+    end,
+
+    ---Persist a canonical look. Only the styling fields (hair / overlays / eye
+    ---colour) are written over the stored skinchanger skin, so head blend, face
+    ---features and clothing are preserved; then skinchanger re-applies it live.
+    ---@param src number
+    ---@param data table canonical appearance
+    ---@param save boolean|nil unused (always persists)
+    ---@return boolean
+    SaveCreatorAppearance = function(src, data, save)
+        src = tonumber(src)
+        if not src or type(data) ~= 'table' then return false end
+        local charId = olink.character.GetIdentifier(src)
+        if not charId then return false end
+        local current = getFullAppearanceData(src)
+        if not current or type(current.skin) ~= 'table' then return false end
+
+        local flat = CanonicalToEsxFlat(data)
+        for k, v in pairs(flat) do current.skin[k] = v end
+        current.converted = EsxSkinConvertToDefault(current.skin)
+
+        MySQL.update.await('UPDATE users SET skin = ? WHERE identifier = ?', {
+            json.encode(current.skin), charId,
+        })
+        TriggerClientEvent('skinchanger:loadSkin', src, current.skin)
+        return true
+    end,
+
     ---@param src number
     ---@param data table
     ---@param updateBackup boolean|nil

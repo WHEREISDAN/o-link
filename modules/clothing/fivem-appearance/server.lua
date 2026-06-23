@@ -43,6 +43,16 @@ olink._register('clothing', {
         return fullData and data or data.converted
     end,
 
+    ---Rich canonical snapshot (merge base for partial appearance edits).
+    ---fivem-appearance stores the illenium-shape skin, so invert it into canonical.
+    ---@param src number
+    ---@return table|nil
+    GetCanonicalAppearance = function(src)
+        local data = getFullAppearanceData(src)
+        if not data or type(data.skin) ~= 'table' then return nil end
+        return OlinkIlleniumToCanonical(data.skin)
+    end,
+
     ---@param src number
     ---@param data table
     ---@param updateBackup boolean|nil
@@ -154,7 +164,35 @@ olink._register('clothing', {
         Players[charId] = nil
         return true
     end,
+
 })
+
+-- Native tattoo store (tattoos live in the fivem-appearance skin blob). The bridge
+-- router (_tattoos/server.lua) dispatches here when this backend is active.
+olink._nativeTattoos = olink._nativeTattoos or {}
+olink._nativeTattoos['fivem-appearance'] = {
+    Get = function(src)
+        local data = getFullAppearanceData(src)
+        return (data and type(data.skin) == 'table' and data.skin.tattoos) or {}
+    end,
+    Save = function(src, tattoos)
+        local charId = olink.character.GetIdentifier(tonumber(src))
+        if not charId then return false end
+        Players[charId] = nil
+        local current = getFullAppearanceData(src)
+        if not current or type(current.skin) ~= 'table' then return false end
+
+        current.skin.tattoos = tattoos
+        local encoded = json.encode(current.skin)
+        if olink.framework.GetName() == 'es_extended' then
+            MySQL.update.await('UPDATE users SET skin = ? WHERE identifier = ?', { encoded, charId })
+        else
+            MySQL.update.await('UPDATE playerskins SET skin = ? WHERE citizenid = ? AND active = ?', { encoded, charId, 1 })
+        end
+        Players[charId] = nil
+        return true
+    end,
+}
 
 AddEventHandler('olink:server:playerReady', function(src)
     src = tonumber(src)

@@ -79,6 +79,16 @@ olink._register('clothing', {
         return fullData and data or data.converted
     end,
 
+    ---Rich canonical snapshot (merge base for partial appearance edits). illenium
+    ---stores the illenium-shape skin directly, so invert it into canonical.
+    ---@param src number
+    ---@return table|nil
+    GetCanonicalAppearance = function(src)
+        local data = getFullAppearanceData(src)
+        if not data or type(data.skin) ~= 'table' then return nil end
+        return OlinkIlleniumToCanonical(data.skin)
+    end,
+
     ---@param src number
     ---@param data table
     ---@param updateBackup boolean|nil
@@ -266,7 +276,28 @@ olink._register('clothing', {
         Players[charId] = nil
         return true
     end,
+
 })
+
+-- Native tattoo store (tattoos live in the illenium skin blob). The bridge router
+-- (_tattoos/server.lua) dispatches here when illenium is active and syncs state.
+olink._nativeTattoos = olink._nativeTattoos or {}
+olink._nativeTattoos['illenium-appearance'] = {
+    Get = function(src)
+        local data = getFullAppearanceData(src)
+        return (data and data.skin and data.skin.tattoos) or {}
+    end,
+    Save = function(src, tattoos)
+        local charId = olink.character.GetIdentifier(tonumber(src))
+        if not charId then return false end
+        local current = getFullAppearanceData(src)
+        if not current or type(current.skin) ~= 'table' then return false end
+        current.skin.tattoos = tattoos
+        writeActiveSkin(charId, current.skin.model, json.encode(current.skin))
+        Players[charId] = nil
+        return true
+    end,
+}
 
 AddEventHandler('olink:server:playerReady', function(src)
     src = tonumber(src)

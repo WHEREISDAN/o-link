@@ -40,6 +40,17 @@ Config.Overrides = {
 
 Config.Debug = true
 
+-- On startup, o-link checks its public GitHub repo for a newer release and
+-- prints a notice to the server console. Set to false to disable the check.
+Config.CheckForUpdates = true
+
+-- When true, a detected update is downloaded and written over o-link's own
+-- files automatically (your config.lua is never touched). The new files take
+-- effect after a restart: o-link prints a notice and registers the console
+-- command `olink:applyupdate` to restart itself on demand. Leave false to be
+-- notified only. Has no effect unless CheckForUpdates is also true.
+Config.AutoDownloadUpdates = false
+
 -- When set, every `olink.inventory.GetImagePath` call returns `<base>/<item>.png`.
 -- Example: 'https://r2.qbox.re/myserver/inventory/'
 Config.ImageBaseUrl = nil

@@ -104,7 +104,7 @@ local function emitTransition(src, newState)
     TriggerEvent('olink:server:playerDeathStateChanged', src, newState, oldState, {})
 end
 
-AddEventHandler('hospital:server:SetDeathStatus', function(isDead)
+RegisterNetEvent('hospital:server:SetDeathStatus', function(isDead)
     local src = source
     if not src or src <= 0 then return end
     if isDead then
@@ -114,7 +114,7 @@ AddEventHandler('hospital:server:SetDeathStatus', function(isDead)
     end
 end)
 
-AddEventHandler('hospital:server:SetLaststandStatus', function(bool)
+RegisterNetEvent('hospital:server:SetLaststandStatus', function(bool)
     local src = source
     if not src or src <= 0 then return end
     if bool then

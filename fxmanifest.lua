@@ -50,6 +50,7 @@ server_scripts {
     'modules/vehicleOwnership/**/server.lua',
     'modules/death/**/server.lua',
     'modules/needs/**/server.lua',
+    'modules/medical/**/server.lua',
     'modules/gang/**/server.lua',
     'modules/gang/server.lua',
     'modules/jobcount/server.lua',
@@ -58,6 +59,7 @@ server_scripts {
     'modules/logger/**/server.lua',
     'lifecycle/**/server.lua',
     'core/loader_server.lua',
+    'core/version_check.lua',
 }
 
 client_scripts {
@@ -91,6 +93,7 @@ client_scripts {
     'modules/bossmenu/**/client.lua',
     'modules/skills/**/client.lua',
     'modules/death/**/client.lua',
+    'modules/medical/**/client.lua',
     'modules/gang/**/client.lua',
     'modules/vehicles/**/client.lua',
     'modules/logger/**/client.lua',

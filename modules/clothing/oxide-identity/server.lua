@@ -68,6 +68,39 @@ olink._register('clothing', {
         return fullData and data or data.converted
     end,
 
+    ---Rich canonical snapshot of the live character: default-shape clothing plus
+    ---the face/overlays/hair/eyeColor/tattoos the framework keeps in state bags.
+    ---Used as the merge base for partial appearance edits (e.g. a barbershop).
+    ---Kept separate from GetAppearance so existing default-shape consumers are
+    ---unaffected.
+    ---@param src number
+    ---@return table|nil
+    GetCanonicalAppearance = function(src)
+        src = tonumber(src)
+        if not src then return nil end
+        local data = getFullAppearanceData(src)
+        local result = {
+            framework  = 'oxide-identity',
+            model      = data and data.model or 'mp_m_freemode_01',
+            components = data and data.converted and data.converted.components or {},
+            props      = data and data.converted and data.converted.props or {},
+        }
+        local state = Player(src).state
+        local appearance = state and state['oxide:appearance']
+        if type(appearance) == 'table' then
+            result.hair = appearance.hair
+            result.eyeColor = appearance.eyeColor
+            if type(appearance.face) == 'table' then
+                result.headBlend = appearance.face.headBlend
+                result.features = appearance.face.features
+                result.overlays = appearance.face.overlays
+            end
+        end
+        local tattoos = state and state['oxide:tattoos']
+        if type(tattoos) == 'table' then result.tattoos = tattoos end
+        return result
+    end,
+
     ---Offline appearance snapshot keyed by char_id, shaped to match the client
     ---SetAppearance payload so it can be applied to a preview ped directly.
     ---@param charId number|string
@@ -252,7 +285,24 @@ olink._register('clothing', {
     DeleteOutfit = function(src, outfitId)
         return exports['oxide-identity']:DeleteOutfit(tonumber(outfitId))
     end,
+
 })
+
+-- Native tattoo store. The bridge router (_tattoos/server.lua) dispatches here when
+-- oxide-identity is the active clothing module, then handles statebag/apply sync.
+olink._nativeTattoos = olink._nativeTattoos or {}
+olink._nativeTattoos['oxide-identity'] = {
+    Get = function(src)
+        local charId = getNumericCharId(src)
+        return charId and exports['oxide-identity']:GetTattoos(charId) or {}
+    end,
+    Save = function(src, tattoos)
+        local charId = getNumericCharId(src)
+        if not charId then return false end
+        Players[charId] = nil
+        return exports['oxide-identity']:SaveTattoos(charId, tattoos) and true or false
+    end,
+}
 
 -- Persist appearance captured by the creator (clothing.StartCreation) to the
 -- character that is now active for this source.

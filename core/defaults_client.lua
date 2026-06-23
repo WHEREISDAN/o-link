@@ -8,7 +8,7 @@ local function stub(namespace, methods, defaults)
 end
 
 stub('framework', {
-    'GetName', 'GetIsPlayerLoaded',
+    'GetName', 'GetIsPlayerLoaded', 'ShowHelpText', 'HideHelpText',
 }, {
     GetName = 'none',
     GetIsPlayerLoaded = false,
@@ -57,7 +57,8 @@ stub('target', {
     'AddBoxZone', 'AddSphereZone', 'RemoveZone', 'AddLocalEntity',
     'RemoveLocalEntity', 'AddModel', 'RemoveModel', 'AddGlobalPed',
     'RemoveGlobalPed', 'AddGlobalVehicle', 'RemoveGlobalVehicle',
-    'AddNetworkedEntity', 'RemoveNetworkedEntity',
+    'AddNetworkedEntity', 'RemoveNetworkedEntity', 'DisableTargeting',
+    'AddGlobalPlayer', 'RemoveGlobalPlayer',
 })
 
 stub('progressbar', {
@@ -67,7 +68,7 @@ stub('progressbar', {
 })
 
 stub('vehiclekey', {
-    'Give', 'Remove', 'GetResourceName',
+    'Give', 'Remove', 'GetResourceName', 'GiveKeys', 'RemoveKeys',
 }, {
     GetResourceName = 'none',
 })
@@ -97,7 +98,7 @@ stub('input', {
 })
 
 stub('menu', {
-    'GetResourceName', 'Open',
+    'GetResourceName', 'Open', 'OpenMenu',
 }, {
     GetResourceName = 'none',
 })
@@ -129,10 +130,11 @@ stub('radial', {
 })
 
 stub('zones', {
-    'Create', 'Destroy', 'DestroyByResource', 'Get',
+    'Create', 'Destroy', 'DestroyByResource', 'Get', 'All',
 }, {
     Destroy = false,
     DestroyByResource = false,
+    All = function() return {} end,
 })
 
 stub('phone', {
@@ -145,11 +147,26 @@ stub('phone', {
 
 stub('clothing', {
     'GetResourceName', 'OpenMenu', 'StartCreation', 'ApplyPlayerAppearance',
-    'GetAppearance', 'SetAppearance', 'RestoreAppearance', 'IsMale',
+    'ApplyTattoos', 'GetAppearance', 'SetAppearance', 'RestoreAppearance', 'IsMale',
 }, {
     GetResourceName = 'none',
     StartCreation = function(_, onDone) if onDone then onDone(false) end end,
     ApplyPlayerAppearance = false,
+    -- Generic, framework-agnostic native impl: every backend's live tattoo
+    -- preview uses this identical sequence, so it's a real default, not a stub.
+    ApplyTattoos = function(ped, tattoos)
+        ped = ped or PlayerPedId()
+        if not ped or ped == 0 or not DoesEntityExist(ped) then return false end
+        ClearPedDecorations(ped)
+        if type(tattoos) == 'table' then
+            for _, t in ipairs(tattoos) do
+                if t.collection and t.name then
+                    AddPedDecorationFromHashes(ped, joaat(t.collection), joaat(t.name))
+                end
+            end
+        end
+        return true
+    end,
     GetAppearance = function() return {} end,
     SetAppearance = false,
     RestoreAppearance = false,
@@ -208,6 +225,14 @@ stub('death', {
 
 stub('gang', {
     'Get',
+})
+
+stub('medical', {
+    'GetResourceName', 'GetConditions', 'IsInjured',
+}, {
+    GetResourceName = 'none',
+    GetConditions = function() return {} end,
+    IsInjured = false,
 })
 
 stub('vehicleproperties', {
