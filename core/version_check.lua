@@ -153,7 +153,11 @@ CreateThread(function()
         return
     end
 
-    local remoteStr = body:match("version%s+'([^']+)'") or body:match('version%s+"([^"]+)"')
+    -- Anchor to the start of a line so this matches the manifest's own `version`
+    -- field and not `fx_version`. The leading newline lets it also match when
+    -- `version` is the first line.
+    local manifest = '\n' .. body
+    local remoteStr = manifest:match("\nversion%s+'([^']+)'") or manifest:match('\nversion%s+"([^"]+)"')
     local remoteVer = parse(remoteStr)
     if not remoteVer then
         if Config.Debug then
