@@ -51,7 +51,8 @@ olink._register('inventory', {
     ---@param item string
     ---@return table {name, label, weight, description}
     GetItemInfo = function(item)
-        local data = QBCore and QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[item]
+        local items = codem:GetItemList()
+        local data = items and items[item]
         if not data then return {} end
         return { name = data.name, label = data.label, weight = data.weight, description = data.description }
     end,
@@ -67,7 +68,6 @@ olink._register('inventory', {
 
     ---@return table All item definitions
     Items = function()
-        local core = QBCore and QBCore.Shared and QBCore.Shared.Items
-        return core or {}
+        return codem:GetItemList() or {}
     end,
 })

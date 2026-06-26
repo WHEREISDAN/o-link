@@ -34,7 +34,7 @@ olink._register('inventory', {
     ---@return boolean
     AddItem = function(src, item, count, slot, metadata)
         local success = codem:AddItem(src, item, count, slot, metadata)
-        return success == true
+        return success ~= nil and success ~= false
     end,
 
     ---@param src number
@@ -49,7 +49,7 @@ olink._register('inventory', {
             if found then slot = foundSlot end
         end
         local success = codem:RemoveItem(src, item, count, slot)
-        return success == true
+        return success ~= nil and success ~= false
     end,
 
     ---@param src number
@@ -92,7 +92,8 @@ olink._register('inventory', {
     ---@param count number|nil
     ---@return boolean
     HasItem = function(src, item, count)
-        return codem:HasItem(src, item, count or 1) == true
+        local has = codem:HasItem(src, item, count or 1)
+        return has ~= nil and has ~= false
     end,
 
     ---@param id string
