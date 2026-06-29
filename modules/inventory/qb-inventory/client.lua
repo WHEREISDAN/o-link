@@ -2,6 +2,14 @@ if not olink._guardImpl('Inventory', 'qb-inventory', 'qb-inventory') then return
 if not olink._hasOverride('Inventory') and GetResourceState('oxide-inventory') == 'started' then return end
 
 local qb = exports['qb-inventory']
+local QBCore = exports['qb-core']:GetCoreObject()
+
+-- qb-inventory exposes no client GetPlayerItems export; the player's items live on
+-- the qb-core client PlayerData.
+local function getItems()
+    local data = QBCore.Functions.GetPlayerData()
+    return data and data.items or {}
+end
 
 -- v1 legacy stash open support
 RegisterNetEvent('o-link:inventory:qb:openStash', function(id, data)
@@ -16,7 +24,7 @@ end)
 olink._register('inventory', {
     ---@return table[] SlotData[]
     GetPlayerInventory = function()
-        local items = qb:GetPlayerItems()
+        local items = getItems()
         if not items then return {} end
         local result = {}
         for _, item in pairs(items) do
@@ -37,7 +45,7 @@ olink._register('inventory', {
     ---@param item string
     ---@return number
     GetItemCount = function(item)
-        local items = qb:GetPlayerItems()
+        local items = getItems()
         if not items then return 0 end
         local total = 0
         for _, slot in pairs(items) do
