@@ -33,6 +33,7 @@ It lists implementation folders that exist today. It does not guarantee every im
 | `menu` | client | `lation_ui`, `oxide-menu`, `ox_lib`, `qb-menu`, `wasabi_uikit` |
 | `radial` | client | `oxide-menu`, `ox_lib` |
 | `zones` | client | `oxlib`, `polyzone` |
+| `placement` | client | `modules/placement` |
 
 `notify` auto-detection selects one renderer. `ox_lib` is fallback-only unless
 forced with `Config.Overrides.Notify = 'ox_lib'`; if multiple non-`ox_lib`

@@ -84,6 +84,7 @@ client_scripts {
     'modules/menu/client.lua',
     'modules/radial/**/client.lua',
     'modules/zones/**/client.lua',
+    'modules/placement/**/client.lua',
     'modules/entity/client.lua',
     'modules/phone/**/client.lua',
     'modules/clothing/**/client.lua',

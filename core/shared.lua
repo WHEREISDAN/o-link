@@ -46,6 +46,7 @@ local overrideKeyMap = {
     menu = 'Menu',
     radial = 'Radial',
     zones = 'Zones',
+    placement = 'Placement',
     phone = 'Phone',
     clothing = 'Clothing',
     dispatch = 'Dispatch',

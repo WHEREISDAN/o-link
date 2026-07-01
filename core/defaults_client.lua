@@ -137,6 +137,13 @@ stub('zones', {
     All = function() return {} end,
 })
 
+stub('placement', {
+    'Coord', 'GhostPed', 'GhostVehicle', 'Polygon', 'IsActive', 'Cancel',
+}, {
+    IsActive = false,
+    Cancel = false,
+})
+
 stub('phone', {
     'GetPhoneName', 'GetResourceName', 'SendEmail',
 }, {

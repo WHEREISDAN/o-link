@@ -248,6 +248,29 @@ Registered from [`../modules/vehicles/properties/client.lua`](../modules/vehicle
 | `GetVehicleProperties(vehicle)` | `vehicle: number` | `table\|nil` | Serialize GTA vehicle properties |
 | `SetVehicleProperties(vehicle, props)` | `vehicle: number, props: table` | `boolean` | Apply serialized properties |
 
+## Module: placement (client only)
+
+Registered from [`../modules/placement/client.lua`](../modules/placement/client.lua).
+
+In-world placement builder for admin/editor tools (coordinate capture, ghost-preview entity placement, polygon zone authoring). **Await-style — each builder blocks until the admin confirms/cancels and returns the captured value** (a Lua callback argument can't marshal across the o-link VM boundary). Call from a coroutine/callback thread; the consumer manages its own NUI focus around the call.
+
+Controls: mouse to aim, scroll wheel to rotate heading (LSHIFT = coarse), LMB confirm, RMB / ESC cancel. Polygon builder is a freecam authoring tool (Enter place, arrows nudge, Space save).
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Coord(opts?)` | `opts?: { initialCoords? }` | `{x,y,z}\|nil` | Raycast point picker (no preview entity) |
+| `GhostPed(opts)` | `opts: { model, initialHeading?, initialCoords? }` | `{x,y,z,w}\|nil` | Place a translucent ghost ped; `w` = heading |
+| `GhostVehicle(opts)` | `opts: { model, initialHeading? }` | `{x,y,z,w}\|nil` | Place a translucent ghost vehicle; `w` = heading |
+| `Polygon(opts?)` | `opts?: { existing? }` | `{ shape, minZ, maxZ }\|nil` | Freecam polygon zone authoring |
+| `IsActive()` | | `boolean` | Whether a builder is currently running |
+| `Cancel()` | | `nil` | Cancel the active builder (resolves it as `nil`) |
+
+Example:
+```lua
+local coords = olink.placement.GhostPed({ model = 'a_m_y_business_03' })
+if coords then print(coords.x, coords.y, coords.z, coords.w) end
+```
+
 ## Module: notify (server + client)
 
 Notify uses one selected client adapter for both server-relayed and client-local
