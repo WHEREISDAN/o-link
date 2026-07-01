@@ -177,12 +177,21 @@ o-link/
 
 ## Configuration Status
 
-Two config surfaces exist in [`../config.lua`](../config.lua):
+Five config surfaces exist in [`../config.lua`](../config.lua):
 
 - `Config.Debug`
 - `Config.Overrides`
+- `Config.CheckForUpdates`
+- `Config.AutoDownloadUpdates`
+- `Config.ImageBaseUrl`
 
 `Config.Debug` controls loader logging.
+
+`Config.CheckForUpdates` (default `true`) makes o-link check its public GitHub repo for a newer release on startup and print a notice to the server console.
+
+`Config.AutoDownloadUpdates` (default `false`) downloads a detected update and writes it over o-link's own files; the new files take effect on the next full server restart. It has no effect unless `Config.CheckForUpdates` is also true.
+
+`Config.ImageBaseUrl` (default `nil`) sets the base URL that `olink.inventory.GetImagePath` resolves item images against.
 
 `Config.Overrides` is consumed during implementation selection. When an override is set for a namespace, only the matching implementation is allowed to load for that namespace and normal priority blocker guards are bypassed for that selected implementation.
 

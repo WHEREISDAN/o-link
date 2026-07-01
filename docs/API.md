@@ -90,7 +90,7 @@ olink.supports('vehicleproperties.GetVehicleProperties')
 
 ## Module: multichar (server + client)
 
-Character lifecycle (list/create/select/delete) for a framework-agnostic multicharacter resource. The provider is the framework core (`oxide-core` today; `qbx_core`/`qb-core`/`es_extended` planned). When no provider is installed the defaults return empty results.
+Character lifecycle (list/create/select/delete) for a framework-agnostic multicharacter resource. The provider is the framework core (`oxide-core`, `qbx_core`, `qb-core`, or `es_extended`). When no provider is installed the defaults return empty results.
 
 ### Server
 | Function | Args | Returns | Description |
@@ -487,7 +487,7 @@ These namespaces are present in the current implementation and load through the 
 | `menu` | client | 5 |
 | `radial` | client | 2 |
 | `zones` | client | 2 |
-| `banking` | server | 8 |
+| `banking` | server | 9 |
 | `phone` | server + client | 7 |
 | `clothing` | shared + server + client | 7 |
 | `dispatch` | server + client | 16 |
