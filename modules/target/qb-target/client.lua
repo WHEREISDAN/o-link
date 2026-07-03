@@ -1,5 +1,7 @@
 if not olink._guardImpl('Target', 'qb-target', 'qb-target') then return end
 if not olink._hasOverride('Target') and GetResourceState('ox_target') == 'started' then return end
+-- tgiann-target can provide 'qb-target'; prefer its native adapter over the compat shim.
+if not olink._hasOverride('Target') and GetResourceState('tgiann-target') == 'started' then return end
 
 local qb_target = exports['qb-target']
 ---Track zones per creator resource so we can clean them up on resource stop.
