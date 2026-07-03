@@ -40,8 +40,12 @@ olink._register('framework', {
     -- Delegate to ESX so group-based admins (Config.AdminGroups) match too,
     -- not just Ace-allowed players.
     IsAdmin = function(src)
-        -- the `admin` ACE node, not the `group.admin` principal (principals aren't aces)
-        return IsPlayerAceAllowed(tostring(src), 'admin')
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if xPlayer and xPlayer.isAdmin() then return true end
+        -- Fall back to ACE: either the `command` ACE (superadmin convention)
+        -- or the `admin` ACE node. Principals like group.admin aren't aces.
+        local p = tostring(src)
+        return IsPlayerAceAllowed(p, 'command') or IsPlayerAceAllowed(p, 'admin')
     end,
 
     ---@param itemName string

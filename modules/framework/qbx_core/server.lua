@@ -38,8 +38,10 @@ olink._register('framework', {
     ---@param src number
     ---@return boolean
     IsAdmin = function(src)
-        -- the `admin` ACE node, not the `group.admin` principal (principals aren't aces)
-        return IsPlayerAceAllowed(tostring(src), 'admin')
+        local p = tostring(src)
+        -- Accept either the `command` ACE (stock QBX/QBCore server.cfg convention)
+        -- or the `admin` ACE node. Principals like group.admin aren't aces.
+        return IsPlayerAceAllowed(p, 'command') or IsPlayerAceAllowed(p, 'admin')
     end,
 
     ---@param itemName string
