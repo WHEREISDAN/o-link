@@ -27,7 +27,7 @@ It lists implementation folders that exist today. It does not guarantee every im
 |-----------|------|------------------------|
 | `notify` | server + client | `brutal_notify`, `confirm`, `fl-notify`, `lation_ui`, `mythic_notify`, `okokNotify`, `oxide-core`, `oxide-notify`, `ox_lib`, `pNotify`, `r_notify`, `t-notify`, `wasabi_notify`, `zsxui` |
 | `helptext` | server + client | server relay plus `cd_drawtextui`, `jg-textui`, `lab-HintUI`, `lation_ui`, `okokTextUI`, `ox_lib`, `zsxui` |
-| `target` | client | `ox_target`, `qb-target`, `sleepless_interact`, `tgiann-target` |
+| `target` | client | `oxide-target`, `ox_target`, `qb-target`, `sleepless_interact`, `tgiann-target` |
 | `progressbar` | client | `esx_progressbar`, `keep-progressbar`, `lation_ui`, `oxide-progressbar`, `ox_lib`, `qb-progressbar`, `wasabi_uikit`, `zsxui` |
 | `input` | client | `lation_ui`, `ox_lib`, `qb-input` |
 | `menu` | client | `lation_ui`, `oxide-menu`, `ox_lib`, `qb-menu`, `wasabi_uikit` |

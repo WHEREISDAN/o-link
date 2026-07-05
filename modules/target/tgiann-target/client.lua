@@ -1,4 +1,6 @@
 if not olink._guardImpl('Target', 'tgiann-target', 'tgiann-target') then return end
+-- oxide-target is the first-party fork; its native adapter wins if both are present.
+if not olink._hasOverride('Target') and GetResourceState('oxide-target') == 'started' then return end
 
 local tgiann = exports['tgiann-target']
 ---Track zones per creator resource so we can clean them up on resource stop.

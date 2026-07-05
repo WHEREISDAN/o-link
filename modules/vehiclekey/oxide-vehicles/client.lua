@@ -26,9 +26,14 @@ olink._register('vehiclekey', {
     ---@param vehicle number Entity handle
     ---@param plate string|nil
     Remove = function(vehicle, plate)
-        if not vehicle or not DoesEntityExist(vehicle) then return end
         if not isStarted() then return end
-        plate = plate or GetVehicleNumberPlateText(vehicle)
+        -- Removal is plate-based; the entity is only needed as a plate fallback,
+        -- and may already be deleted (e.g. server despawned it first).
+        if not plate or plate == '' then
+            if not vehicle or not DoesEntityExist(vehicle) then return end
+            plate = GetVehicleNumberPlateText(vehicle)
+        end
+        if not plate or plate == '' then return end
         TriggerServerEvent('oxide:vehicles:bridgeRemoveKeys', plate)
     end,
 }, RESOURCE)

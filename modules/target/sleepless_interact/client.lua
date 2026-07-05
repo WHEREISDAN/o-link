@@ -1,5 +1,6 @@
 if not olink._guardImpl('Target', 'sleepless_interact', 'sleepless_interact') then return end
 if not olink._hasOverride('Target') and GetResourceState('ox_target') == 'started' then return end
+if not olink._hasOverride('Target') and GetResourceState('oxide-target') == 'started' then return end
 if not olink._hasOverride('Target') and GetResourceState('tgiann-target') == 'started' then return end
 
 local sleepless = exports.sleepless_interact
