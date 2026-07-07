@@ -535,6 +535,101 @@ local function Polygon(o)
     return Citizen.Await(p)
 end
 
+-- ---------------------------------------------------------------------------
+-- Overlay markers: persistent editor annotations (colored ground cylinders +
+-- floating labels over placed items). Grouped by id so several tools can
+-- overlay at once; SetMarkers replaces the whole group. One shared draw
+-- thread lives here so builder tools stop each running their own.
+-- ---------------------------------------------------------------------------
+local OVERLAY_DRAW_DIST = 200.0
+local OVERLAY_LABEL_DIST = 30.0
+
+local overlays = {}
+local overlayThread = false
+
+local function drawOverlayLabel(x, y, z, text)
+    SetTextScale(0.35, 0.35)
+    SetTextFont(4)
+    SetTextProportional(true)
+    SetTextColour(255, 255, 255, 215)
+    SetTextEntry('STRING')
+    SetTextCentre(true)
+    AddTextComponentString(text)
+    SetDrawOrigin(x, y, z, 0)
+    DrawText(0.0, 0.0)
+    ClearDrawOrigin()
+end
+
+local function startOverlayThread()
+    if overlayThread then return end
+    overlayThread = true
+    CreateThread(function()
+        while next(overlays) do
+            local playerCoords = GetEntityCoords(PlayerPedId())
+            local drewAny = false
+            for _, markers in pairs(overlays) do
+                for _, m in ipairs(markers) do
+                    local dist = #(playerCoords - vector3(m.x, m.y, m.z))
+                    if dist < OVERLAY_DRAW_DIST then
+                        drewAny = true
+                        DrawMarker(1, m.x, m.y, m.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                            m.scale, m.scale, 2.0, m.r, m.g, m.b, m.a,
+                            false, true, 2, false, nil, nil, false)
+                        if m.label and dist < OVERLAY_LABEL_DIST then
+                            drawOverlayLabel(m.x, m.y, m.z + 1.5, m.label)
+                        end
+                    end
+                end
+            end
+            Wait(drewAny and 0 or 250)
+        end
+        overlayThread = false
+    end)
+end
+
+local function channel(col, key, idx, default)
+    local v = col and tonumber(col[key] or col[idx])
+    return v and math.floor(v) or default
+end
+
+---Replace a group's overlay markers. markers: array of
+---{ coords = {x,y,z} | vector3/4, color? = {r,g,b,a?}, label?, scale? }.
+---nil/empty markers clears the group.
+local function SetMarkers(id, markers)
+    if type(id) ~= 'string' or id == '' then return false end
+
+    local clean = {}
+    for _, m in ipairs(type(markers) == 'table' and markers or {}) do
+        local c = m.coords
+        local x, y, z = c and tonumber(c.x), c and tonumber(c.y), c and tonumber(c.z)
+        if x and y and z then
+            local col = type(m.color) == 'table' and m.color or nil
+            clean[#clean + 1] = {
+                x = x + 0.0, y = y + 0.0, z = z + 0.0,
+                r = channel(col, 'r', 1, MARKER_R),
+                g = channel(col, 'g', 2, MARKER_G),
+                b = channel(col, 'b', 3, MARKER_B),
+                a = channel(col, 'a', 4, 180),
+                scale = tonumber(m.scale) or 1.0,
+                label = type(m.label) == 'string' and m.label ~= '' and m.label or nil,
+            }
+        end
+    end
+
+    overlays[id] = #clean > 0 and clean or nil
+    if next(overlays) then startOverlayThread() end
+    return true
+end
+
+---Clear one overlay group, or every group when id is omitted.
+local function ClearMarkers(id)
+    if id ~= nil then
+        overlays[id] = nil
+    else
+        overlays = {}
+    end
+end
+
 olink._register('placement', {
     Coord = Coord,
     GhostPed = GhostPed,
@@ -542,6 +637,8 @@ olink._register('placement', {
     Polygon = Polygon,
     IsActive = IsActive,
     Cancel = Cancel,
+    SetMarkers = SetMarkers,
+    ClearMarkers = ClearMarkers,
 })
 
 AddEventHandler('onResourceStop', function(resource)

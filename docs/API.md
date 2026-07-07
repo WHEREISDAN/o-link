@@ -264,6 +264,8 @@ Controls: mouse to aim, scroll wheel to rotate heading (LSHIFT = coarse), LMB co
 | `Polygon(opts?)` | `opts?: { existing? }` | `{ shape, minZ, maxZ }\|nil` | Freecam polygon zone authoring |
 | `IsActive()` | | `boolean` | Whether a builder is currently running |
 | `Cancel()` | | `nil` | Cancel the active builder (resolves it as `nil`) |
+| `SetMarkers(id, markers)` | `id: string, markers: { coords, color?, label?, scale? }[]` | `boolean` | Replace a named group of persistent overlay markers (ground cylinders + floating labels for editor tools). `coords` accepts `{x,y,z}` or a vector; `color` is `{r,g,b,a?}`. nil/empty markers clears the group |
+| `ClearMarkers(id?)` | `id?: string` | `nil` | Clear one overlay group, or all groups when omitted |
 
 Example:
 ```lua

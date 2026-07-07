@@ -139,9 +139,12 @@ stub('zones', {
 
 stub('placement', {
     'Coord', 'GhostPed', 'GhostVehicle', 'Polygon', 'IsActive', 'Cancel',
+    'SetMarkers', 'ClearMarkers',
 }, {
     IsActive = false,
     Cancel = false,
+    SetMarkers = false,
+    ClearMarkers = false,
 })
 
 stub('phone', {
