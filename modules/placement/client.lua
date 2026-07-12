@@ -8,8 +8,10 @@
 -- (onConfirm/onCancel) can't work cross-resource — the consumer awaits the return instead:
 --     local coords = olink.placement.GhostPed({ model = 'a_m_y_business_03' })  -- {x,y,z,w} or nil
 --
--- Controls: mouse aim to position, scroll wheel to rotate heading (LSHIFT = coarse),
---           LMB confirm, RMB / ESC cancel. Polygon: freecam + Enter place / arrows nudge / Space save.
+-- Controls: mouse aim to position, scroll wheel to rotate heading (LSHIFT = fine 1°),
+--           Enter freezes for arrow-key fine-nudging (LCTRL+Up/Down = height, Space = step size,
+--           Backspace = re-aim), LMB / Enter confirm, RMB / ESC cancel.
+--           Polygon: freecam + Enter place / arrows nudge / Space save.
 
 if not olink._guardImpl('Placement', 'placement', false) then return end
 
@@ -17,10 +19,19 @@ local active = false
 local polyActive = false
 local previewEntity = nil
 local previewModelHash = nil
+local previewAnimMode = false
 local currentPromise = nil
 
+-- SKEL_Pelvis: the body-center bone the anim compensation tracks.
+local PELVIS_BONE = 11816
+-- Bones sampled for the vertical compensation (pelvis, L/R foot, head): the
+-- lowest posed one is rested just above the aimed surface. Ported from
+-- scenedirector's AutoGround; 0.10 ≈ bone-to-skin distance.
+local BODY_BONES = { 11816, 14201, 52301, 31086 }
+local BONE_SKIN = 0.10
+
 local ROT_STEP = 5.0
-local ROT_STEP_FAST = 15.0
+local ROT_STEP_FINE = 1.0
 local RAYCAST_DIST = 200.0
 local MARKER_R, MARKER_G, MARKER_B = 232, 176, 68
 
@@ -50,6 +61,7 @@ local function unloadModel()
 end
 
 local function destroyPreview()
+    previewAnimMode = false
     if previewEntity and DoesEntityExist(previewEntity) then
         if IsEntityAVehicle(previewEntity) then
             DeleteEntity(previewEntity)
@@ -76,7 +88,9 @@ local function ghostify(entity)
 end
 
 -- Cast a ray from the gameplay camera; fall back to a point along the forward
--- vector so the marker still tracks when aiming at the sky.
+-- vector so the marker still tracks when aiming at the sky. MLO interior props
+-- are unreliable ray targets regardless of probe type — the fine-nudge phase
+-- is the supported way to place onto them.
 local function raycastFromCamera()
     local camCoord = GetGameplayCamCoord()
     local camRot   = GetGameplayCamRot(2)
@@ -104,47 +118,141 @@ local function resolve(result)
     if p then p:resolve(result) end
 end
 
--- Shared loop for point/ped/vehicle placement.
----@param kind 'ped' | 'vehicle' | 'coord'
+-- Translucent quad preview for screen-panel placement (both faces + edges).
+local function drawGhostQuad(center, heading, width, height)
+    local rad = math.rad(heading)
+    local right = vector3(math.cos(rad), math.sin(rad), 0.0) * (width / 2)
+    local up = vector3(0.0, 0.0, height / 2)
+    local tl, tr = center - right + up, center + right + up
+    local bl, br = center - right - up, center + right - up
+
+    DrawPoly(tl.x, tl.y, tl.z, bl.x, bl.y, bl.z, br.x, br.y, br.z, MARKER_R, MARKER_G, MARKER_B, 110)
+    DrawPoly(tl.x, tl.y, tl.z, br.x, br.y, br.z, tr.x, tr.y, tr.z, MARKER_R, MARKER_G, MARKER_B, 110)
+    DrawPoly(tl.x, tl.y, tl.z, br.x, br.y, br.z, bl.x, bl.y, bl.z, MARKER_R, MARKER_G, MARKER_B, 110)
+    DrawPoly(tl.x, tl.y, tl.z, tr.x, tr.y, tr.z, br.x, br.y, br.z, MARKER_R, MARKER_G, MARKER_B, 110)
+    DrawLine(tl.x, tl.y, tl.z, tr.x, tr.y, tr.z, MARKER_R, MARKER_G, MARKER_B, 220)
+    DrawLine(tr.x, tr.y, tr.z, br.x, br.y, br.z, MARKER_R, MARKER_G, MARKER_B, 220)
+    DrawLine(br.x, br.y, br.z, bl.x, bl.y, bl.z, MARKER_R, MARKER_G, MARKER_B, 220)
+    DrawLine(bl.x, bl.y, bl.z, tl.x, tl.y, tl.z, MARKER_R, MARKER_G, MARKER_B, 220)
+end
+
+-- Shared loop for point/ped/vehicle/screen placement. Two phases: aim (preview
+-- follows the crosshair raycast) and, after Enter, a frozen fine-nudge phase
+-- (arrows move X/Y, LCTRL+up/down moves Z, Space cycles the step) — the nudge
+-- phase is what makes MLO interiors workable when the ray snags the wrong
+-- surface.
+---@param kind 'ped' | 'vehicle' | 'coord' | 'screen'
 local function startLoop(kind, o)
     local currentHeading = (o.initialHeading or GetEntityHeading(PlayerPedId())) or 0.0
-    local lastHitCoords = nil
-    local zOffset = (kind == 'ped') and 1.0 or 0.0
+    local cur = nil
+    local frozen = false
+    local NUDGE_STEPS = { 0.01, 0.05, 0.25, 1.0 }
+    local stepIdx = 2
+    -- Standing peds sit 1.0 above the ground hit; anim previews (lying/seated
+    -- poses) override this so the preview matches where the pose will play.
+    local zOffset = (kind == 'ped') and (tonumber(o.zOffset) or (previewAnimMode and 0.0 or 1.0)) or 0.0
+    -- Screen quads are resizable while aiming (arrow keys); the chosen size is
+    -- returned so consumers can store it per placement.
+    local scrW = tonumber(o.width) or 1.6
+    local scrH = tonumber(o.height) or 0.9
 
     CreateThread(function()
         while active do
-            local _, hitCoords = raycastFromCamera()
-            lastHitCoords = hitCoords
+            if not frozen then
+                local _, hitCoords = raycastFromCamera()
+                cur = hitCoords
+            end
 
             if previewEntity and DoesEntityExist(previewEntity) then
-                SetEntityCoordsNoOffset(previewEntity, hitCoords.x, hitCoords.y, hitCoords.z + zOffset)
+                local px, py, pz = cur.x, cur.y, cur.z + zOffset
+                if previewAnimMode then
+                    -- Anim clips pose the body away from the entity origin —
+                    -- lying clips keep the origin at STANDING pelvis height
+                    -- (~1m above the visible body) and often off-center too.
+                    -- Measure the posed skeleton each frame and shift the
+                    -- entity so the BODY lands on the crosshair: pelvis
+                    -- centers XY, the lowest bone rests on the aimed surface.
+                    -- Measurements include current heading/pose, so rotation
+                    -- self-corrects a frame later.
+                    local ec = GetEntityCoords(previewEntity)
+                    local pelvis = GetPedBoneCoords(previewEntity, PELVIS_BONE, 0.0, 0.0, 0.0)
+                    px = cur.x - (pelvis.x - ec.x)
+                    py = cur.y - (pelvis.y - ec.y)
+                    local lowest
+                    for _, bone in ipairs(BODY_BONES) do
+                        local c = GetPedBoneCoords(previewEntity, bone, 0.0, 0.0, 0.0)
+                        if not lowest or c.z < lowest then lowest = c.z end
+                    end
+                    if lowest then
+                        pz = ec.z + (cur.z + zOffset + BONE_SKIN - lowest)
+                    end
+                end
+                SetEntityCoordsNoOffset(previewEntity, px, py, pz)
                 if kind ~= 'coord' then
                     SetEntityHeading(previewEntity, currentHeading)
                 end
             end
 
-            local groundZ = hitCoords.z - 0.98
-            DrawMarker(
-                1, hitCoords.x, hitCoords.y, groundZ, 0, 0, 0, 0, 0, 0,
-                kind == 'vehicle' and 2.4 or 0.9,
-                kind == 'vehicle' and 5.2 or 0.9,
-                0.08, MARKER_R, MARKER_G, MARKER_B, 130, false, false, 2, false, nil, nil, false
-            )
-
-            if kind == 'coord' then
-                drawHint({ 'Placement', 'LMB  Confirm', 'RMB / ESC  Cancel' })
+            if kind == 'screen' then
+                -- The quad centers on the crosshair itself (aim where the
+                -- screen should BE); no ground marker — the anchor point is
+                -- derived from the panel, not the other way around.
+                drawGhostQuad(vector3(cur.x, cur.y, cur.z), currentHeading, scrW, scrH)
             else
-                drawHint({ 'Placement', 'Scroll  Rotate  (LSHIFT coarse)', 'LMB  Confirm', 'RMB / ESC  Cancel' })
+                local groundZ = cur.z - 0.98
+                DrawMarker(
+                    1, cur.x, cur.y, groundZ, 0, 0, 0, 0, 0, 0,
+                    kind == 'vehicle' and 2.4 or 0.9,
+                    kind == 'vehicle' and 5.2 or 0.9,
+                    0.08, MARKER_R, MARKER_G, MARKER_B, 130, false, false, 2, false, nil, nil, false
+                )
             end
+
+            local lines
+            if frozen then
+                lines = {
+                    ('Placement — fine-tune (step %.2fm)'):format(NUDGE_STEPS[stepIdx]),
+                    'Arrows  Move   LCTRL+Up/Down  Height',
+                    'Space  Step size   Backspace  Re-aim',
+                    'LMB / Enter  Confirm   RMB / ESC  Cancel',
+                }
+            else
+                lines = {
+                    'Placement — aim',
+                    'Enter  Fine-tune   LMB  Confirm',
+                    'RMB / ESC / Backspace  Cancel',
+                }
+                if kind == 'screen' then
+                    table.insert(lines, 2, ('Arrows  Resize  (%.2f × %.2fm, LSHIFT fine)'):format(scrW, scrH))
+                end
+            end
+            if kind ~= 'coord' then
+                table.insert(lines, 2, 'Scroll  Rotate  (LSHIFT fine)')
+            end
+            drawHint(lines)
             Wait(0)
         end
     end)
 
     CreateThread(function()
         while active do
+            DisableControlAction(0, 14, true)   -- wheel next
+            DisableControlAction(0, 15, true)   -- wheel prev
+            DisableControlAction(0, 24, true)   -- attack
+            DisableControlAction(0, 25, true)   -- aim
+            DisableControlAction(0, 22, true)   -- space
+            DisableControlAction(0, 36, true)   -- lctrl
+            DisableControlAction(0, 172, true)  -- arrow up
+            DisableControlAction(0, 173, true)  -- arrow down
+            DisableControlAction(0, 174, true)  -- arrow left
+            DisableControlAction(0, 175, true)  -- arrow right
+            DisableControlAction(0, 201, true)  -- enter
+            DisableControlAction(0, 202, true)  -- backspace
+            DisablePlayerFiring(PlayerId(), true)
+
             if kind ~= 'coord' then
-                local fast = IsControlPressed(0, 21) -- LSHIFT
-                local step = fast and ROT_STEP_FAST or ROT_STEP
+                local fine = IsControlPressed(0, 21) -- LSHIFT
+                local step = fine and ROT_STEP_FINE or ROT_STEP
                 if IsControlJustPressed(0, 14) or IsDisabledControlJustPressed(0, 14) then
                     currentHeading = (currentHeading - step) % 360.0
                 end
@@ -153,35 +261,91 @@ local function startLoop(kind, o)
                 end
             end
 
-            if (IsDisabledControlJustPressed(0, 24) or IsControlJustPressed(0, 24)) and lastHitCoords then
+            if kind == 'screen' and not frozen then
+                local step = (IsDisabledControlPressed(0, 21) or IsControlPressed(0, 21)) and 0.01 or 0.05
+                if IsDisabledControlJustPressed(0, 172) then
+                    scrH = math.min(8.0, scrH + step)
+                elseif IsDisabledControlJustPressed(0, 173) then
+                    scrH = math.max(0.2, scrH - step)
+                elseif IsDisabledControlJustPressed(0, 175) then
+                    scrW = math.min(8.0, scrW + step)
+                elseif IsDisabledControlJustPressed(0, 174) then
+                    scrW = math.max(0.2, scrW - step)
+                end
+            end
+
+            if frozen and cur then
+                local step = NUDGE_STEPS[stepIdx]
+                local zMode = IsDisabledControlPressed(0, 36) or IsControlPressed(0, 36)
+                if IsDisabledControlJustPressed(0, 172) then
+                    if zMode then cur = vector3(cur.x, cur.y, cur.z + step)
+                    else cur = vector3(cur.x, cur.y + step, cur.z) end
+                elseif IsDisabledControlJustPressed(0, 173) then
+                    if zMode then cur = vector3(cur.x, cur.y, cur.z - step)
+                    else cur = vector3(cur.x, cur.y - step, cur.z) end
+                elseif IsDisabledControlJustPressed(0, 174) then
+                    cur = vector3(cur.x - step, cur.y, cur.z)
+                elseif IsDisabledControlJustPressed(0, 175) then
+                    cur = vector3(cur.x + step, cur.y, cur.z)
+                elseif IsDisabledControlJustPressed(0, 22) then
+                    stepIdx = (stepIdx % #NUDGE_STEPS) + 1
+                end
+            end
+
+            local enter = IsDisabledControlJustPressed(0, 201)
+            local lmb = IsDisabledControlJustPressed(0, 24) or IsControlJustPressed(0, 24)
+            if cur and (lmb or (enter and frozen)) then
                 local result
                 if kind == 'coord' then
                     result = {
-                        x = tonumber(('%.4f'):format(lastHitCoords.x)) + 0.0,
-                        y = tonumber(('%.4f'):format(lastHitCoords.y)) + 0.0,
-                        z = tonumber(('%.4f'):format(lastHitCoords.z)) + 0.0,
+                        x = tonumber(('%.4f'):format(cur.x)) + 0.0,
+                        y = tonumber(('%.4f'):format(cur.y)) + 0.0,
+                        z = tonumber(('%.4f'):format(cur.z)) + 0.0,
+                    }
+                elseif previewAnimMode and previewEntity and DoesEntityExist(previewEntity) then
+                    -- Anim preview: capture the compensated ENTITY transform,
+                    -- so TaskPlayAnim + SetEntityCoordsNoOffset at these coords
+                    -- reproduces the previewed body position exactly.
+                    local ec = GetEntityCoords(previewEntity)
+                    result = {
+                        x = tonumber(('%.4f'):format(ec.x)) + 0.0,
+                        y = tonumber(('%.4f'):format(ec.y)) + 0.0,
+                        z = tonumber(('%.4f'):format(ec.z)) + 0.0,
+                        w = tonumber(('%.2f'):format(GetEntityHeading(previewEntity))) + 0.0,
                     }
                 else
                     result = {
-                        x = tonumber(('%.4f'):format(lastHitCoords.x)) + 0.0,
-                        y = tonumber(('%.4f'):format(lastHitCoords.y)) + 0.0,
-                        z = tonumber(('%.4f'):format(lastHitCoords.z)) + 0.0,
+                        x = tonumber(('%.4f'):format(cur.x)) + 0.0,
+                        y = tonumber(('%.4f'):format(cur.y)) + 0.0,
+                        z = tonumber(('%.4f'):format(cur.z)) + 0.0,
                         w = tonumber(('%.2f'):format(currentHeading)) + 0.0,
                     }
+                    if kind == 'screen' then
+                        -- The preview centered the quad on the aim point;
+                        -- store the anchor BELOW it by the consumer's zOffset
+                        -- so CreateScreen (anchor + zOffset) lands the live
+                        -- panel exactly where the ghost was.
+                        result.z = tonumber(('%.4f'):format(cur.z - (tonumber(o.zOffset) or 0.0))) + 0.0
+                        result.width = tonumber(('%.2f'):format(scrW)) + 0.0
+                        result.height = tonumber(('%.2f'):format(scrH)) + 0.0
+                    end
                 end
                 resolve(result)
                 return
+            elseif enter and not frozen then
+                frozen = true
             end
 
-            if IsDisabledControlJustPressed(0, 25) or IsControlJustPressed(0, 25)
+            local backspace = IsDisabledControlJustPressed(0, 202)
+            if backspace and frozen then
+                frozen = false
+            elseif backspace
+                or IsDisabledControlJustPressed(0, 25) or IsControlJustPressed(0, 25)
                 or IsDisabledControlJustPressed(0, 200) or IsControlJustPressed(0, 200) then
                 resolve(nil)
                 return
             end
 
-            DisableControlAction(0, 24, true)
-            DisableControlAction(0, 25, true)
-            DisablePlayerFiring(PlayerId(), true)
             Wait(0)
         end
     end)
@@ -210,6 +374,15 @@ local function Coord(o)
 end
 
 ---Ghost ped picker. Returns { x, y, z, w } or nil.
+---o.anim = { dict, clip } plays a looped pose on the preview so consumers can
+---aim animation-facing placements (beds, chairs). The placement loop measures
+---the posed pelvis every frame and shifts the entity so the VISIBLE BODY —
+---not the ped origin — stays centered on the aim point regardless of the
+---clip's authored root offset. The returned coords are then the compensated
+---ENTITY position/heading: replaying the same clip via TaskPlayAnim +
+---SetEntityCoordsNoOffset at exactly those coords reproduces what the admin
+---saw. Without an anim the returned coords are the raw surface hit; o.zOffset
+---overrides the preview lift (standing default 1.0, anim default 0.0).
 local function GhostPed(o)
     if active then return nil end
     o = o or {}
@@ -228,7 +401,33 @@ local function GhostPed(o)
         return nil
     end
     ghostify(previewEntity)
+    if type(o.anim) == 'table' and o.anim.dict and (o.anim.clip or o.anim.name) then
+        local clip = o.anim.clip or o.anim.name
+        RequestAnimDict(o.anim.dict)
+        local deadline = GetGameTimer() + 2000
+        while not HasAnimDictLoaded(o.anim.dict) and GetGameTimer() < deadline do Wait(10) end
+        if HasAnimDictLoaded(o.anim.dict) and previewEntity and DoesEntityExist(previewEntity) then
+            TaskPlayAnim(previewEntity, o.anim.dict, clip, 8.0, 8.0, -1, 1, 0.0, false, false, false)
+            previewAnimMode = true
+        end
+    end
     startLoop('ped', o)
+    return Citizen.Await(currentPromise)
+end
+
+---Ghost screen-panel picker: a translucent quad, CENTERED ON THE CROSSHAIR,
+---previews where a CreateScreen panel will float — aim directly at where the
+---screen should be. Arrow keys resize while aiming (LSHIFT fine). Returns
+---{ x, y, z, w, width, height } or nil; z is the anchor BELOW the quad center
+---by o.zOffset, so CreateScreen with the returned coords/size and the SAME
+---zOffset lands the live panel exactly on the preview.
+---o = { width?, height?, zOffset?, initialHeading? } (width/height seed the size)
+local function GhostScreen(o)
+    if active then return nil end
+    o = o or {}
+    active = true
+    currentPromise = promise.new()
+    startLoop('screen', o)
     return Citizen.Await(currentPromise)
 end
 
@@ -630,20 +829,138 @@ local function ClearMarkers(id)
     end
 end
 
+-- ---------------------------------------------------------------------------
+-- Screen panels: NUI pages painted onto world-space quads via DUI. No prop and
+-- no NUI focus - consumers push content with SendScreenMessage and handle
+-- interaction through their own target zones. One shared draw thread.
+-- ---------------------------------------------------------------------------
+local SCREEN_DRAW_DIST = 50.0
+
+local screens = {}
+local screenSeq = 0
+local screenThread = false
+local DestroyScreen
+
+local function startScreenThread()
+    if screenThread then return end
+    screenThread = true
+    CreateThread(function()
+        while next(screens) do
+            local playerCoords = GetEntityCoords(PlayerPedId())
+            local drewAny = false
+            for _, s in pairs(screens) do
+                if #(playerCoords - s.center) < SCREEN_DRAW_DIST then
+                    drewAny = true
+                    local tl, tr, bl, br = s.tl, s.tr, s.bl, s.br
+                    -- Front face
+                    DrawSpritePoly(tl.x, tl.y, tl.z, bl.x, bl.y, bl.z, br.x, br.y, br.z,
+                        255, 255, 255, 255, s.txd, s.txn, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0)
+                    DrawSpritePoly(tl.x, tl.y, tl.z, br.x, br.y, br.z, tr.x, tr.y, tr.z,
+                        255, 255, 255, 255, s.txd, s.txn, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0)
+                    -- Back face (mirrored) so the panel is visible from both sides
+                    DrawSpritePoly(tl.x, tl.y, tl.z, br.x, br.y, br.z, bl.x, bl.y, bl.z,
+                        255, 255, 255, 255, s.txd, s.txn, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0)
+                    DrawSpritePoly(tl.x, tl.y, tl.z, tr.x, tr.y, tr.z, br.x, br.y, br.z,
+                        255, 255, 255, 255, s.txd, s.txn, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+                end
+            end
+            Wait(drewAny and 0 or 250)
+        end
+        screenThread = false
+    end)
+end
+
+---Create (or replace) a world-space DUI screen. opts:
+---{ id, url, coords = {x,y,z}|vector, heading? (deg the panel faces),
+---  width? (m, default 1.6), height? (m, default 0.9), zOffset? (m),
+---  resolution? = { w, h } (px, default 1280x720) }
+---Returns true on success.
+local function CreateScreen(opts)
+    if type(opts) ~= 'table' or type(opts.id) ~= 'string' or opts.id == '' then return false end
+    if type(opts.url) ~= 'string' or opts.url == '' then return false end
+    local c = opts.coords
+    local x, y, z = c and tonumber(c.x), c and tonumber(c.y), c and tonumber(c.z)
+    if not (x and y and z) then return false end
+
+    if screens[opts.id] then DestroyScreen(opts.id) end
+
+    local res = type(opts.resolution) == 'table' and opts.resolution or {}
+    local resW = math.floor(tonumber(res.w or res[1]) or 1280)
+    local resH = math.floor(tonumber(res.h or res[2]) or 720)
+
+    local dui = CreateDui(opts.url, resW, resH)
+    if not dui then return false end
+
+    screenSeq = screenSeq + 1
+    local txd = ('olink_screen_%d'):format(screenSeq)
+    local txn = 'panel'
+    local runtimeTxd = CreateRuntimeTxd(txd)
+    CreateRuntimeTextureFromDuiHandle(runtimeTxd, txn, GetDuiHandle(dui))
+
+    local width = tonumber(opts.width) or 1.6
+    local height = tonumber(opts.height) or 0.9
+    local rad = math.rad(tonumber(opts.heading) or 0.0)
+    local center = vector3(x, y, z + (tonumber(opts.zOffset) or 0.0))
+    local right = vector3(math.cos(rad), math.sin(rad), 0.0) * (width / 2)
+    local up = vector3(0.0, 0.0, height / 2)
+
+    screens[opts.id] = {
+        dui = dui,
+        txd = txd,
+        txn = txn,
+        center = center,
+        tl = center - right + up,
+        tr = center + right + up,
+        bl = center - right - up,
+        br = center + right - up,
+    }
+    startScreenThread()
+    return true
+end
+
+---Push a JSON-encodable payload into a screen's DUI page (window message).
+local function SendScreenMessage(id, data)
+    local s = screens[id]
+    if not s then return false end
+    SendDuiMessage(s.dui, json.encode(data))
+    return true
+end
+
+DestroyScreen = function(id)
+    local s = screens[id]
+    if not s then return false end
+    screens[id] = nil
+    if s.dui then DestroyDui(s.dui) end
+    return true
+end
+
+---Destroy every screen (or use DestroyScreen(id) for one).
+local function ClearScreens()
+    for id in pairs(screens) do
+        DestroyScreen(id)
+    end
+end
+
 olink._register('placement', {
     Coord = Coord,
     GhostPed = GhostPed,
     GhostVehicle = GhostVehicle,
+    GhostScreen = GhostScreen,
     Polygon = Polygon,
     IsActive = IsActive,
     Cancel = Cancel,
     SetMarkers = SetMarkers,
     ClearMarkers = ClearMarkers,
+    CreateScreen = CreateScreen,
+    SendScreenMessage = SendScreenMessage,
+    DestroyScreen = DestroyScreen,
+    ClearScreens = ClearScreens,
 })
 
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         Cancel()
         polyActive = false
+        ClearScreens()
     end
 end)

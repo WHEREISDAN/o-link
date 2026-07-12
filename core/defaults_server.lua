@@ -278,7 +278,8 @@ stub('skills', {
 
 stub('death', {
     'DownPlayer', 'GetDeathState', 'IsPlayerDead', 'IsPlayerDowned',
-    'KillPlayer', 'RespawnPlayer', 'RevivePlayer',
+    'KillPlayer', 'RespawnPlayer', 'RevivePlayer', 'SetRespawnHospitals',
+    'SetStabilized',
 }, {
     DownPlayer = false,
     IsPlayerDead = false,
@@ -286,6 +287,8 @@ stub('death', {
     KillPlayer = false,
     RespawnPlayer = false,
     RevivePlayer = false,
+    SetRespawnHospitals = false,
+    SetStabilized = false,
 })
 
 stub('needs', {

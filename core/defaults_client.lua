@@ -138,13 +138,18 @@ stub('zones', {
 })
 
 stub('placement', {
-    'Coord', 'GhostPed', 'GhostVehicle', 'Polygon', 'IsActive', 'Cancel',
+    'Coord', 'GhostPed', 'GhostVehicle', 'GhostScreen', 'Polygon', 'IsActive', 'Cancel',
     'SetMarkers', 'ClearMarkers',
+    'CreateScreen', 'SendScreenMessage', 'DestroyScreen', 'ClearScreens',
 }, {
     IsActive = false,
     Cancel = false,
     SetMarkers = false,
     ClearMarkers = false,
+    CreateScreen = false,
+    SendScreenMessage = false,
+    DestroyScreen = false,
+    ClearScreens = false,
 })
 
 stub('phone', {

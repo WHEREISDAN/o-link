@@ -24,8 +24,12 @@ olink._register('multichar', {
     -- Oxide has no spawn selector yet; spawn at the last saved position. Return
     -- false so oxide-multichar does its default teleport. When oxide-housing /
     -- a spawn picker exists, branch here the same way the QB adapters do.
+    -- Fired after the multichar flow has placed the ped, this is oxide-core's
+    -- "ped is really in the world now" signal (gates position/health reporting
+    -- and applies saved health).
     ---@return boolean handled
     SpawnCharacter = function()
+        TriggerEvent('oxide:core:playerSpawned')
         return false
     end,
 })

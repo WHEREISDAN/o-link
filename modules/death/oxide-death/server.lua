@@ -48,6 +48,20 @@ olink._register('death', {
     DownPlayer = function(src, cause, coords, heading)
         return exports['oxide-death']:DownPlayer(src, cause, coords, heading) == true
     end,
+
+    ---@param points table|nil Array of { name?: string, coords: vector4 }; nil reverts to the provider's config
+    ---@return boolean
+    SetRespawnHospitals = function(points)
+        return exports['oxide-death']:SetDynamicHospitals(points) == true
+    end,
+
+    ---@param src number
+    ---@param stabilized boolean
+    ---@param maxSeconds number|nil TTL for the freeze; provider resumes the countdown after it
+    ---@return boolean
+    SetStabilized = function(src, stabilized, maxSeconds)
+        return exports['oxide-death']:SetStabilized(src, stabilized, maxSeconds) == true
+    end,
 })
 
 AddEventHandler('oxide:death:stateChanged', function(src, oldState, newState, deathData)

@@ -13,6 +13,22 @@ local function generateCallbackId(name)
     return ('%s_%d'):format(name, math.random(1000000, 9999999))
 end
 
+-- Backstop for awaited client→server triggers only: if the response is lost
+-- (o-link restarted mid-flight, event dropped), resolve nil instead of blocking
+-- the caller's thread forever. Callback-style triggers are exempt — they may
+-- legitimately wait on user input (e.g. notify.Confirm) far longer than this.
+local AWAIT_TIMEOUT_MS = 30000
+
+local function armAwaitTimeout(registry, name, callbackId)
+    SetTimeout(AWAIT_TIMEOUT_MS, function()
+        local data = registry[callbackId]
+        if not data then return end
+        registry[callbackId] = nil
+        print(('[o-link] callback \'%s\' got no response within %dms'):format(name, AWAIT_TIMEOUT_MS))
+        if data.promise then data.promise:resolve(nil) end
+    end)
+end
+
 local function handleResponse(registry, name, callbackId, ...)
     local data = registry[callbackId]
     if not data then return end
@@ -67,13 +83,27 @@ if IsDuplicityVersion() then
     RegisterNetEvent(EVENT_NAMES.CLIENT_TO_SERVER, function(name, callbackId, ...)
         if not name or not callbackId then return end
 
-        local handler = ServerCallbacks[name]
-        if not handler then return end
-
         local playerId = source
         if not playerId or playerId == 0 then return end
 
-        local result = table.pack(handler(playerId, ...))
+        -- Always answer, even on error or unknown name — an unanswered awaited
+        -- Trigger blocks the caller's thread forever (frozen spawn flows, stuck
+        -- cameras on the client).
+        local handler = ServerCallbacks[name]
+        if not handler then
+            TriggerClientEvent(EVENT_NAMES.CLIENT_RESPONSE, playerId, name, callbackId)
+            return
+        end
+
+        local ok, result = pcall(function(...)
+            return table.pack(handler(playerId, ...))
+        end, ...)
+
+        if not ok then
+            print(('[o-link] server callback \'%s\' errored: %s'):format(name, result))
+            result = table.pack()
+        end
+
         TriggerClientEvent(EVENT_NAMES.CLIENT_RESPONSE, playerId, name, callbackId, table.unpack(result, 1, result.n))
     end)
 
@@ -106,6 +136,7 @@ else
         TriggerServerEvent(EVENT_NAMES.CLIENT_TO_SERVER, name, callbackId, table.unpack(args))
 
         if not callback then
+            armAwaitTimeout(CallbackRegistry, name, callbackId)
             local result = Citizen.Await(p)
             if type(result) ~= 'table' then return result end
             return table.unpack(result, 1, result.n or #result)
@@ -117,10 +148,23 @@ else
     end)
 
     RegisterNetEvent(EVENT_NAMES.SERVER_TO_CLIENT, function(name, callbackId, ...)
+        -- Always answer, even on error or unknown name — an unanswered awaited
+        -- Trigger blocks the server-side caller forever.
         local handler = ClientCallbacks[name]
-        if not handler then return end
+        if not handler then
+            TriggerServerEvent(EVENT_NAMES.SERVER_RESPONSE, name, callbackId)
+            return
+        end
 
-        local result = table.pack(handler(...))
+        local ok, result = pcall(function(...)
+            return table.pack(handler(...))
+        end, ...)
+
+        if not ok then
+            print(('[o-link] client callback \'%s\' errored: %s'):format(name, result))
+            result = table.pack()
+        end
+
         TriggerServerEvent(EVENT_NAMES.SERVER_RESPONSE, name, callbackId, table.unpack(result, 1, result.n))
     end)
 end
