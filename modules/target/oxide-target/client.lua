@@ -45,6 +45,7 @@ end
 ---@param options table
 ---@return table
 local function FixOptions(options)
+    if type(options) ~= 'table' then return {} end
     for _, v in pairs(options) do
         local action = v.onSelect or v.action
         if action then
@@ -113,6 +114,7 @@ olink._register('target', {
     ---@param debug boolean|nil
     AddSphereZone = function(name, coords, radius, options, debug)
         options = FixOptions(options or {})
+        if not next(options) then return end
         local id = oxideTarget:addSphereZone({
             name = name,
             coords = coords,
@@ -220,9 +222,14 @@ olink._register('target', {
 
 -- Clean up zones when their creator resource stops so we don't leak options.
 AddEventHandler('onClientResourceStop', function(resource)
+    -- oxide-target stopping wipes its own zones; calling into it would error.
+    if resource == 'oxide-target' then
+        targetZones = {}
+        return
+    end
     for name, entry in pairs(targetZones) do
         if entry.creator == resource then
-            oxideTarget:removeZone(entry.id, true)
+            pcall(function() oxideTarget:removeZone(entry.id, true) end)
             targetZones[name] = nil
         end
     end

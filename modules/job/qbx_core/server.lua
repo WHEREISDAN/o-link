@@ -36,7 +36,8 @@ olink._register('job', {
         if type(grade) == 'table' then
             grade = tonumber(grade.rank or grade.grade_rank or grade.level) or 0
         end
-        return player.Functions.SetJob(jobName, grade) or true
+        -- Only explicit false (unknown job) is failure.
+        return player.Functions.SetJob(jobName, grade) ~= false
     end,
 
     ---@param src number

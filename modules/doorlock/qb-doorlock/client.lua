@@ -4,17 +4,22 @@ olink._register('doorlock', {
     ---@return string | nil
     GetClosestDoor = function()
         local ped = PlayerPedId()
-        local closestDoor = exports["qb-doorlock"]:GetClosestDoor()
-        if Table.CheckPopulated(closestDoor) then return closestDoor end
-        local allDoors = exports["qb-doorlock"]:GetDoorList()
+        -- Not all qb-doorlock versions ship this export; fall back to scanning.
+        local ok, closestDoor = pcall(function() return exports['qb-doorlock']:GetClosestDoor() end)
+        if ok and closestDoor ~= nil and (type(closestDoor) ~= 'table' or next(closestDoor)) then
+            return closestDoor
+        end
+        local allDoors = exports['qb-doorlock']:GetDoorList()
         local pedCoords = GetEntityCoords(ped)
         local door = 0
         local doorDist = 1000.0
         for doorID, data in pairs(allDoors) do
-            local dist = #(pedCoords - data.objCoords)
-            if dist < doorDist then
-                door = doorID
-                doorDist = dist
+            if data.objCoords then
+                local dist = #(pedCoords - data.objCoords)
+                if dist < doorDist then
+                    door = doorID
+                    doorDist = dist
+                end
             end
         end
         return door

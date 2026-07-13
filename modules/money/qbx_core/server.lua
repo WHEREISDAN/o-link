@@ -25,7 +25,7 @@ olink._register('money', {
         if amount <= 0 then return false end
         local player = GetPlayer(src)
         if not player then return false end
-        return player.Functions.AddMoney(NormalizeType(accountType), amount, reason) or true
+        return player.Functions.AddMoney(NormalizeType(accountType), amount, reason) ~= false
     end,
 
     ---@param src number
@@ -37,7 +37,10 @@ olink._register('money', {
         if amount <= 0 then return false end
         local player = GetPlayer(src)
         if not player then return false end
-        return player.Functions.RemoveMoney(NormalizeType(accountType), amount, reason) or true
+        local acc = NormalizeType(accountType)
+        -- Pre-check the balance so insufficient funds is never masked as success.
+        if (player.PlayerData.money[acc] or 0) < amount then return false end
+        return player.Functions.RemoveMoney(acc, amount, reason) ~= false
     end,
 
     ---@param src number

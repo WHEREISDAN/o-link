@@ -49,7 +49,20 @@ olink._register('phone', {
     end,
 })
 
+local lastEmail = {}
+
 RegisterNetEvent('o-link:phone:qb-phone:sendEmail', function(data)
     local src = source
-    olink.phone.SendEmail(src, data.email, data.title, data.message)
+    if not src or src == 0 or type(data) ~= 'table' then return end
+    if type(data.email) ~= 'string' or type(data.title) ~= 'string' or type(data.message) ~= 'string' then return end
+
+    local now = GetGameTimer()
+    if lastEmail[src] and (now - lastEmail[src]) < 5000 then return end
+    lastEmail[src] = now
+
+    olink.phone.SendEmail(src, data.email:sub(1, 100), data.title:sub(1, 100), data.message:sub(1, 2000))
+end)
+
+AddEventHandler('playerDropped', function()
+    lastEmail[source] = nil
 end)

@@ -13,10 +13,11 @@ local function generateCallbackId(name)
     return ('%s_%d'):format(name, math.random(1000000, 9999999))
 end
 
--- Backstop for awaited client→server triggers only: if the response is lost
--- (o-link restarted mid-flight, event dropped), resolve nil instead of blocking
--- the caller's thread forever. Callback-style triggers are exempt — they may
--- legitimately wait on user input (e.g. notify.Confirm) far longer than this.
+-- Backstop for awaited triggers (both directions): if the response is lost
+-- (o-link restarted mid-flight, event dropped, receiver gone), resolve nil
+-- instead of blocking the caller's thread forever. Callback-style triggers are
+-- exempt — they may legitimately wait on user input (e.g. notify.Confirm) far
+-- longer than this.
 local AWAIT_TIMEOUT_MS = 30000
 
 local function armAwaitTimeout(registry, name, callbackId)
@@ -74,11 +75,26 @@ if IsDuplicityVersion() then
         end
 
         if not callback then
+            armAwaitTimeout(CallbackRegistry, name, callbackId)
             local result = Citizen.Await(p)
             if type(result) ~= 'table' then return result end
             return table.unpack(result, 1, result.n or #result)
         end
     end
+
+    -- A dropped player can never answer: resolve their in-flight triggers nil so
+    -- awaiting server threads unblock and the registry entries don't leak.
+    -- Multi-target triggers (target == nil) are covered by the await timeout.
+    AddEventHandler('playerDropped', function()
+        local src = source
+        for callbackId, data in pairs(CallbackRegistry) do
+            if data.target == src then
+                CallbackRegistry[callbackId] = nil
+                if data.promise then data.promise:resolve(table.pack()) end
+                if data.callback then data.callback() end
+            end
+        end
+    end)
 
     RegisterNetEvent(EVENT_NAMES.CLIENT_TO_SERVER, function(name, callbackId, ...)
         if not name or not callbackId then return end

@@ -20,7 +20,8 @@ olink._register('money', {
         if amount <= 0 then return false end
         local player = QBCore.Functions.GetPlayer(src)
         if not player then return false end
-        return player.Functions.AddMoney(NormalizeType(accountType), amount, reason) or true
+        -- Older cores return nil on success, so only an explicit false is failure.
+        return player.Functions.AddMoney(NormalizeType(accountType), amount, reason) ~= false
     end,
 
     ---@param src number
@@ -32,7 +33,11 @@ olink._register('money', {
         if amount <= 0 then return false end
         local player = QBCore.Functions.GetPlayer(src)
         if not player then return false end
-        return player.Functions.RemoveMoney(NormalizeType(accountType), amount, reason) or true
+        local acc = NormalizeType(accountType)
+        -- Pre-check the balance: RemoveMoney returns nil on success in older
+        -- cores, so the return alone can't distinguish insufficient funds.
+        if (player.PlayerData.money[acc] or 0) < amount then return false end
+        return player.Functions.RemoveMoney(acc, amount, reason) ~= false
     end,
 
     ---@param src number

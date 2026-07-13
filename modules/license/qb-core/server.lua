@@ -36,7 +36,9 @@ olink._register('license', {
     ---@return boolean
     Has = function(src, licenceType)
         local l = GetLicences(src)
-        return l and l[licenceType] == true or false
+        local v = l and l[licenceType]
+        -- Offline grants persist as JSON 1/'true'; accept the same forms as HasOffline.
+        return v == true or v == 1 or v == 'true'
     end,
 
     ---@param src number

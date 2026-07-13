@@ -336,12 +336,15 @@ local function startLoop(kind, o)
                 frozen = true
             end
 
-            local backspace = IsDisabledControlJustPressed(0, 202)
+            -- 202 (FRONTEND_CANCEL) fires for both Backspace and ESC; ESC also
+            -- fires 200 (PAUSE_ALTERNATE). Treat 202-without-200 as Backspace so
+            -- ESC always cancels instead of un-freezing.
+            local esc = IsDisabledControlJustPressed(0, 200) or IsControlJustPressed(0, 200)
+            local backspace = IsDisabledControlJustPressed(0, 202) and not esc
             if backspace and frozen then
                 frozen = false
-            elseif backspace
-                or IsDisabledControlJustPressed(0, 25) or IsControlJustPressed(0, 25)
-                or IsDisabledControlJustPressed(0, 200) or IsControlJustPressed(0, 200) then
+            elseif backspace or esc
+                or IsDisabledControlJustPressed(0, 25) or IsControlJustPressed(0, 25) then
                 resolve(nil)
                 return
             end
