@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Transparent input layer for the placement gizmo: the game disables the
+         native gizmo's input on production builds, so the browser captures the
+         mouse and streams it to Lua, which draws the axes and does the world
+         projection / dragging. Enabled only while a gizmo session is active. -->
+    <div id="gizmo-capture"></div>
+
+    <!-- Placement hint card (shops-style). pointer-events: none — display only. -->
+    <div id="hint-card">
+        <div class="hint-header">
+            <div class="hint-brand">
+                <svg id="hint-icon" viewBox="0 0 24 24"></svg>
+                <div class="hint-titles">
+                    <span class="hint-eyebrow">Placing</span>
+                    <span id="hint-label">Position</span>
+                </div>
+            </div>
+            <span id="hint-phase">Aim</span>
+        </div>
+        <div class="hint-body">
+            <p class="hint-controls-eyebrow">Controls</p>
+            <div id="hint-lines"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

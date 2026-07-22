@@ -123,8 +123,9 @@ olink._register('target', {
     end,
 
     ---Remove options from every player ped.
-    RemoveGlobalPlayer = function()
-        ox_target:removeGlobalPlayer()
+    ---@param optionNames string|string[]|nil nil removes every option
+    RemoveGlobalPlayer = function(optionNames)
+        ox_target:removeGlobalPlayer(optionNames)
     end,
 
     ---@param options table

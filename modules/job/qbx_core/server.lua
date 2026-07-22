@@ -47,6 +47,9 @@ olink._register('job', {
         local player = GetPlayer(src)
         if not player then return false end
         QBox:SetJobDuty(player.PlayerData.citizenid, status)
+        -- Guarantee the lifecycle adapter's dutyChanged hook fires even if the
+        -- core doesn't emit the qb-compat event itself.
+        TriggerEvent('QBCore:Server:SetDuty', src, status)
         return true
     end,
 

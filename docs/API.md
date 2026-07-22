@@ -252,22 +252,24 @@ Registered from [`../modules/vehicles/properties/client.lua`](../modules/vehicle
 
 Registered from [`../modules/placement/client.lua`](../modules/placement/client.lua).
 
-In-world placement builder for admin/editor tools (coordinate capture, ghost-preview entity placement, polygon zone authoring). **Await-style — each builder blocks until the admin confirms/cancels and returns the captured value** (a Lua callback argument can't marshal across the o-link VM boundary). Call from a coroutine/callback thread; the consumer manages its own NUI focus around the call.
+In-world placement builder for admin/editor tools (coordinate capture, ghost-preview entity placement, polygon zone authoring). **Await-style — each builder blocks until the admin confirms/cancels and returns the captured value** (a Lua callback argument can't marshal across the o-link VM boundary). Call from a coroutine/callback thread; the consumer manages its own NUI focus around the call — except during the fine-tune gizmo, where o-link briefly takes and always restores NUI focus itself.
 
-Controls: mouse to aim, scroll wheel to rotate heading (LSHIFT = fine 1°), **Enter freezes the preview for arrow-key fine-nudging** (LCTRL+Up/Down = height, Space cycles the step 0.01/0.05/0.25/1.0m, Backspace re-aims), LMB / Enter confirm, RMB / ESC cancel. MLO interior props are unreliable ray targets — aim near the spot and use the fine-nudge phase to land exactly. Polygon builder is a freecam authoring tool (Enter place, arrows nudge, Space save).
+On-screen help renders as a styled hint card in o-link's own NUI page (`web/`), showing the current mode, phase, step size, and key hints.
+
+Controls — aim phase: mouse to aim, scroll wheel to rotate heading (LSHIFT = fine 1°), LMB confirm, RMB / ESC / Backspace cancel. **Enter opens the fine-tune gizmo**: mouse-drag the colored axes (X red / Y green / Z blue) to slide the preview, scroll to rotate (Shift fine), arrow keys nudge (Ctrl+Up/Down = height, Space cycles the step 0.01/0.05/0.25/1.0m), Enter confirms, Backspace re-aims, ESC cancels. **RMB during fine-tune enters look mode** — NUI focus is released so the admin can move/look freely without losing the session; RMB or Enter resumes the gizmo. `Coord` gets a translate-only gizmo (no rotation). Screen placements additionally support **tilt** (Ctrl+Scroll pitches the panel ±90° in both phases) and show **gold edge handles** on the quad — drag them (or Shift+arrows) to resize width/height during fine-tune, on top of the aim-phase arrow-key resize. MLO interior props are unreliable ray targets — aim near the spot and use the gizmo to land exactly. Polygon builder is a freecam authoring tool (Enter place, arrows nudge, Space save).
 
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
 | `Coord(opts?)` | `opts?: { initialCoords? }` | `{x,y,z}\|nil` | Raycast point picker (no preview entity) |
 | `GhostPed(opts)` | `opts: { model, initialHeading?, anim?, zOffset? }` | `{x,y,z,w}\|nil` | Place a translucent ghost ped; `w` = heading. `anim = { dict, clip }` previews a looped pose with **per-frame pelvis compensation** — the visible body (not the ped origin) stays centered on the aim point, and the RETURNED coords are the compensated entity transform (replay via `TaskPlayAnim` + `SetEntityCoordsNoOffset` at those coords to reproduce the preview). Without `anim`, coords are the raw surface hit (preview lifted `zOffset`, default 1.0) |
 | `GhostVehicle(opts)` | `opts: { model, initialHeading? }` | `{x,y,z,w}\|nil` | Place a translucent ghost vehicle; `w` = heading |
-| `GhostScreen(opts)` | `opts: { width?, height?, zOffset?, initialHeading? }` | `{x,y,z,w,width,height}\|nil` | Place a translucent quad **centered on the crosshair** — aim directly at where the panel should float. Arrow keys resize while aiming (LSHIFT fine); the chosen size is returned. The returned `z` is the anchor below the quad center by `zOffset`, so `CreateScreen` with the returned coords/size + the same `zOffset` reproduces the preview exactly |
+| `GhostScreen(opts)` | `opts: { width?, height?, pitch?, zOffset?, initialHeading? }` | `{x,y,z,w,width,height,pitch}\|nil` | Place a translucent quad **centered on the crosshair** — aim directly at where the panel should float. Arrow keys resize while aiming (LSHIFT fine), Ctrl+Scroll tilts (±90°), and the fine-tune gizmo adds draggable gold edge handles for width/height; the chosen size/tilt is returned (`width`/`height`/`pitch` also seed re-picks). The returned `z` is the anchor below the quad center by `zOffset`, so `CreateScreen` with the returned coords/size/pitch + the same `zOffset` reproduces the preview exactly |
 | `Polygon(opts?)` | `opts?: { existing? }` | `{ shape, minZ, maxZ }\|nil` | Freecam polygon zone authoring |
 | `IsActive()` | | `boolean` | Whether a builder is currently running |
 | `Cancel()` | | `nil` | Cancel the active builder (resolves it as `nil`) |
 | `SetMarkers(id, markers)` | `id: string, markers: { coords, color?, label?, scale? }[]` | `boolean` | Replace a named group of persistent overlay markers (ground cylinders + floating labels for editor tools). `coords` accepts `{x,y,z}` or a vector; `color` is `{r,g,b,a?}`. nil/empty markers clears the group |
 | `ClearMarkers(id?)` | `id?: string` | `nil` | Clear one overlay group, or all groups when omitted |
-| `CreateScreen(opts)` | `opts: { id, url, coords, heading?, width?, height?, zOffset?, resolution? }` | `boolean` | Paint an NUI page onto a world-space quad via DUI (no prop, no NUI focus). `url` is any `nui://` or web URL; `heading` = direction the panel faces (deg); `width`/`height` in meters (1.6×0.9 default); `resolution` = `{w,h}` px (1280×720 default). Same `id` replaces the screen. Draws within 50m, both faces |
+| `CreateScreen(opts)` | `opts: { id, url, coords, heading?, pitch?, width?, height?, zOffset?, resolution? }` | `boolean` | Paint an NUI page onto a world-space quad via DUI (no prop, no NUI focus). `url` is any `nui://` or web URL; `heading` = direction the panel faces (deg); `pitch` = tilt (deg, ±90); `width`/`height` in meters (1.6×0.9 default); `resolution` = `{w,h}` px (1280×720 default). Same `id` replaces the screen. Draws within 50m, both faces |
 | `SendScreenMessage(id, data)` | `id: string, data: table` | `boolean` | Push a JSON payload to the screen's page (arrives as a window message, same channel as `SendNUIMessage`) |
 | `DestroyScreen(id)` | `id: string` | `boolean` | Destroy one screen and its DUI |
 | `ClearScreens()` | | `nil` | Destroy every screen (also runs automatically on o-link stop) |
@@ -597,9 +599,12 @@ Categories are free-form strings; the Discord sink uses them to choose a webhook
 | `olink:server:playerUnload` | server | `(source)` | Player unload or logout |
 | `olink:server:playerDropped` | server | `(source)` | Disconnect |
 | `olink:server:jobChanged` | server | `(source, jobName)` | Server-side job change relay |
+| `olink:server:dutyChanged` | server | `(source, onDuty, jobName?)` | Server-side duty toggle relay |
 | `olink:client:playerReady` | client | none | Local player ready |
 | `olink:client:playerUnload` | client | none | Local player unloaded |
 | `olink:client:jobChanged` | client | `(jobData)` | Local job update |
+
+`olink:server:dutyChanged` may fire more than once for a single change on some frameworks (qb-compat event echoes), and on ESX a duty flip also fires `olink:server:jobChanged` (duty is emulated via `setJob`). Treat handlers as idempotent. `jobName` can be `nil` if the job could not be resolved at fire time.
 
 ## Death lifecycle events
 

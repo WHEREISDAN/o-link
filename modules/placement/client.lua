@@ -9,9 +9,13 @@
 --     local coords = olink.placement.GhostPed({ model = 'a_m_y_business_03' })  -- {x,y,z,w} or nil
 --
 -- Controls: mouse aim to position, scroll wheel to rotate heading (LSHIFT = fine 1°),
---           Enter freezes for arrow-key fine-nudging (LCTRL+Up/Down = height, Space = step size,
---           Backspace = re-aim), LMB / Enter confirm, RMB / ESC cancel.
---           Polygon: freecam + Enter place / arrows nudge / Space save.
+--           LMB confirm, Enter opens the fine-tune gizmo (mouse-drag axes to move,
+--           scroll rotate, arrows nudge with Space step size, gold edge handles
+--           resize screens; Enter confirm, Backspace re-aim, ESC cancel),
+--           RMB / ESC cancel. Polygon: freecam + Enter place / arrows nudge / Space save.
+-- On-screen help renders in o-link's own NUI hint card (web/); the gizmo
+-- (modules/placement/gizmo/client.lua) takes mouse input through the same
+-- page's transparent capture layer.
 
 if not olink._guardImpl('Placement', 'placement', false) then return end
 
@@ -36,21 +40,111 @@ local RAYCAST_DIST = 200.0
 local MARKER_R, MARKER_G, MARKER_B = 232, 176, 68
 
 -- ---------------------------------------------------------------------------
--- Native on-screen HUD (replaces the consumer-NUI hint bar the fork used, since
--- o-link can't message a consumer's NUI).
+-- NUI hint card (o-link's own ui_page, web/). Pushed on state transitions
+-- only, never per frame. lines = { { { key, desc, tone }, ... }, ... } with
+-- tones 'pink' | 'green' | 'neutral'.
 -- ---------------------------------------------------------------------------
-local function drawHint(lines)
-    local y = 0.80
-    for _, line in ipairs(lines) do
-        SetTextFont(4)
-        SetTextScale(0.36, 0.36)
-        SetTextColour(255, 255, 255, 220)
-        SetTextOutline()
-        SetTextEntry('STRING')
-        AddTextComponentSubstringPlayerName(line)
-        DrawText(0.5 - 0.14, y)
-        y = y + 0.028
+local KIND_BRAND = {
+    coord   = { icon = 'pin', label = 'Position' },
+    ped     = { icon = 'user', label = 'Character' },
+    vehicle = { icon = 'car', label = 'Vehicle' },
+    screen  = { icon = 'screen', label = 'Screen Panel' },
+}
+
+local function pushHints(spec)
+    SendNUIMessage({
+        action = 'olink:placement:hints',
+        data = spec and {
+            visible = true,
+            icon = spec.icon,
+            label = spec.label,
+            phase = spec.phase,
+            phaseHot = spec.phaseHot or false,
+            lines = spec.lines,
+        } or { visible = false },
+    })
+end
+
+local function aimHints(kind, scrW, scrH)
+    local lines = {}
+    if kind ~= 'coord' then
+        local rot = {
+            { key = 'Scroll', desc = 'rotate', tone = 'pink' },
+            { key = 'Shift+Scroll', desc = 'rotate fine', tone = 'pink' },
+        }
+        if kind == 'screen' then
+            rot[#rot + 1] = { key = 'Ctrl+Scroll', desc = 'tilt', tone = 'pink' }
+        end
+        lines[#lines + 1] = rot
     end
+    if kind == 'screen' then
+        lines[#lines + 1] = {
+            { key = '↑↓←→', desc = ('resize (%.2f × %.2fm)'):format(scrW, scrH), tone = 'pink' },
+            { key = 'Shift', desc = 'fine', tone = 'pink' },
+        }
+    end
+    lines[#lines + 1] = {
+        { key = 'Enter', desc = 'fine-tune', tone = 'green' },
+        { key = 'LMB', desc = 'confirm', tone = 'green' },
+    }
+    lines[#lines + 1] = {
+        { key = 'RMB / ESC / Bksp', desc = 'cancel', tone = 'neutral' },
+    }
+    local brand = KIND_BRAND[kind]
+    return { icon = brand.icon, label = brand.label, phase = 'Aim', lines = lines }
+end
+
+local function gizmoHints(kind, step)
+    local lines = {}
+    lines[#lines + 1] = {
+        { key = 'Drag', desc = 'axis to move', tone = 'pink' },
+        { key = '↑↓←→', desc = 'nudge', tone = 'pink' },
+        { key = 'Ctrl+↑↓', desc = 'up / down', tone = 'pink' },
+    }
+    local second = {}
+    if kind ~= 'coord' then
+        second[#second + 1] = { key = 'Scroll', desc = 'rotate', tone = 'pink' }
+    end
+    if kind == 'screen' then
+        second[#second + 1] = { key = 'Ctrl+Scroll', desc = 'tilt', tone = 'pink' }
+    end
+    second[#second + 1] = { key = 'Space', desc = ('step %.2fm'):format(step), tone = 'pink' }
+    lines[#lines + 1] = second
+    if kind == 'screen' then
+        lines[#lines + 1] = {
+            { key = 'Drag', desc = 'gold handle resize', tone = 'pink' },
+            { key = 'Shift+↑↓←→', desc = 'resize', tone = 'pink' },
+        }
+    end
+    lines[#lines + 1] = {
+        { key = 'RMB', desc = 'move camera', tone = 'pink' },
+        { key = 'Enter', desc = 'confirm', tone = 'green' },
+        { key = 'Bksp', desc = 're-aim', tone = 'neutral' },
+        { key = 'ESC', desc = 'cancel', tone = 'neutral' },
+    }
+    local brand = KIND_BRAND[kind]
+    return { icon = brand.icon, label = brand.label, phase = 'Fine-tune', phaseHot = true, lines = lines }
+end
+
+-- RMB look mode: the gizmo stays alive while the player repositions.
+local function lookHints(kind)
+    local brand = KIND_BRAND[kind]
+    return {
+        icon = brand.icon,
+        label = brand.label,
+        phase = 'Move Camera',
+        phaseHot = true,
+        lines = {
+            {
+                { key = 'WASD / Mouse', desc = 'move & look freely', tone = 'pink' },
+            },
+            {
+                { key = 'RMB / Enter', desc = 'resume fine-tune', tone = 'green' },
+                { key = 'Bksp', desc = 're-aim', tone = 'neutral' },
+                { key = 'ESC', desc = 'cancel', tone = 'neutral' },
+            },
+        },
+    }
 end
 
 local function unloadModel()
@@ -111,6 +205,13 @@ end
 local function resolve(result)
     if not active then return end
     active = false
+    pushHints(nil)
+    -- A live gizmo session (external Cancel, resource stop) tears down through
+    -- the gizmo's own end path, which releases NUI focus; its onDone then
+    -- re-enters resolve and no-ops on the active guard above.
+    if PlacementGizmo.IsActive() then
+        PlacementGizmo.Cancel()
+    end
     destroyPreview()
     unloadModel()
     local p = currentPromise
@@ -118,11 +219,26 @@ local function resolve(result)
     if p then p:resolve(result) end
 end
 
--- Translucent quad preview for screen-panel placement (both faces + edges).
-local function drawGhostQuad(center, heading, width, height)
+-- Screen quad basis: horizontal right from heading, up tilted around it by
+-- pitch (up*cos + (right × up)*sin). Shared by the ghost preview and the live
+-- CreateScreen panels so both agree on orientation.
+local function quadBasis(heading, pitch)
     local rad = math.rad(heading)
-    local right = vector3(math.cos(rad), math.sin(rad), 0.0) * (width / 2)
-    local up = vector3(0.0, 0.0, height / 2)
+    local pit = math.rad(pitch or 0.0)
+    local right = vector3(math.cos(rad), math.sin(rad), 0.0)
+    local up = vector3(
+        math.sin(rad) * math.sin(pit),
+        -math.cos(rad) * math.sin(pit),
+        math.cos(pit)
+    )
+    return right, up
+end
+
+-- Translucent quad preview for screen-panel placement (both faces + edges).
+local function drawGhostQuad(center, heading, pitch, width, height)
+    local r, u = quadBasis(heading, pitch)
+    local right = r * (width / 2)
+    local up = u * (height / 2)
     local tl, tr = center - right + up, center + right + up
     local bl, br = center - right - up, center + right - up
 
@@ -137,28 +253,145 @@ local function drawGhostQuad(center, heading, width, height)
 end
 
 -- Shared loop for point/ped/vehicle/screen placement. Two phases: aim (preview
--- follows the crosshair raycast) and, after Enter, a frozen fine-nudge phase
--- (arrows move X/Y, LCTRL+up/down moves Z, Space cycles the step) — the nudge
--- phase is what makes MLO interiors workable when the ray snags the wrong
--- surface.
+-- follows the crosshair raycast) and, after Enter, a gizmo fine-tune phase
+-- (mouse-drag axes to move, scroll rotate, arrow-key nudging with Space step
+-- cycling, gold edge handles resize screens) — fine-tune is what makes MLO
+-- interiors workable when the ray snags the wrong surface.
 ---@param kind 'ped' | 'vehicle' | 'coord' | 'screen'
 local function startLoop(kind, o)
     local currentHeading = (o.initialHeading or GetEntityHeading(PlayerPedId())) or 0.0
     local cur = nil
-    local frozen = false
+    local phase = 'aim' -- 'aim' | 'gizmo'
     local NUDGE_STEPS = { 0.01, 0.05, 0.25, 1.0 }
     local stepIdx = 2
     -- Standing peds sit 1.0 above the ground hit; anim previews (lying/seated
     -- poses) override this so the preview matches where the pose will play.
     local zOffset = (kind == 'ped') and (tonumber(o.zOffset) or (previewAnimMode and 0.0 or 1.0)) or 0.0
-    -- Screen quads are resizable while aiming (arrow keys); the chosen size is
-    -- returned so consumers can store it per placement.
+    -- Screen quads are resizable while aiming (arrow keys) and via the gizmo's
+    -- gold handles; the chosen size is returned so consumers can store it per
+    -- placement.
     local scrW = tonumber(o.width) or 1.6
     local scrH = tonumber(o.height) or 0.9
+    -- Screen tilt (deg, ±90): Ctrl+Scroll in both phases; seeded on re-picks.
+    local currentPitch = (kind == 'screen') and (tonumber(o.pitch) or 0.0) or 0.0
+
+    local function confirmAndResolve()
+        local result
+        if kind == 'coord' then
+            result = {
+                x = tonumber(('%.4f'):format(cur.x)) + 0.0,
+                y = tonumber(('%.4f'):format(cur.y)) + 0.0,
+                z = tonumber(('%.4f'):format(cur.z)) + 0.0,
+            }
+        elseif previewAnimMode and previewEntity and DoesEntityExist(previewEntity) then
+            -- Anim preview: capture the compensated ENTITY transform,
+            -- so TaskPlayAnim + SetEntityCoordsNoOffset at these coords
+            -- reproduces the previewed body position exactly.
+            local ec = GetEntityCoords(previewEntity)
+            result = {
+                x = tonumber(('%.4f'):format(ec.x)) + 0.0,
+                y = tonumber(('%.4f'):format(ec.y)) + 0.0,
+                z = tonumber(('%.4f'):format(ec.z)) + 0.0,
+                w = tonumber(('%.2f'):format(GetEntityHeading(previewEntity))) + 0.0,
+            }
+        else
+            result = {
+                x = tonumber(('%.4f'):format(cur.x)) + 0.0,
+                y = tonumber(('%.4f'):format(cur.y)) + 0.0,
+                z = tonumber(('%.4f'):format(cur.z)) + 0.0,
+                w = tonumber(('%.2f'):format(currentHeading)) + 0.0,
+            }
+            if kind == 'screen' then
+                -- The preview centered the quad on the aim point;
+                -- store the anchor BELOW it by the consumer's zOffset
+                -- so CreateScreen (anchor + zOffset) lands the live
+                -- panel exactly where the ghost was.
+                result.z = tonumber(('%.4f'):format(cur.z - (tonumber(o.zOffset) or 0.0))) + 0.0
+                result.width = tonumber(('%.2f'):format(scrW)) + 0.0
+                result.height = tonumber(('%.2f'):format(scrH)) + 0.0
+                result.pitch = tonumber(('%.2f'):format(currentPitch)) + 0.0
+            end
+        end
+        resolve(result)
+    end
+
+    -- Arrows/space forwarded by the gizmo's NUI overlay (game controls are
+    -- dead under NUI focus); mirrors the old frozen-phase nudge scheme.
+    local function onGizmoKey(key, mods)
+        if key == 'Space' then
+            stepIdx = (stepIdx % #NUDGE_STEPS) + 1
+            pushHints(gizmoHints(kind, NUDGE_STEPS[stepIdx]))
+            return
+        end
+        local step = NUDGE_STEPS[stepIdx]
+        local dx, dy, dz = 0.0, 0.0, 0.0
+        if key == 'ArrowUp' then
+            if mods.ctrl then dz = step else dy = step end
+        elseif key == 'ArrowDown' then
+            if mods.ctrl then dz = -step else dy = -step end
+        elseif key == 'ArrowLeft' then
+            dx = -step
+        elseif key == 'ArrowRight' then
+            dx = step
+        else
+            return
+        end
+        PlacementGizmo.Nudge(dx, dy, dz)
+    end
+
+    -- The gizmo has already released NUI focus by the time this fires.
+    local function onGizmoDone(outcome)
+        if not active then return end
+        if outcome == 'confirm' then
+            confirmAndResolve()
+        elseif outcome == 'reaim' then
+            phase = 'aim'
+            pushHints(aimHints(kind, scrW, scrH))
+        else
+            resolve(nil)
+        end
+    end
+
+    local function enterGizmo()
+        phase = 'gizmo'
+        pushHints(gizmoHints(kind, NUDGE_STEPS[stepIdx]))
+        PlacementGizmo.Begin({
+            matrix = { x = cur.x, y = cur.y, z = cur.z, heading = currentHeading, pitch = currentPitch },
+            rotate = kind ~= 'coord',
+            tilt = kind == 'screen',
+            size = kind == 'screen' and {
+                w = scrW,
+                h = scrH,
+                min = 0.2,
+                max = 8.0,
+                heading = function() return currentHeading end,
+                pitch = function() return currentPitch end,
+            } or nil,
+            -- The gizmo pose IS `cur` (the anchor point). The draw thread below
+            -- keeps applying it to the preview each frame, so the anim-ped bone
+            -- compensation and the ghost quad behave exactly as in aim phase.
+            onUpdate = function(pose)
+                cur = vector3(pose.x, pose.y, pose.z)
+                currentHeading = pose.heading
+                currentPitch = pose.pitch or currentPitch
+            end,
+            onSize = function(w, h)
+                scrW, scrH = w, h
+            end,
+            onKey = onGizmoKey,
+            -- RMB look mode: camera control back to the player, session intact.
+            onLook = function(isLooking)
+                pushHints(isLooking and lookHints(kind) or gizmoHints(kind, NUDGE_STEPS[stepIdx]))
+            end,
+            onDone = onGizmoDone,
+        })
+    end
+
+    pushHints(aimHints(kind, scrW, scrH))
 
     CreateThread(function()
         while active do
-            if not frozen then
+            if phase == 'aim' then
                 local _, hitCoords = raycastFromCamera()
                 cur = hitCoords
             end
@@ -197,7 +430,7 @@ local function startLoop(kind, o)
                 -- The quad centers on the crosshair itself (aim where the
                 -- screen should BE); no ground marker — the anchor point is
                 -- derived from the panel, not the other way around.
-                drawGhostQuad(vector3(cur.x, cur.y, cur.z), currentHeading, scrW, scrH)
+                drawGhostQuad(vector3(cur.x, cur.y, cur.z), currentHeading, currentPitch, scrW, scrH)
             else
                 local groundZ = cur.z - 0.98
                 DrawMarker(
@@ -208,28 +441,6 @@ local function startLoop(kind, o)
                 )
             end
 
-            local lines
-            if frozen then
-                lines = {
-                    ('Placement — fine-tune (step %.2fm)'):format(NUDGE_STEPS[stepIdx]),
-                    'Arrows  Move   LCTRL+Up/Down  Height',
-                    'Space  Step size   Backspace  Re-aim',
-                    'LMB / Enter  Confirm   RMB / ESC  Cancel',
-                }
-            else
-                lines = {
-                    'Placement — aim',
-                    'Enter  Fine-tune   LMB  Confirm',
-                    'RMB / ESC / Backspace  Cancel',
-                }
-                if kind == 'screen' then
-                    table.insert(lines, 2, ('Arrows  Resize  (%.2f × %.2fm, LSHIFT fine)'):format(scrW, scrH))
-                end
-            end
-            if kind ~= 'coord' then
-                table.insert(lines, 2, 'Scroll  Rotate  (LSHIFT fine)')
-            end
-            drawHint(lines)
             Wait(0)
         end
     end)
@@ -250,103 +461,71 @@ local function startLoop(kind, o)
             DisableControlAction(0, 202, true)  -- backspace
             DisablePlayerFiring(PlayerId(), true)
 
-            if kind ~= 'coord' then
-                local fine = IsControlPressed(0, 21) -- LSHIFT
-                local step = fine and ROT_STEP_FINE or ROT_STEP
-                if IsControlJustPressed(0, 14) or IsDisabledControlJustPressed(0, 14) then
-                    currentHeading = (currentHeading - step) % 360.0
-                end
-                if IsControlJustPressed(0, 15) or IsDisabledControlJustPressed(0, 15) then
-                    currentHeading = (currentHeading + step) % 360.0
-                end
-            end
-
-            if kind == 'screen' and not frozen then
-                local step = (IsDisabledControlPressed(0, 21) or IsControlPressed(0, 21)) and 0.01 or 0.05
-                if IsDisabledControlJustPressed(0, 172) then
-                    scrH = math.min(8.0, scrH + step)
-                elseif IsDisabledControlJustPressed(0, 173) then
-                    scrH = math.max(0.2, scrH - step)
-                elseif IsDisabledControlJustPressed(0, 175) then
-                    scrW = math.min(8.0, scrW + step)
-                elseif IsDisabledControlJustPressed(0, 174) then
-                    scrW = math.max(0.2, scrW - step)
-                end
-            end
-
-            if frozen and cur then
-                local step = NUDGE_STEPS[stepIdx]
-                local zMode = IsDisabledControlPressed(0, 36) or IsControlPressed(0, 36)
-                if IsDisabledControlJustPressed(0, 172) then
-                    if zMode then cur = vector3(cur.x, cur.y, cur.z + step)
-                    else cur = vector3(cur.x, cur.y + step, cur.z) end
-                elseif IsDisabledControlJustPressed(0, 173) then
-                    if zMode then cur = vector3(cur.x, cur.y, cur.z - step)
-                    else cur = vector3(cur.x, cur.y - step, cur.z) end
-                elseif IsDisabledControlJustPressed(0, 174) then
-                    cur = vector3(cur.x - step, cur.y, cur.z)
-                elseif IsDisabledControlJustPressed(0, 175) then
-                    cur = vector3(cur.x + step, cur.y, cur.z)
-                elseif IsDisabledControlJustPressed(0, 22) then
-                    stepIdx = (stepIdx % #NUDGE_STEPS) + 1
-                end
-            end
-
-            local enter = IsDisabledControlJustPressed(0, 201)
-            local lmb = IsDisabledControlJustPressed(0, 24) or IsControlJustPressed(0, 24)
-            if cur and (lmb or (enter and frozen)) then
-                local result
-                if kind == 'coord' then
-                    result = {
-                        x = tonumber(('%.4f'):format(cur.x)) + 0.0,
-                        y = tonumber(('%.4f'):format(cur.y)) + 0.0,
-                        z = tonumber(('%.4f'):format(cur.z)) + 0.0,
-                    }
-                elseif previewAnimMode and previewEntity and DoesEntityExist(previewEntity) then
-                    -- Anim preview: capture the compensated ENTITY transform,
-                    -- so TaskPlayAnim + SetEntityCoordsNoOffset at these coords
-                    -- reproduces the previewed body position exactly.
-                    local ec = GetEntityCoords(previewEntity)
-                    result = {
-                        x = tonumber(('%.4f'):format(ec.x)) + 0.0,
-                        y = tonumber(('%.4f'):format(ec.y)) + 0.0,
-                        z = tonumber(('%.4f'):format(ec.z)) + 0.0,
-                        w = tonumber(('%.2f'):format(GetEntityHeading(previewEntity))) + 0.0,
-                    }
-                else
-                    result = {
-                        x = tonumber(('%.4f'):format(cur.x)) + 0.0,
-                        y = tonumber(('%.4f'):format(cur.y)) + 0.0,
-                        z = tonumber(('%.4f'):format(cur.z)) + 0.0,
-                        w = tonumber(('%.2f'):format(currentHeading)) + 0.0,
-                    }
-                    if kind == 'screen' then
-                        -- The preview centered the quad on the aim point;
-                        -- store the anchor BELOW it by the consumer's zOffset
-                        -- so CreateScreen (anchor + zOffset) lands the live
-                        -- panel exactly where the ghost was.
-                        result.z = tonumber(('%.4f'):format(cur.z - (tonumber(o.zOffset) or 0.0))) + 0.0
-                        result.width = tonumber(('%.2f'):format(scrW)) + 0.0
-                        result.height = tonumber(('%.2f'):format(scrH)) + 0.0
+            -- Game-control input only exists in the aim phase; during the
+            -- gizmo phase every input arrives through the NUI overlay instead.
+            if phase == 'aim' then
+                if kind ~= 'coord' then
+                    local fine = IsControlPressed(0, 21) -- LSHIFT
+                    local step = fine and ROT_STEP_FINE or ROT_STEP
+                    -- Screens: LCTRL+Scroll tilts (pitch) instead of rotating.
+                    local tiltMode = kind == 'screen'
+                        and (IsDisabledControlPressed(0, 36) or IsControlPressed(0, 36))
+                    local wheelDown = IsControlJustPressed(0, 14) or IsDisabledControlJustPressed(0, 14)
+                    local wheelUp = IsControlJustPressed(0, 15) or IsDisabledControlJustPressed(0, 15)
+                    if tiltMode then
+                        if wheelDown then
+                            currentPitch = math.max(-90.0, currentPitch - step)
+                        elseif wheelUp then
+                            currentPitch = math.min(90.0, currentPitch + step)
+                        end
+                    else
+                        if wheelDown then
+                            currentHeading = (currentHeading - step) % 360.0
+                        end
+                        if wheelUp then
+                            currentHeading = (currentHeading + step) % 360.0
+                        end
                     end
                 end
-                resolve(result)
-                return
-            elseif enter and not frozen then
-                frozen = true
-            end
 
-            -- 202 (FRONTEND_CANCEL) fires for both Backspace and ESC; ESC also
-            -- fires 200 (PAUSE_ALTERNATE). Treat 202-without-200 as Backspace so
-            -- ESC always cancels instead of un-freezing.
-            local esc = IsDisabledControlJustPressed(0, 200) or IsControlJustPressed(0, 200)
-            local backspace = IsDisabledControlJustPressed(0, 202) and not esc
-            if backspace and frozen then
-                frozen = false
-            elseif backspace or esc
-                or IsDisabledControlJustPressed(0, 25) or IsControlJustPressed(0, 25) then
-                resolve(nil)
-                return
+                if kind == 'screen' then
+                    local step = (IsDisabledControlPressed(0, 21) or IsControlPressed(0, 21)) and 0.01 or 0.05
+                    local resized = true
+                    if IsDisabledControlJustPressed(0, 172) then
+                        scrH = math.min(8.0, scrH + step)
+                    elseif IsDisabledControlJustPressed(0, 173) then
+                        scrH = math.max(0.2, scrH - step)
+                    elseif IsDisabledControlJustPressed(0, 175) then
+                        scrW = math.min(8.0, scrW + step)
+                    elseif IsDisabledControlJustPressed(0, 174) then
+                        scrW = math.max(0.2, scrW - step)
+                    else
+                        resized = false
+                    end
+                    if resized then
+                        pushHints(aimHints(kind, scrW, scrH)) -- live size readout
+                    end
+                end
+
+                local enter = IsDisabledControlJustPressed(0, 201)
+                local lmb = IsDisabledControlJustPressed(0, 24) or IsControlJustPressed(0, 24)
+                if cur and lmb then
+                    confirmAndResolve()
+                    return
+                elseif cur and enter then
+                    enterGizmo()
+                end
+
+                -- 202 (FRONTEND_CANCEL) fires for both Backspace and ESC; ESC also
+                -- fires 200 (PAUSE_ALTERNATE). The distinction only matters during
+                -- fine-tune, where the browser reports the real key — here in the
+                -- aim phase both cancel.
+                local esc = IsDisabledControlJustPressed(0, 200) or IsControlJustPressed(0, 200)
+                if esc or IsDisabledControlJustPressed(0, 202)
+                    or IsDisabledControlJustPressed(0, 25) or IsControlJustPressed(0, 25) then
+                    resolve(nil)
+                    return
+                end
             end
 
             Wait(0)
@@ -420,11 +599,12 @@ end
 
 ---Ghost screen-panel picker: a translucent quad, CENTERED ON THE CROSSHAIR,
 ---previews where a CreateScreen panel will float — aim directly at where the
----screen should be. Arrow keys resize while aiming (LSHIFT fine). Returns
----{ x, y, z, w, width, height } or nil; z is the anchor BELOW the quad center
----by o.zOffset, so CreateScreen with the returned coords/size and the SAME
----zOffset lands the live panel exactly on the preview.
----o = { width?, height?, zOffset?, initialHeading? } (width/height seed the size)
+---screen should be. Arrow keys resize while aiming (LSHIFT fine); Ctrl+Scroll
+---tilts; the gizmo's gold edge handles resize during fine-tune. Returns
+---{ x, y, z, w, width, height, pitch } or nil; z is the anchor BELOW the quad
+---center by o.zOffset, so CreateScreen with the returned coords/size/pitch and
+---the SAME zOffset lands the live panel exactly on the preview.
+---o = { width?, height?, zOffset?, initialHeading?, pitch? } (width/height/pitch seed re-picks)
 local function GhostScreen(o)
     if active then return nil end
     o = o or {}
@@ -468,13 +648,45 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Polygon builder (freecam zone authoring). Returns { shape, minZ, maxZ } or nil.
--- Native HUD instead of the fork's consumer-NUI hint messages.
 -- ---------------------------------------------------------------------------
 local POLY_THICKNESS_DEFAULT = 6.0
 local POLY_NUDGE_SPEEDS = { 0.05, 0.25, 1.0, 5.0 }
 local POLY_DEFAULT_NUDGE_INDEX = 2
 local POLY_FREECAM_SPEED_BASE = 0.25
 local POLY_FREECAM_MOUSE_SENS = 6.0
+
+local function polyHints(mode, numPoints, thickness, nudge)
+    return {
+        icon = 'polygon',
+        label = 'Zone Builder',
+        phase = mode == 'edit' and 'Edit' or 'Place',
+        phaseHot = mode == 'edit',
+        lines = {
+            {
+                { key = 'WASD/Q/E', desc = 'fly', tone = 'pink' },
+                { key = 'Enter', desc = 'place / select', tone = 'pink' },
+                { key = 'RMB', desc = 'select', tone = 'pink' },
+            },
+            {
+                { key = '↑↓←→', desc = ('nudge %.2fm'):format(nudge), tone = 'pink' },
+                { key = 'Tab', desc = 'speed', tone = 'pink' },
+                { key = 'R', desc = 'mode', tone = 'pink' },
+            },
+            {
+                { key = 'PgUp/PgDn', desc = ('thickness %.1fm'):format(thickness), tone = 'pink' },
+                { key = 'P', desc = 'preview', tone = 'pink' },
+            },
+            {
+                { key = 'Del', desc = 'remove', tone = 'neutral' },
+                { key = 'Bksp', desc = 'clear all', tone = 'neutral' },
+            },
+            {
+                { key = 'Space', desc = ('save (%d points)'):format(numPoints), tone = 'green' },
+                { key = 'ESC', desc = 'cancel', tone = 'neutral' },
+            },
+        },
+    }
+end
 
 local function loadExistingPoints(existing, fallbackZ)
     local pts = {}
@@ -516,6 +728,7 @@ local function Polygon(o)
     local selectedIdx = 0
     local nudgeIdx = POLY_DEFAULT_NUDGE_INDEX
     local debugZone = nil
+    local lastHintKey = nil
 
     local cam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
     SetCamCoord(cam, startCoords.x, startCoords.y, startCoords.z + 1.5)
@@ -532,6 +745,7 @@ local function Polygon(o)
     end
 
     local function cleanup()
+        pushHints(nil)
         clearDebugZone()
         RenderScriptCams(false, true, 500, true, true)
         if cam then
@@ -648,12 +862,12 @@ local function Polygon(o)
             if hitPos then
                 DrawMarker(28, hitPos.x, hitPos.y, hitPos.z, 0,0,0, 0,0,0, 0.1, 0.1, 0.1, 0, 200, 255, 220, false, true, 2, false, nil, nil, false)
             end
-            drawHint({
-                ('Zone builder  [%s]  points: %d  thickness: %.1f'):format(mode, #points, thickness),
-                'WASD/Q/E  Fly   Enter  Place/Select   RMB  Select',
-                'Arrows  Nudge (Tab speed)   PgUp/PgDn  Thickness   R  Mode   P  Preview',
-                'Del  Remove   Backspace  Clear   Space  Save   ESC  Cancel',
-            })
+            -- Hint card re-pushes only when the displayed state changes.
+            local hintKey = ('%s|%d|%.1f|%d'):format(mode, #points, thickness, nudgeIdx)
+            if hintKey ~= lastHintKey then
+                lastHintKey = hintKey
+                pushHints(polyHints(mode, #points, thickness, POLY_NUDGE_SPEEDS[nudgeIdx]))
+            end
 
             if IsDisabledControlJustPressed(0, 18) then
                 if mode == 'place' and hitPos then
@@ -875,8 +1089,8 @@ end
 
 ---Create (or replace) a world-space DUI screen. opts:
 ---{ id, url, coords = {x,y,z}|vector, heading? (deg the panel faces),
----  width? (m, default 1.6), height? (m, default 0.9), zOffset? (m),
----  resolution? = { w, h } (px, default 1280x720) }
+---  pitch? (deg tilt, ±90), width? (m, default 1.6), height? (m, default 0.9),
+---  zOffset? (m), resolution? = { w, h } (px, default 1280x720) }
 ---Returns true on success.
 local function CreateScreen(opts)
     if type(opts) ~= 'table' or type(opts.id) ~= 'string' or opts.id == '' then return false end
@@ -902,10 +1116,10 @@ local function CreateScreen(opts)
 
     local width = tonumber(opts.width) or 1.6
     local height = tonumber(opts.height) or 0.9
-    local rad = math.rad(tonumber(opts.heading) or 0.0)
     local center = vector3(x, y, z + (tonumber(opts.zOffset) or 0.0))
-    local right = vector3(math.cos(rad), math.sin(rad), 0.0) * (width / 2)
-    local up = vector3(0.0, 0.0, height / 2)
+    local r, u = quadBasis(tonumber(opts.heading) or 0.0, tonumber(opts.pitch) or 0.0)
+    local right = r * (width / 2)
+    local up = u * (height / 2)
 
     screens[opts.id] = {
         dui = dui,
@@ -965,5 +1179,8 @@ AddEventHandler('onResourceStop', function(resource)
         Cancel()
         polyActive = false
         ClearScreens()
+        -- Backstop: the NUI frame dies with the resource, but a focus grab
+        -- taken by a live gizmo session must not outlive it.
+        SetNuiFocus(false, false)
     end
 end)

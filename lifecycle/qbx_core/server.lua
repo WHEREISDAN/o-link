@@ -30,6 +30,16 @@ AddEventHandler('QBCore:Server:OnJobUpdate', function(src, jobData)
     end
 end)
 
+-- Fired by qbx_core's qb-compat duty path AND by o-link's job.SetDuty (which
+-- re-triggers it manually). May fire more than once for one change — consumers
+-- must treat dutyChanged as idempotent.
+AddEventHandler('QBCore:Server:SetDuty', function(src, duty)
+    src = tonumber(src)
+    if not src then return end
+    local job = olink.job and olink.job.Get and olink.job.Get(src)
+    TriggerEvent('olink:server:dutyChanged', src, duty == true, job and job.name or nil)
+end)
+
 AddEventHandler('playerDropped', function()
     local src = source
     TriggerEvent('olink:server:playerUnload', src)

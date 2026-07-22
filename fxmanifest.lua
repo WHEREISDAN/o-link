@@ -11,6 +11,14 @@ escrow_ignore {
     'config.lua',
 }
 
+ui_page 'web/index.html'
+
+files {
+    'web/index.html',
+    'web/style.css',
+    'web/app.js',
+}
+
 shared_scripts {
     '@ox_lib/init.lua',
     'config.lua',

@@ -45,13 +45,16 @@ olink._register('job', {
     ---@param src number
     ---@param status boolean
     ---@return boolean
-    -- ESX has no native duty toggle — approximated via setJob with duty flag
+    -- ESX has no native duty toggle — approximated via setJob with duty flag.
+    -- ESX-native duty flips also go through setJob, which already fires
+    -- olink:server:jobChanged; this covers the bridge path with dutyChanged.
     SetDuty = function(src, status)
         local xPlayer = GetPlayer(src)
         if not xPlayer then return false end
         local job = xPlayer.getJob()
         if not job or job.name == 'unemployed' then return false end
         xPlayer.setJob(job.name, job.grade, status)
+        TriggerEvent('olink:server:dutyChanged', src, status == true, job.name)
         return true
     end,
 
