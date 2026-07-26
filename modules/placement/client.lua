@@ -21,6 +21,7 @@ if not olink._guardImpl('Placement', 'placement', false) then return end
 
 local active = false
 local polyActive = false
+local polyCancel = nil
 local previewEntity = nil
 local previewModelHash = nil
 local previewAnimMode = false
@@ -644,6 +645,7 @@ end
 
 local function Cancel()
     if active then resolve(nil) end
+    if polyActive and polyCancel then polyCancel() end
 end
 
 -- ---------------------------------------------------------------------------
@@ -759,6 +761,17 @@ local function Polygon(o)
         SetEntityInvincible(ped, false)
         polyActive = false
     end
+
+    -- Single resolve path (save / ESC / external Cancel); guards double-fire.
+    local resolved = false
+    local function resolvePoly(result)
+        if resolved then return end
+        resolved = true
+        polyCancel = nil
+        cleanup()
+        p:resolve(result)
+    end
+    polyCancel = function() resolvePoly(nil) end
 
     local function raycastFromCam()
         local cc = GetCamCoord(cam)
@@ -928,8 +941,7 @@ local function Polygon(o)
                     sumZ = sumZ + pt.z
                 end
                 local avgZ = sumZ / #points
-                cleanup()
-                p:resolve({
+                resolvePoly({
                     shape = outShape,
                     minZ  = tonumber(('%.2f'):format(avgZ - thickness / 2)) + 0.0,
                     maxZ  = tonumber(('%.2f'):format(avgZ + thickness / 2)) + 0.0,
@@ -938,14 +950,15 @@ local function Polygon(o)
             end
 
             if IsDisabledControlJustPressed(0, 200) then
-                cleanup()
-                p:resolve(nil)
+                resolvePoly(nil)
                 return
             end
 
             Wait(0)
         end
-        cleanup()
+        -- Backstop for an external polyActive=false (resource stop): resolves
+        -- the await and re-runs cleanup (idempotent) if resolvePoly already did.
+        resolvePoly(nil)
     end)
 
     return Citizen.Await(p)

@@ -54,6 +54,14 @@ olink._register('medical', {
     end,
 
     ---@param src number
+    ---@return table|nil { pulse, systolic, diastolic, spo2, trend, arrest? }
+    GetVitals = function(src)
+        if not isStarted() then return nil end
+        local ok, result = pcall(function() return res:GetVitals(src) end)
+        return ok and result or nil
+    end,
+
+    ---@param src number
     ---@param typeOrCategory string
     ---@return boolean
     HasCondition = function(src, typeOrCategory)

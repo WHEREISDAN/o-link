@@ -301,7 +301,7 @@ stub('needs', {
 
 stub('medical', {
     'GetResourceName',
-    'GetRecord', 'GetBloodType', 'GetDNA', 'GetImmunity', 'GetConditions', 'HasCondition',
+    'GetRecord', 'GetBloodType', 'GetDNA', 'GetImmunity', 'GetConditions', 'GetVitals', 'HasCondition',
     'AddCondition', 'TreatCondition', 'RemoveCondition', 'GetOfflineRecord',
 }, {
     GetResourceName = 'none',
