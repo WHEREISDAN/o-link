@@ -265,9 +265,10 @@ local function startLoop(kind, o)
     local phase = 'aim' -- 'aim' | 'gizmo'
     local NUDGE_STEPS = { 0.01, 0.05, 0.25, 1.0 }
     local stepIdx = 2
-    -- Standing peds sit 1.0 above the ground hit; anim previews (lying/seated
-    -- poses) override this so the preview matches where the pose will play.
-    local zOffset = (kind == 'ped') and (tonumber(o.zOffset) or (previewAnimMode and 0.0 or 1.0)) or 0.0
+    -- Standing peds rest their feet on the ground hit (SetEntityCoords handles the
+    -- body offset), so the default lift is 0. Consumers can still raise or lower the
+    -- preview with o.zOffset; anim previews measure the posed skeleton instead.
+    local zOffset = (kind == 'ped') and (tonumber(o.zOffset) or 0.0) or 0.0
     -- Screen quads are resizable while aiming (arrow keys) and via the gizmo's
     -- gold handles; the chosen size is returned so consumers can store it per
     -- placement.
@@ -420,8 +421,16 @@ local function startLoop(kind, o)
                     if lowest then
                         pz = ec.z + (cur.z + zOffset + BONE_SKIN - lowest)
                     end
+                    -- The bone math above produces an absolute ENTITY-ORIGIN z, so it
+                    -- must be applied without the ground offset SetEntityCoords adds.
+                    SetEntityCoordsNoOffset(previewEntity, px, py, pz)
+                else
+                    -- SetEntityCoords (NOT NoOffset) rests a ped's FEET on z. NoOffset
+                    -- puts the origin — the waist — on z, burying the ped to the waist,
+                    -- which no per-model constant can correct for. Ported from
+                    -- scenedirector's ghost_placer, which had the same bug.
+                    SetEntityCoords(previewEntity, px, py, pz, false, false, false, false)
                 end
-                SetEntityCoordsNoOffset(previewEntity, px, py, pz)
                 if kind ~= 'coord' then
                     SetEntityHeading(previewEntity, currentHeading)
                 end
@@ -433,7 +442,9 @@ local function startLoop(kind, o)
                 -- derived from the panel, not the other way around.
                 drawGhostQuad(vector3(cur.x, cur.y, cur.z), currentHeading, currentPitch, scrW, scrH)
             else
-                local groundZ = cur.z - 0.98
+                -- cur IS the aimed surface point; lift the disc a hair so it doesn't
+                -- z-fight the floor it's drawn on.
+                local groundZ = cur.z + 0.02
                 DrawMarker(
                     1, cur.x, cur.y, groundZ, 0, 0, 0, 0, 0, 0,
                     kind == 'vehicle' and 2.4 or 0.9,
@@ -564,8 +575,10 @@ end
 ---clip's authored root offset. The returned coords are then the compensated
 ---ENTITY position/heading: replaying the same clip via TaskPlayAnim +
 ---SetEntityCoordsNoOffset at exactly those coords reproduces what the admin
----saw. Without an anim the returned coords are the raw surface hit; o.zOffset
----overrides the preview lift (standing default 1.0, anim default 0.0).
+---saw. Without an anim the returned coords are the raw surface hit — the point
+---the ped's FEET rest on, so consumers spawn with CreatePed/SetEntityCoords at
+---that z and must NOT subtract a body-height fudge. o.zOffset (default 0)
+---raises or lowers the preview off that surface.
 local function GhostPed(o)
     if active then return nil end
     o = o or {}
