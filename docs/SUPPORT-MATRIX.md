@@ -53,6 +53,7 @@ Direct `lib.addRadialItem(...)` calls are not intercepted.
 | `vehiclekey` | client | `cd_garage`, `f_realcarkeyssystem`, `jacksam`, `mk_vehiclekeys`, `mrnewbvehiclekeys`, `mVehicle`, `okokGarage`, `oxide-vehicles`, `qb-vehiclekeys`, `qbx_vehiclekeys`, `qs-vehiclekeys`, `renewed-vehiclekeys`, `t1ger_keys`, `wasabi_carlock` |
 | `vehicleOwnership` | server | `esx_vehicleshop`, `oxide-vehicles`, `qb-garages`, `qbx_vehicles` |
 | `death` | server + client | `_default`, `es_extended`, `oxide-death`, `qb-core`, `qbx_core` (all emit `olink:*:playerDied/Downed/Revived/Respawned/playerDeathStateChanged` — see API.md for per-provider caveats) |
+| `medical` | server + client | `oxide-medical` |
 | `needs` | server | `es_extended`, `oxide-needs`, `qb-core`, `qbx_core` |
 | `gang` | server + client | `es_extended`, `oxide-core`, `qb-core`, `qbx_core` |
 

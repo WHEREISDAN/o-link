@@ -128,8 +128,11 @@ o-link/
 |-- config.lua
 |-- core/
 |   |-- shared.lua
+|   |-- defaults_server.lua
+|   |-- defaults_client.lua
 |   |-- loader_server.lua
-|   `-- loader_client.lua
+|   |-- loader_client.lua
+|   `-- version_check.lua
 |-- lifecycle/
 |   |-- oxide-core/
 |   |-- qb-core/
@@ -139,8 +142,10 @@ o-link/
     |-- callback/
     |-- framework/
     |-- character/
+    |-- multichar/
     |-- job/
     |-- money/
+    |-- license/
     |-- inventory/
     |-- vehicles/
     |-- notify/
@@ -152,7 +157,9 @@ o-link/
     |-- weather/
     |-- input/
     |-- menu/
+    |-- radial/
     |-- zones/
+    |-- placement/
     |-- entity/
     |-- banking/
     |-- phone/
@@ -164,8 +171,10 @@ o-link/
     |-- skills/
     |-- vehicleOwnership/
     |-- death/
+    |-- medical/
     |-- needs/
     |-- gang/
+    |-- logger/
     `-- jobcount/
 ```
 

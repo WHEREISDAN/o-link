@@ -52,7 +52,7 @@ olink.supports('vehicleproperties.GetVehicleProperties')
 | `GetIsPlayerLoaded(src)` | `src: number` | `boolean` | Whether the player currently has an active character/session |
 | `GetPlayers()` | | `number[]` | Online player source IDs |
 | `GetJobs()` | | `table[]` | Framework jobs list. Oxide currently returns `{}`. |
-| `IsAdmin(src)` | `src: number` | `boolean` | Binary admin check, identical on every framework: `IsPlayerAceAllowed(src, 'admin')` (the `admin` ace, granted via `add_ace group.admin admin allow`). Gate admin commands on this (registered non-restricted) — never `RegisterCommand(..., true)`. |
+| `IsAdmin(src)` | `src: number` | `boolean` | Binary admin check. Each framework adapter accepts the stock framework admin (QBCore/QBX: the `command` or `admin` ACE; ESX also honors `xPlayer.isAdmin()`) or the Oxide convention `admin` ACE (`add_ace group.admin admin allow`). Gate admin commands on this, registered non-restricted — never `RegisterCommand(..., true)`. |
 | `RegisterUsableItem(itemName, cb)` | `itemName: string, cb: function(src, itemData)` | `nil` | Register item use callback through the active framework |
 | `Logout(src)` | `src: number` | `boolean` | Trigger the framework-specific logout flow |
 | `ItemList()` | | `table` | Passthrough to the active inventory's item definitions |
@@ -506,6 +506,7 @@ These namespaces are present in the current implementation and load through the 
 | `skills` | server + client | 4 |
 | `vehicleOwnership` | server | 4 |
 | `death` | server + client | 4 |
+| `medical` | server + client | 1 |
 | `needs` | server | 4 |
 | `gang` | server + client | 4 |
 
