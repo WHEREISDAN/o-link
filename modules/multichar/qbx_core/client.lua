@@ -12,11 +12,15 @@ end
 -- server-side lib.callbacks not reachable from another server VM.
 
 lib.callback.register('o-link:multichar:qbx:create', function(payload)
-    if not isStarted() then return nil end
+    if not isStarted() then return { __err = 'qbx_core not started on client' } end
     local ok, result = pcall(function()
         return lib.callback.await('qbx_core:server:createCharacter', false, payload)
     end)
-    if not ok then return nil end
+    -- Surface the real failure instead of a bare nil: the caught error text
+    -- (e.g. ox_lib's "callback does not exist"), or qbx's silent nil-return
+    -- (its createCharacter rejects slot-limit/sanitize failures with no output).
+    if not ok then return { __err = tostring(result) } end
+    if result == nil then return { __err = 'qbx_core createCharacter returned nil (slot limit, rejected charinfo, or login failure)' } end
     return result
 end)
 

@@ -75,13 +75,20 @@ olink._register('multichar', {
             lastname    = data.lastName,
             birthdate   = data.dob,
             gender      = tonumber(data.gender) or 0,
-            nationality = data.nationality or '',
+            -- qbx_core main (post-1.23.0) sanitizes charinfo server-side and
+            -- silently rejects empty strings; the creator has no nationality
+            -- field, so fall back to qbx's own CheckPlayerData default.
+            nationality = (data.nationality ~= nil and data.nationality ~= ''
+                and data.nationality) or 'USA',
         }
 
         local ok, newData = pcall(function()
             return lib.callback.await('o-link:multichar:qbx:create', src, payload)
         end)
         if not ok or not newData then return { ok = false, error = 'QBX createCharacter failed' } end
+        if newData.__err then
+            return { ok = false, error = ('QBX createCharacter failed: %s'):format(newData.__err) }
+        end
 
         -- Login only authenticates here. QBCore:Client:OnPlayerLoaded is fired
         -- by the client onboard step (OnboardNewCharacter), mirroring native
