@@ -155,6 +155,14 @@ stub('vehicleOwnership', {
     TransferOwnership = false,
 })
 
+stub('vehiclekey', {
+    'Give', 'Remove', 'GetResourceName',
+}, {
+    Give = false,
+    Remove = false,
+    GetResourceName = 'none',
+})
+
 stub('banking', {
     'AddAccountMoney', 'GetAccountMoney', 'GetManagmentName', 'GetResourceName',
     'RemoveAccountMoney',

@@ -5,7 +5,7 @@ lua54 'yes'
 name 'o-link'
 author 'Oxide Studios'
 description 'Oxide Studios framework bridge'
-version '1.6.2'
+version '1.6.3'
 
 escrow_ignore {
     'config.lua',
@@ -44,6 +44,7 @@ server_scripts {
     'modules/inventory/_shims_server.lua',
     'modules/vehicles/**/server.lua',
     'modules/vehicles/server.lua',
+    'modules/vehiclekey/**/server.lua',
     'modules/notify/server.lua',
     'modules/entity/server.lua',
     'modules/banking/**/server.lua',
