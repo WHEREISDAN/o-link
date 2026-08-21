@@ -93,4 +93,37 @@ olink._register('gang', {
         local ok, result = pcall(function() return res:GetTreasury(gangName) end)
         return ok and tonumber(result) or 0
     end,
+
+    ---@return table[] { id, name, label, color, center, owner?, contested, contestEndsAt?, modifiers?, standings }
+    GetTerritories = function()
+        if not isStarted() then return {} end
+        local ok, result = pcall(function() return res:GetTerritories() end)
+        return ok and result or {}
+    end,
+
+    ---@param x number|table coords table or x
+    ---@return table|nil territory at the point, with owner + modifiers
+    GetTerritoryAt = function(x, y, z)
+        if not isStarted() then return nil end
+        local ok, result = pcall(function() return res:GetTerritoryAt(x, y, z) end)
+        return ok and result or nil
+    end,
+
+    ---@param territoryId number
+    ---@return string|nil owning gang name
+    GetTerritoryOwner = function(territoryId)
+        if not isStarted() then return nil end
+        local ok, result = pcall(function() return res:GetTerritoryOwner(territoryId) end)
+        return ok and result or nil
+    end,
+
+    ---@param src number the seller
+    ---@param coords table where the sale happened
+    ---@param value number sale value in dollars
+    ---@return number influence applied (0 when capped, gangless or outside territories)
+    ReportDrugSale = function(src, coords, value)
+        if not isStarted() then return 0 end
+        local ok, result = pcall(function() return res:ReportDrugSale(src, coords, value) end)
+        return ok and tonumber(result) or 0
+    end,
 }, RESOURCE)

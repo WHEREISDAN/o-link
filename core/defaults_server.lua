@@ -326,6 +326,7 @@ stub('gang', {
     'Get', 'Set', 'DoesPlayerHaveGang',
     'GetAll', 'GetMembers', 'GetGrades', 'HasPermission',
     'AddToTreasury', 'RemoveFromTreasury', 'GetTreasury',
+    'GetTerritories', 'GetTerritoryAt', 'GetTerritoryOwner', 'ReportDrugSale',
 }, {
     GetResourceName = 'none',
     Set = false,
@@ -337,6 +338,8 @@ stub('gang', {
     AddToTreasury = false,
     RemoveFromTreasury = false,
     GetTreasury = 0,
+    GetTerritories = function() return {} end,
+    ReportDrugSale = 0,
 })
 
 stub('helptext', {

@@ -524,6 +524,10 @@ These namespaces are present in the current implementation and load through the 
 | `AddToTreasury(gangName, amount, description?)` | | `boolean` | Credit a gang treasury (oxide-gangs only) |
 | `RemoveFromTreasury(gangName, amount, description?)` | | `boolean` | Debit a gang treasury; fails on insufficient funds (oxide-gangs only) |
 | `GetTreasury(gangName)` | `gangName: string` | `number` | Current treasury balance (oxide-gangs only; `0` elsewhere) |
+| `GetTerritories()` | | `table[]` | Enabled territories `{ id, name, label, color, center, owner = {name,label,color}\|nil, contested, contestEndsAt (epoch sec)\|nil, modifiers\|nil, standings }` (oxide-gangs only; `{}` elsewhere) |
+| `GetTerritoryAt(coords)` / `GetTerritoryAt(x, y, z)` | | `table\|nil` | Territory containing the point, same shape as above (`nil` outside every zone or without oxide-gangs). `modifiers` keys `yield`/`growth`/`price`/`buyerDensity` each default to `1.0` when absent |
+| `GetTerritoryOwner(territoryId)` | `territoryId: number` | `string\|nil` | Owning gang name (oxide-gangs only) |
+| `ReportDrugSale(src, coords, value)` | `src: number, coords: table, value: number` | `number` | Report a completed NPC drug sale; the seller's gang earns territory influence where it happened. Returns influence applied (`0` when capped, gangless, outside zones, or without oxide-gangs). Fire-and-forget |
 
 The extended functions are provided by the `oxide-gangs` registry when installed; on other backends the stubs return the defaults noted above. Because stubs are callable, gate on the return value (or `olink.gang.GetResourceName() == 'oxide-gangs'`), not on `olink.supports('gang')`.
 
