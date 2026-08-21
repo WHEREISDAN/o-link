@@ -508,15 +508,33 @@ These namespaces are present in the current implementation and load through the 
 | `death` | server + client | 4 |
 | `medical` | server + client | 1 |
 | `needs` | server | 4 |
-| `gang` | server + client | 4 |
+| `gang` | server + client | 12 |
 
 **Gang helpers (server)**
 
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
-| `Get(src)` | `src: number` | `table\|nil` | Normalized gang data |
+| `Get(src)` | `src: number` | `table\|nil` | Normalized gang data `{ name, label, grade, gradeLabel, rank }` |
 | `Set(src, name, label?, gradeName?, gradeLabel?, gradeRank?)` | | `boolean` | Assign gang (or `nil`/`'none'` to clear) |
 | `DoesPlayerHaveGang(src, gangName, minGrade?)` | `src: number, gangName: string, minGrade: number\|nil` | `boolean` | True if player belongs to gang (optionally at or above the given grade) |
+| `GetAll()` | | `table[]` | All gangs `{ id, name, label, color, motto, memberCount }` (oxide-gangs only; `{}` elsewhere) |
+| `GetMembers(gangName)` | `gangName: string` | `table[]` | Members `{ charId, name, rank, gradeLabel, online }` (oxide-gangs only) |
+| `GetGrades(gangName)` | `gangName: string` | `table[]` | Grades `{ rank, name, label, isBoss, permissions }` (oxide-gangs only) |
+| `HasPermission(src, perm)` | `src: number, perm: string` | `boolean` | Whether the player's gang grade holds a permission flag (oxide-gangs only) |
+| `AddToTreasury(gangName, amount, description?)` | | `boolean` | Credit a gang treasury (oxide-gangs only) |
+| `RemoveFromTreasury(gangName, amount, description?)` | | `boolean` | Debit a gang treasury; fails on insufficient funds (oxide-gangs only) |
+| `GetTreasury(gangName)` | `gangName: string` | `number` | Current treasury balance (oxide-gangs only; `0` elsewhere) |
+
+The extended functions are provided by the `oxide-gangs` registry when installed; on other backends the stubs return the defaults noted above. Because stubs are callable, gate on the return value (or `olink.gang.GetResourceName() == 'oxide-gangs'`), not on `olink.supports('gang')`.
+
+Client side additionally exposes `Get()` (reads the server-written `oxide:gang` statebag), `GetAll()`, `GetGrades(gangName)`, and `HasPermission(perm)`.
+
+**Gang lifecycle events (oxide-gangs)**
+
+| Event | Side | Payload | Description |
+|-------|------|---------|-------------|
+| `olink:server:gangChanged` | server | `(src, gangName\|nil)` | Player joined, left, or changed rank in a gang (`nil` = now gangless). Treat handlers as idempotent. |
+| `olink:client:gangChanged` | client | `(gangData\|nil)` | Local player's gang changed; full statebag payload |
 
 **Clothing helpers (server, adapter-dependent)**
 

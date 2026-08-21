@@ -239,7 +239,13 @@ stub('death', {
 })
 
 stub('gang', {
-    'Get',
+    'GetResourceName',
+    'Get', 'GetAll', 'GetGrades', 'HasPermission',
+}, {
+    GetResourceName = 'none',
+    GetAll = function() return {} end,
+    GetGrades = function() return {} end,
+    HasPermission = false,
 })
 
 stub('medical', {

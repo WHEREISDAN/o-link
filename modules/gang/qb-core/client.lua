@@ -1,4 +1,5 @@
 if not olink._guardImpl('Gang', 'qb-core', 'qb-core') then return end
+if not olink._hasOverride('Gang') and GetResourceState('oxide-gangs') ~= 'missing' then return end
 if not olink._hasOverride('Gang') and GetResourceState('qbx_core') == 'started' then return end
 if not olink._hasOverride('Gang') and GetResourceState('oxide-core') == 'started' then return end
 

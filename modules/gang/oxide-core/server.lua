@@ -1,4 +1,5 @@
 if not olink._guardImpl('Gang', 'oxide-core', 'oxide-core') then return end
+if not olink._hasOverride('Gang') and GetResourceState('oxide-gangs') ~= 'missing' then return end
 
 local Oxide = exports['oxide-core']:Core()
 

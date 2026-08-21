@@ -322,10 +322,21 @@ stub('medical', {
 })
 
 stub('gang', {
+    'GetResourceName',
     'Get', 'Set', 'DoesPlayerHaveGang',
+    'GetAll', 'GetMembers', 'GetGrades', 'HasPermission',
+    'AddToTreasury', 'RemoveFromTreasury', 'GetTreasury',
 }, {
+    GetResourceName = 'none',
     Set = false,
     DoesPlayerHaveGang = false,
+    GetAll = function() return {} end,
+    GetMembers = function() return {} end,
+    GetGrades = function() return {} end,
+    HasPermission = false,
+    AddToTreasury = false,
+    RemoveFromTreasury = false,
+    GetTreasury = 0,
 })
 
 stub('helptext', {
