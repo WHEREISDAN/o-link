@@ -126,4 +126,11 @@ olink._register('gang', {
         local ok, result = pcall(function() return res:ReportDrugSale(src, coords, value) end)
         return ok and tonumber(result) or 0
     end,
+
+    ---@return table[] active wars + recent history: { id, status, attacker { id, label, color }, defender { ... }, stakes, startedAt, endsAt, endedAt?, endedReason?, winner?, scores { attacker, defender } }
+    GetWars = function()
+        if not isStarted() then return {} end
+        local ok, result = pcall(function() return res:GetWars() end)
+        return ok and result or {}
+    end,
 }, RESOURCE)
