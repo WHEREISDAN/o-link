@@ -629,6 +629,15 @@ Categories are free-form strings; the Discord sink uses them to choose a webhook
 
 `olink:server:dutyChanged` may fire more than once for a single change on some frameworks (qb-compat event echoes), and on ESX a duty flip also fires `olink:server:jobChanged` (duty is emulated via `setJob`). Treat handlers as idempotent. `jobName` can be `nil` if the job could not be resolved at fire time.
 
+## Death helpers (client)
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `IsPlayerDowned()` | | `boolean` | Local player is in the downed/laststand state |
+| `IsPlayerDead()` | | `boolean` | Local player is fully dead |
+| `GetDeathState()` | | `table\|nil` | Provider-shaped death state snapshot |
+| `SetSuppressed(value)` | `value: boolean` | `boolean` | Suspend/resume the provider's local death detection while a tool manipulates the player ped (e.g. the scene director possessing an actor swaps the player model mid-session). Returns `true` only when the provider honoured it — currently oxide-death only; every other provider returns `false`, so callers must keep their own backstop (invincibility) regardless |
+
 ## Death lifecycle events
 
 Normalized death events emitted by the death adapters. Granular events fire alongside the canonical `playerDeathStateChanged` so consumers can subscribe to whichever fits.

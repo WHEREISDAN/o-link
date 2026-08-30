@@ -15,6 +15,16 @@ olink._register('death', {
     GetDeathState = function()
         return exports['oxide-death']:GetLocalDeathState()
     end,
+
+    ---Suspend/resume the local death detection (scene/admin tools that manipulate
+    ---the player ped mid-session). Returns true when the provider honoured it —
+    ---callers must treat false as "not supported" and rely on their own backstop
+    ---(e.g. invincibility).
+    ---@param value boolean
+    ---@return boolean
+    SetSuppressed = function(value)
+        return exports['oxide-death']:SetDeathSuppressed(value == true) == true
+    end,
 })
 
 RegisterNetEvent('oxide:death:stateChanged', function(_, oldState, newState, deathData)

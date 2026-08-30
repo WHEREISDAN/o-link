@@ -232,10 +232,11 @@ stub('skills', {
 })
 
 stub('death', {
-    'GetDeathState', 'IsPlayerDead', 'IsPlayerDowned',
+    'GetDeathState', 'IsPlayerDead', 'IsPlayerDowned', 'SetSuppressed',
 }, {
     IsPlayerDead = false,
     IsPlayerDowned = false,
+    SetSuppressed = false,
 })
 
 stub('gang', {
