@@ -138,7 +138,7 @@ stub('zones', {
 })
 
 stub('placement', {
-    'Coord', 'GhostPed', 'GhostVehicle', 'GhostScreen', 'Polygon', 'IsActive', 'Cancel',
+    'Coord', 'Entity', 'GhostPed', 'GhostVehicle', 'GhostScreen', 'Polygon', 'IsActive', 'Cancel',
     'SetMarkers', 'ClearMarkers',
     'CreateScreen', 'SendScreenMessage', 'DestroyScreen', 'ClearScreens',
 }, {

@@ -155,6 +155,19 @@ local function unloadModel()
     end
 end
 
+-- Entity-picker outline target; cleared through resolve() so external Cancel
+-- and resource stops never leave a lingering outline on a world entity.
+local outlinedEntity = nil
+
+local function clearOutline()
+    if outlinedEntity then
+        if DoesEntityExist(outlinedEntity) then
+            SetEntityDrawOutline(outlinedEntity, false)
+        end
+        outlinedEntity = nil
+    end
+end
+
 local function destroyPreview()
     previewAnimMode = false
     if previewEntity and DoesEntityExist(previewEntity) then
@@ -196,11 +209,11 @@ local function raycastFromCamera()
     local endPos = camCoord + fwd * RAYCAST_DIST
 
     local handle = StartShapeTestRay(camCoord.x, camCoord.y, camCoord.z, endPos.x, endPos.y, endPos.z, -1, PlayerPedId(), 0)
-    local _, hit, hitCoords = GetShapeTestResult(handle)
+    local _, hit, hitCoords, _, hitEntity = GetShapeTestResult(handle)
     if hit == 1 or hit == true then
-        return true, hitCoords
+        return true, hitCoords, hitEntity
     end
-    return false, endPos
+    return false, endPos, nil
 end
 
 local function resolve(result)
@@ -214,6 +227,7 @@ local function resolve(result)
         PlacementGizmo.Cancel()
     end
     destroyPreview()
+    clearOutline()
     unloadModel()
     local p = currentPromise
     currentPromise = nil
@@ -441,15 +455,23 @@ local function startLoop(kind, o)
                 -- screen should BE); no ground marker — the anchor point is
                 -- derived from the panel, not the other way around.
                 drawGhostQuad(vector3(cur.x, cur.y, cur.z), currentHeading, currentPitch, scrW, scrH)
-            else
-                -- cur IS the aimed surface point; lift the disc a hair so it doesn't
-                -- z-fight the floor it's drawn on.
+            elseif kind == 'coord' then
+                -- Translucent sphere + bright center dot on the aimed point — a
+                -- flat disc reads as a floor decal and vanishes against walls,
+                -- props, and slopes.
+                DrawMarker(28, cur.x, cur.y, cur.z, 0, 0, 0, 0, 0, 0,
+                    0.5, 0.5, 0.5, MARKER_R, MARKER_G, MARKER_B, 90, false, false, 2, false, nil, nil, false)
+                DrawMarker(28, cur.x, cur.y, cur.z, 0, 0, 0, 0, 0, 0,
+                    0.1, 0.1, 0.1, MARKER_R, MARKER_G, MARKER_B, 200, false, false, 2, false, nil, nil, false)
+            elseif kind == 'ped' then
+                -- Ground ring under the ghost ped; lift it a hair so it
+                -- doesn't z-fight the floor it's drawn on. Vehicle previews
+                -- draw nothing extra — the ghost is the marker.
                 local groundZ = cur.z + 0.02
                 DrawMarker(
                     1, cur.x, cur.y, groundZ, 0, 0, 0, 0, 0, 0,
-                    kind == 'vehicle' and 2.4 or 0.9,
-                    kind == 'vehicle' and 5.2 or 0.9,
-                    0.08, MARKER_R, MARKER_G, MARKER_B, 130, false, false, 2, false, nil, nil, false
+                    0.9, 0.9, 0.08, MARKER_R, MARKER_G, MARKER_B, 130,
+                    false, false, 2, false, nil, nil, false
                 )
             end
 
@@ -564,6 +586,84 @@ local function Coord(o)
     active = true
     currentPromise = promise.new()
     startLoop('coord', o)
+    return Citizen.Await(currentPromise)
+end
+
+---Raycast entity picker: the entity under the crosshair highlights with an
+---outline and LMB snaps to its center. Returns { x, y, z, w } — the entity's
+---origin and heading — or nil. For points that belong to a prop/ped/vehicle
+---already placed in the world (stashes, doors, machines): the stored point
+---lands exactly on the entity no matter where the ray grazed it.
+local function Entity()
+    if active then return nil end
+    active = true
+    currentPromise = promise.new()
+
+    pushHints({
+        icon = 'cube',
+        label = 'Entity',
+        phase = 'Aim',
+        lines = {
+            { { key = 'LMB', desc = 'select entity', tone = 'green' } },
+            { { key = 'RMB / ESC', desc = 'cancel', tone = 'neutral' } },
+        },
+    })
+
+    CreateThread(function()
+        while active do
+            DisableControlAction(0, 24, true)
+            DisableControlAction(0, 25, true)
+            DisableControlAction(0, 202, true)
+            DisablePlayerFiring(PlayerId(), true)
+
+            local hit, hitCoords, hitEntity = raycastFromCamera()
+            local target, targetCoords = nil, nil
+            if hit and hitEntity and hitEntity ~= 0 and hitEntity ~= PlayerPedId()
+                and DoesEntityExist(hitEntity) then
+                target = hitEntity
+                targetCoords = GetEntityCoords(hitEntity)
+            end
+
+            if outlinedEntity ~= target then
+                clearOutline()
+                if target then
+                    SetEntityDrawOutline(target, true)
+                    SetEntityDrawOutlineColor(MARKER_R, MARKER_G, MARKER_B, 255)
+                    SetEntityDrawOutlineShader(1)
+                    outlinedEntity = target
+                end
+            end
+
+            if target then
+                DrawMarker(28, targetCoords.x, targetCoords.y, targetCoords.z, 0, 0, 0, 0, 0, 0,
+                    0.15, 0.15, 0.15, MARKER_R, MARKER_G, MARKER_B, 200, false, false, 2, false, nil, nil, false)
+            elseif hit then
+                DrawMarker(28, hitCoords.x, hitCoords.y, hitCoords.z, 0, 0, 0, 0, 0, 0,
+                    0.1, 0.1, 0.1, MARKER_R, MARKER_G, MARKER_B, 120, false, false, 2, false, nil, nil, false)
+            end
+
+            if target and (IsDisabledControlJustPressed(0, 24) or IsControlJustPressed(0, 24)) then
+                local heading = GetEntityHeading(target)
+                resolve({
+                    x = tonumber(('%.4f'):format(targetCoords.x)) + 0.0,
+                    y = tonumber(('%.4f'):format(targetCoords.y)) + 0.0,
+                    z = tonumber(('%.4f'):format(targetCoords.z)) + 0.0,
+                    w = tonumber(('%.2f'):format(heading)) + 0.0,
+                })
+                return
+            end
+
+            if IsDisabledControlJustPressed(0, 25) or IsControlJustPressed(0, 25)
+                or IsDisabledControlJustPressed(0, 200) or IsControlJustPressed(0, 200)
+                or IsDisabledControlJustPressed(0, 202) then
+                resolve(nil)
+                return
+            end
+
+            Wait(0)
+        end
+    end)
+
     return Citizen.Await(currentPromise)
 end
 
@@ -1186,6 +1286,7 @@ end
 
 olink._register('placement', {
     Coord = Coord,
+    Entity = Entity,
     GhostPed = GhostPed,
     GhostVehicle = GhostVehicle,
     GhostScreen = GhostScreen,
