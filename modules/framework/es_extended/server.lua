@@ -51,11 +51,28 @@ olink._register('framework', {
     ---@param itemName string
     ---@param cb function(source, itemData)
     RegisterUsableItem = function(itemName, cb)
+        -- Stock ESX invokes the callback as (source, itemName) with a STRING
+        -- second arg; inventory bridges may pass an item table in either
+        -- position. Normalise into a fresh table so the string is never
+        -- indexed and marshalled args are never mutated.
         ESX.RegisterUsableItem(itemName, function(src, item, itemData)
-            itemData = itemData or item or {}
-            itemData.metadata = itemData.metadata or itemData.info or {}
-            itemData.slot = itemData.id or itemData.slot
-            cb(src, itemData)
+            local raw
+            if type(itemData) == 'table' then
+                raw = itemData
+            elseif type(item) == 'table' then
+                raw = item
+            end
+
+            local data = {}
+            if raw then
+                for k, v in pairs(raw) do data[k] = v end
+            end
+            data.name = data.name or (type(item) == 'string' and item) or itemName
+            data.metadata = type(data.metadata) == 'table' and data.metadata
+                or (type(data.info) == 'table' and data.info) or {}
+            data.info = type(data.info) == 'table' and data.info or data.metadata
+            data.slot = data.id or data.slot
+            cb(src, data)
         end)
     end,
 
