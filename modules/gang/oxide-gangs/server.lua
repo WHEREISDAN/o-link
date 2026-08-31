@@ -21,6 +21,24 @@ olink._register('gang', {
         return ok and result or nil
     end,
 
+    ---Char-id-keyed lookup — works for offline characters.
+    ---@param charId string
+    ---@return table|nil { name, label, grade, gradeLabel, rank, isBoss, charId, memberName, online, source? }
+    GetMemberByCharId = function(charId)
+        if not isStarted() then return nil end
+        local ok, result = pcall(function() return res:GetMemberByCharId(charId) end)
+        return ok and result or nil
+    end,
+
+    ---@param src number
+    ---@param gangName string|nil nil = member of any gang
+    ---@return boolean
+    IsGangMember = function(src, gangName)
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:IsGangMember(src, gangName) end)
+        return ok and result == true
+    end,
+
     ---@param src number
     ---@param gangName string|nil pass nil to remove the player from their gang
     ---@param gangLabel string|nil
@@ -127,10 +145,31 @@ olink._register('gang', {
         return ok and tonumber(result) or 0
     end,
 
+    ---Generic influence report for third-party activity scripts. All external
+    ---reports share the 'external' hourly cap (Territory settings).
+    ---@param src number the acting member
+    ---@param activityType string log label, e.g. 'robbery'
+    ---@param coords table where the activity happened
+    ---@param amount number influence to report
+    ---@return number influence applied (0 when capped, gangless or outside territories)
+    ReportActivity = function(src, activityType, coords, amount)
+        if not isStarted() then return 0 end
+        local ok, result = pcall(function() return res:ReportActivity(src, activityType, coords, amount) end)
+        return ok and tonumber(result) or 0
+    end,
+
     ---@return table[] active wars + recent history: { id, status, attacker { id, label, color }, defender { ... }, stakes, startedAt, endsAt, endedAt?, endedReason?, winner?, scores { attacker, defender } }
     GetWars = function()
         if not isStarted() then return {} end
         local ok, result = pcall(function() return res:GetWars() end)
         return ok and result or {}
+    end,
+
+    ---@param gangName string
+    ---@return table|nil the gang's active war in the GetWars shape, or nil
+    GetActiveWar = function(gangName)
+        if not isStarted() then return nil end
+        local ok, result = pcall(function() return res:GetActiveWar(gangName) end)
+        return ok and result or nil
     end,
 }, RESOURCE)

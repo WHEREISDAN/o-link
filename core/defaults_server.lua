@@ -323,15 +323,17 @@ stub('medical', {
 
 stub('gang', {
     'GetResourceName',
-    'Get', 'Set', 'DoesPlayerHaveGang',
+    'Get', 'GetMemberByCharId', 'Set', 'DoesPlayerHaveGang', 'IsGangMember',
     'GetAll', 'GetMembers', 'GetGrades', 'HasPermission',
     'AddToTreasury', 'RemoveFromTreasury', 'GetTreasury',
-    'GetTerritories', 'GetTerritoryAt', 'GetTerritoryOwner', 'ReportDrugSale',
-    'GetWars',
+    'GetTerritories', 'GetTerritoryAt', 'GetTerritoryOwner',
+    'ReportDrugSale', 'ReportActivity',
+    'GetWars', 'GetActiveWar',
 }, {
     GetResourceName = 'none',
     Set = false,
     DoesPlayerHaveGang = false,
+    IsGangMember = false,
     GetAll = function() return {} end,
     GetMembers = function() return {} end,
     GetGrades = function() return {} end,
@@ -341,6 +343,7 @@ stub('gang', {
     GetTreasury = 0,
     GetTerritories = function() return {} end,
     ReportDrugSale = 0,
+    ReportActivity = 0,
     GetWars = function() return {} end,
 })
 
