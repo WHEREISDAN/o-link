@@ -27,7 +27,12 @@ olink._register('death', {
     end,
 })
 
-RegisterNetEvent('oxide:death:stateChanged', function(_, oldState, newState, deathData)
+-- TriggerClientEvent('oxide:death:stateChanged', src, oldState, newState, data)
+-- arrives WITHOUT the src argument — only the server-side TriggerEvent carries
+-- it. The old `(_, oldState, newState, deathData)` signature here shifted every
+-- argument by one, so newState held the data TABLE and no state comparison
+-- below ever matched: none of the olink:client death events fired on oxide-death.
+RegisterNetEvent('oxide:death:stateChanged', function(oldState, newState, deathData)
     local data = {
         cause = deathData and deathData.causeOfDeath or nil,
         coords = deathData and deathData.position or nil,
