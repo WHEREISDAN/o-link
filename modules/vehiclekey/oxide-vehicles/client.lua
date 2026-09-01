@@ -17,7 +17,9 @@ olink._register('vehiclekey', {
         if not vehicle or not DoesEntityExist(vehicle) then return end
         if not isStarted() then return end
         plate = plate or GetVehicleNumberPlateText(vehicle)
-        Entity(vehicle).state:set('oxide:plate', plate, true)
+        -- The plate goes over the wire, not onto the bag: statebag strict mode
+        -- rejects a client writing a replicated bag on an entity it does not
+        -- own, and oxide:plate is server-authoritative by convention.
         local model = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle))
         local netId = NetworkGetNetworkIdFromEntity(vehicle)
         TriggerServerEvent('oxide:vehicles:bridgeGiveKeys', netId, plate, model)
