@@ -187,7 +187,7 @@ olink._register('inventory', {
     AddTrunkItems = function(identifier, items)
         if type(items) ~= 'table' then return false end
         for _, v in pairs(items) do
-            tgiann:AddItemToSecondaryInventory('trunk', identifier, v.item, v.count or v.amount, nil, v.metadata or v.info)
+            tgiann:AddItemToSecondaryInventory('trunk', identifier, v.item or v.name, v.count or v.amount, nil, v.metadata or v.info)
         end
         return true
     end,

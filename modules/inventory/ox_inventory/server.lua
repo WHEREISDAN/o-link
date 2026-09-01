@@ -185,28 +185,47 @@ olink._register('inventory', {
         return success == true
     end,
 
-    ---@param id string
-    ---@param _type string|nil unused
+    -- With _type 'trunk' or 'glovebox', `id` is the plate: ox derives the
+    -- inventory id by prefix and parses the plate back out as id:sub(6), so
+    -- both prefixes are exactly five characters and carry no separator.
+    ---@param id string stash id, or the plate when _type is trunk/glovebox
+    ---@param _type string|nil 'stash', 'trunk', 'glovebox'
     ---@return boolean
     ClearStash = function(id, _type)
-        ox_inventory:ClearInventory(tostring(id))
+        if type(id) ~= 'string' then return false end
+        if _type == 'trunk' then
+            id = ('trunk%s'):format(id)
+        elseif _type == 'glovebox' then
+            id = ('glove%s'):format(id)
+        end
+        ox_inventory:ClearInventory(id)
         return true
     end,
 
-    ---@param identifier string plate or trunk identifier
-    ---@param items table[]
+    -- ox's native trunk id is 'trunk'..plate with no separator -- it parses the
+    -- plate back out as id:sub(6). A RegisterStash'd 'trunk_<plate>' is a
+    -- separate stash-typed inventory the trunk keybind never opens. ox creates
+    -- the real one lazily off the vehicle entity, so the vehicle must exist and
+    -- be network-owned when this runs; if it isn't, AddItem returns
+    -- 'invalid_inventory' and the false return lets the caller fall back.
+    ---@param identifier string plate
+    ---@param items table[] { name|item, count|amount, metadata|info }
     ---@return boolean
     AddTrunkItems = function(identifier, items)
-        local trunkId = ('trunk_%s'):format(tostring(identifier))
-        if not stashes[trunkId] then
-            stashes[trunkId] = true
-            ox_inventory:RegisterStash(trunkId, 'Vehicle Trunk', 50, 100000, nil)
+        if type(items) ~= 'table' then return false end
+        if #items == 0 then return true end
+
+        local trunkId = ('trunk%s'):format(tostring(identifier))
+        local added = false
+        for _, item in ipairs(items) do
+            local name = item.name or item.item
+            if name then
+                local ok = ox_inventory:AddItem(trunkId, name,
+                    item.count or item.amount or 1, item.metadata or item.info)
+                if ok == true then added = true end
+            end
         end
-        Wait(100)
-        for _, item in ipairs(items or {}) do
-            ox_inventory:AddItem(trunkId, item.name, item.count or item.amount or 1, item.metadata)
-        end
-        return true
+        return added
     end,
 
     ---@param oldPlate string

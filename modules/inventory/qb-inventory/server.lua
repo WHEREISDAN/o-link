@@ -212,7 +212,7 @@ olink._register('inventory', {
             end
             Wait(100)
             for i = 1, #items do
-                qbInventory:AddItem(trunkId, items[i].name, items[i].amount or items[i].count,
+                qbInventory:AddItem(trunkId, items[i].name or items[i].item, items[i].amount or items[i].count,
                     items[i].slot, items[i].info or items[i].metadata or {}, 'o-link: adding items to trunk')
             end
             return true

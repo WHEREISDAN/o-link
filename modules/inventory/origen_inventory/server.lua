@@ -165,7 +165,7 @@ olink._register('inventory', {
         local repack = {}
         for _, v in pairs(items) do
             repack[#repack + 1] = {
-                name     = v.item,
+                name     = v.item or v.name,
                 amount   = v.count or v.amount,
                 metadata = v.metadata or v.info or {},
             }

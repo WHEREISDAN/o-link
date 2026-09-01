@@ -262,22 +262,15 @@ olink._register('inventory', {
         return true
     end,
 
-    ---@param identifier string plate or trunk identifier
-    ---@param items table[]
+    -- Not supported. oxide-inventory keeps vehicle storage in its own
+    -- vehicle_storages / vehicle_storage_items tables (container id
+    -- 'trunk_<PLATE>', uppercased) and exposes no add-item entry point for it --
+    -- only GetVehicleStorageItems / UpdateVehicleStorage / DeleteVehicleStorage.
+    -- Writing to a RegisterStash'd container of the same name reported success
+    -- while landing items somewhere the trunk UI never reads, so this returns
+    -- false and lets the caller fall back until a native export exists.
     ---@return boolean
-    AddTrunkItems = function(identifier, items)
-        local trunkId = 'trunk_' .. tostring(identifier)
-        if not stashes[trunkId] then
-            stashes[trunkId] = true
-            GetInv().RegisterStash(trunkId, 'Vehicle Trunk', 50, 100000, nil)
-        end
-        Wait(100)
-        local inv = GetInv()
-        for _, item in ipairs(items or {}) do
-            inv.AddStashItem(trunkId, item.name, item.count or item.amount or 1, item.metadata)
-        end
-        return true
-    end,
+    AddTrunkItems = function() return false end,
 
     ---@param oldPlate string
     ---@param newPlate string

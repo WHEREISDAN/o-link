@@ -250,7 +250,7 @@ olink._register('inventory', {
         end
         Wait(100)
         for i = 1, #items do
-            ak47:AddItem(trunkId, items[i].name, items[i].amount or items[i].count,
+            ak47:AddItem(trunkId, items[i].name or items[i].item, items[i].amount or items[i].count,
                 items[i].slot, items[i].info or items[i].metadata or {})
         end
         return true
