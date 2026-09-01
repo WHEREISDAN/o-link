@@ -242,6 +242,20 @@ olink._register('inventory', {
     ---@param identifier string plate or trunk identifier
     ---@param items table[]
     ---@return boolean
+
+    ---@param identifier string plate
+    ---@return table[] items
+    GetTrunkItems = function(identifier)
+        local ok, inv = pcall(function()
+            return ak47:GetInventory('trunk-' .. tostring(identifier))
+        end)
+        if not ok or type(inv) ~= 'table' then return {} end
+        return inv.items or inv
+    end,
+
+    ---@param identifier string plate
+    ---@param items table[] { name|item, count|amount, metadata|info }
+    ---@return boolean
     AddTrunkItems = function(identifier, items)
         if type(items) ~= 'table' then return false end
         local trunkId = 'trunk-' .. identifier

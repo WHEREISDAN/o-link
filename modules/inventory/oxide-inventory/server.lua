@@ -253,8 +253,16 @@ olink._register('inventory', {
     ---@param id string
     ---@param _type string|nil unused
     ---@return boolean
+    -- With _type 'trunk' or 'glovebox', `id` is the plate: vehicle storage is a
+    -- different container namespace from stashes, so route it accordingly.
     ClearStash = function(id, _type)
         id = tostring(id)
+        if _type == 'trunk' or _type == 'glovebox' then
+            local inv = GetInv()
+            if not inv or not inv.ClearVehicleStorage then return false end
+            local ok, cleared = pcall(inv.ClearVehicleStorage, id, _type == 'glovebox' and 'glove' or 'trunk')
+            return ok and cleared == true
+        end
         local items = GetInv().GetStashItems(id)
         for _, v in ipairs(items or {}) do
             GetInv().RemoveStashItem(id, v.name, v.amount or v.count or 1)
@@ -262,15 +270,38 @@ olink._register('inventory', {
         return true
     end,
 
-    -- Not supported. oxide-inventory keeps vehicle storage in its own
-    -- vehicle_storages / vehicle_storage_items tables (container id
-    -- 'trunk_<PLATE>', uppercased) and exposes no add-item entry point for it --
-    -- only GetVehicleStorageItems / UpdateVehicleStorage / DeleteVehicleStorage.
-    -- Writing to a RegisterStash'd container of the same name reported success
-    -- while landing items somewhere the trunk UI never reads, so this returns
-    -- false and lets the caller fall back until a native export exists.
+    -- Writes into the native vehicle storage (vehicle_storages /
+    -- vehicle_storage_items), not a same-named stash -- those are separate
+    -- container namespaces and only the former is what the trunk UI reads.
+    ---@param identifier string plate
+    ---@param items table[] { name|item, count|amount, metadata|info }
     ---@return boolean
-    AddTrunkItems = function() return false end,
+
+    ---@param identifier string plate
+    ---@return table[] items
+    GetTrunkItems = function(identifier)
+        local inv = GetInv()
+        if not inv or not inv.GetVehicleStorageItems then return {} end
+        local ok, items = pcall(inv.GetVehicleStorageItems, tostring(identifier), 'trunk')
+        return (ok and type(items) == 'table') and items or {}
+    end,
+
+    -- Writes into the native vehicle storage (vehicle_storages /
+    -- vehicle_storage_items), not a same-named stash -- those are separate
+    -- container namespaces and only the former is what the trunk UI reads.
+    ---@param identifier string plate
+    ---@param items table[] { name|item, count|amount, metadata|info }
+    ---@return boolean
+    AddTrunkItems = function(identifier, items)
+        if type(items) ~= 'table' then return false end
+        if #items == 0 then return true end
+
+        local inv = GetInv()
+        if not inv or not inv.AddVehicleStorageItems then return false end
+
+        local ok, added = pcall(inv.AddVehicleStorageItems, tostring(identifier), 'trunk', items)
+        return ok and added == true
+    end,
 
     ---@param oldPlate string
     ---@param newPlate string

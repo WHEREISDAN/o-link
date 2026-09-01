@@ -211,6 +211,25 @@ olink._register('inventory', {
     ---@param identifier string plate
     ---@param items table[] { name|item, count|amount, metadata|info }
     ---@return boolean
+
+    ---@param identifier string plate
+    ---@return table[] items
+    GetTrunkItems = function(identifier)
+        local ok, items = pcall(function()
+            return ox_inventory:GetInventoryItems(('trunk%s'):format(tostring(identifier)))
+        end)
+        return (ok and type(items) == 'table') and items or {}
+    end,
+
+    -- ox's native trunk id is 'trunk'..plate with no separator -- it parses the
+    -- plate back out as id:sub(6). A RegisterStash'd 'trunk_<plate>' is a
+    -- separate stash-typed inventory the trunk keybind never opens. ox creates
+    -- the real one lazily off the vehicle entity, so the vehicle must exist and
+    -- be network-owned when this runs; if it isn't, AddItem returns
+    -- 'invalid_inventory' and the false return lets the caller fall back.
+    ---@param identifier string plate
+    ---@param items table[] { name|item, count|amount, metadata|info }
+    ---@return boolean
     AddTrunkItems = function(identifier, items)
         if type(items) ~= 'table' then return false end
         if #items == 0 then return true end

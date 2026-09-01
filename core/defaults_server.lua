@@ -88,7 +88,7 @@ stub('inventory', {
     'GetPlayerInventory', 'OpenPlayerInventory', 'RegisterStash', 'OpenStash',
     'GetItemInfo', 'GetImagePath', 'CanCarryItem', 'ClearStash', 'GetStashItems',
     'Items', 'OpenShop', 'RegisterShop', 'RemoveStashItem', 'AddStashItem',
-    'SetMetadata', 'UpdatePlate', 'AddTrunkItems', 'AddStashItems',
+    'SetMetadata', 'UpdatePlate', 'AddTrunkItems', 'GetTrunkItems', 'AddStashItems',
 }, {
     GetResourceName = 'none',
     AddStashItems = false,
@@ -111,6 +111,7 @@ stub('inventory', {
     SetMetadata = false,
     UpdatePlate = false,
     AddTrunkItems = false,
+    GetTrunkItems = function() return {} end,
 })
 
 stub('vehicles', {
