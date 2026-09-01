@@ -6,6 +6,22 @@ local ox_inventory = exports.ox_inventory
 
 local stashes = {}
 
+-- ox resolves a vehicle inventory through the entity. Given only a plate it
+-- scans world vehicles comparing GetVehicleNumberPlateText, which is unreliable
+-- server-side for entities created with CreateVehicleServerSetter
+-- (citizenfx/fivem#2838) -- a job fleet vehicle has its plate stamped by the
+-- client, so the scan never matches and the load fails. Passing the netid lets
+-- ox take the entity directly; Inventory() accepts this table form.
+---@param plate string
+---@param netId number|nil
+---@param kind string 'trunk'|'glove'
+---@return table|string
+local function vehicleInv(plate, netId, kind)
+    local id = ('%s%s'):format(kind, tostring(plate))
+    if type(netId) ~= 'number' or netId <= 0 then return id end
+    return { id = id, netid = netId, type = kind == 'glove' and 'glovebox' or 'trunk' }
+end
+
 olink._register('inventory', {
     ---@param src number
     ---@param item string
@@ -191,14 +207,13 @@ olink._register('inventory', {
     ---@param id string stash id, or the plate when _type is trunk/glovebox
     ---@param _type string|nil 'stash', 'trunk', 'glovebox'
     ---@return boolean
-    ClearStash = function(id, _type)
+    ClearStash = function(id, _type, netId)
         if type(id) ~= 'string' then return false end
-        if _type == 'trunk' then
-            id = ('trunk%s'):format(id)
-        elseif _type == 'glovebox' then
-            id = ('glove%s'):format(id)
+        local target = id
+        if _type == 'trunk' or _type == 'glovebox' then
+            target = vehicleInv(id, netId, _type == 'glovebox' and 'glove' or 'trunk')
         end
-        ox_inventory:ClearInventory(id)
+        ox_inventory:ClearInventory(target)
         return true
     end,
 
@@ -214,9 +229,9 @@ olink._register('inventory', {
 
     ---@param identifier string plate
     ---@return table[] items
-    GetTrunkItems = function(identifier)
+    GetTrunkItems = function(identifier, netId)
         local ok, items = pcall(function()
-            return ox_inventory:GetInventoryItems(('trunk%s'):format(tostring(identifier)))
+            return ox_inventory:GetInventoryItems(vehicleInv(identifier, netId, 'trunk'))
         end)
         return (ok and type(items) == 'table') and items or {}
     end,
@@ -230,11 +245,11 @@ olink._register('inventory', {
     ---@param identifier string plate
     ---@param items table[] { name|item, count|amount, metadata|info }
     ---@return boolean
-    AddTrunkItems = function(identifier, items)
+    AddTrunkItems = function(identifier, items, netId)
         if type(items) ~= 'table' then return false end
         if #items == 0 then return true end
 
-        local trunkId = ('trunk%s'):format(tostring(identifier))
+        local trunkId = vehicleInv(identifier, netId, 'trunk')
         local added = false
         for _, item in ipairs(items) do
             local name = item.name or item.item
