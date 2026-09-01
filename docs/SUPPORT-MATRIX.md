@@ -24,26 +24,37 @@ It lists implementation folders that exist today. It does not guarantee every im
 ### `inventory.AddTrunkItems` / `inventory.GetTrunkItems`
 
 Reading and writing a vehicle trunk is not uniform across inventories. Callers must
-gate on the **return value** — `olink.supports()` cannot be used here, because the
+gate on the **return value** -- `olink.supports()` cannot be used here, because the
 default stub is itself callable and would report the namespace as available.
 
 | Adapter | Write | Read | Container |
 |---------|-------|------|-----------|
-| `ox_inventory` | yes | yes | native trunk `trunk<plate>`, created lazily from the vehicle entity |
+| `ox_inventory` | yes | yes | native trunk `trunk<plate>`, resolved from the vehicle entity |
 | `oxide-inventory` | yes | yes | native vehicle storage (`vehicle_storages` / `vehicle_storage_items`) |
 | `qb-inventory` | yes | yes | `trunk-<plate>` (v2 `CreateInventory`, v1 `inventory:server:addTrunkItems`) |
 | `ak47_qb_inventory` | yes | yes | `trunk-<plate>` |
-| `tgiann-inventory` | yes | no | native secondary inventory `trunk` |
-| `origen_inventory` | yes (unverified) | no | stash `trunk_<plate>` |
-| `codem-inventory`, `core_inventory`, `hex_4_inventory`, `jpr-inventory`, `ps-inventory`, `qs-inventory`, `_default` | no | no | — |
+| `origen_inventory` | yes | yes | stash `trunk_<plate>` |
+| `tgiann-inventory` | yes | **no** | native secondary inventory `trunk` |
+| `codem-inventory`, `core_inventory`, `hex_4_inventory`, `jpr-inventory`, `ps-inventory`, `qs-inventory`, `_default` | no | no | -- |
 
-`AddTrunkItems` returns `false` where unsupported; `GetTrunkItems` returns `{}`. An empty
-read is therefore indistinguishable from an unsupported one — pair it with a write attempt
-rather than treating `{}` as "the trunk is empty" on an unknown inventory.
+**`GetTrunkItems` returns `nil` when it cannot read, never `{}`.** An empty table would
+be indistinguishable from an empty trunk, and a caller that persists whatever it reads
+would erase its own record the first time it ran against an inventory that cannot read.
+Treat a non-table return as "unknown", not as "empty".
 
-The `ox_inventory` path requires the vehicle to **exist and be network-owned** when
-called — ox resolves the trunk through the entity. Calling it against a vehicle that
-was just created server-side and has not streamed in to any client returns `false`.
+**Pass the netId whenever you have one.** `AddTrunkItems(plate, items, netId)`,
+`GetTrunkItems(plate, netId)` and `ClearStash(plate, 'trunk', netId)` all accept it.
+ox_inventory resolves a vehicle inventory through the entity, and with only a plate it
+scans world vehicles comparing `GetVehicleNumberPlateText` -- which is unreliable
+server-side for entities created with `CreateVehicleServerSetter`
+(citizenfx/fivem#2838). A job fleet vehicle has its plate stamped by the client, so
+that scan never matches and the call fails until someone opens the trunk in game.
+
+**Vehicles the framework does not own have no persistent trunk on ox_inventory.** It
+saves against the owned-vehicle row (`UPDATE player_vehicles SET trunk = ? WHERE id = ?`)
+using an id the framework supplies, and a job fleet vehicle has no such row -- so the
+write matches nothing and the read comes back empty. A resource that wants storage to
+survive on such a vehicle has to keep the contents itself and push them back on spawn.
 
 Item entries accept either key spelling: `name` or `item`, and `count` or `amount`.
 

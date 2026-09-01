@@ -111,7 +111,9 @@ stub('inventory', {
     SetMetadata = false,
     UpdatePlate = false,
     AddTrunkItems = false,
-    GetTrunkItems = function() return {} end,
+    -- nil, not {}: an empty table would be indistinguishable from an empty
+    -- trunk, and a caller that persists what it reads would erase its record.
+    GetTrunkItems = false,
 })
 
 stub('vehicles', {

@@ -155,6 +155,17 @@ olink._register('inventory', {
     ---@param identifier string plate or trunk identifier
     ---@param items table[]
     ---@return boolean
+    -- origen's "trunk" is a stash it registers, so it reads back as one.
+    ---@param identifier string plate
+    ---@return table[]|nil
+    GetTrunkItems = function(identifier)
+        local ok, items = pcall(function()
+            return origin:getInventory('trunk_' .. tostring(identifier), 'stash')
+        end)
+        if not ok or type(items) ~= 'table' then return nil end
+        return items.inventory or items
+    end,
+
     AddTrunkItems = function(identifier, items)
         if type(items) ~= 'table' then return false end
         local id = 'trunk_' .. identifier

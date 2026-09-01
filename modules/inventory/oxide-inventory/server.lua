@@ -283,7 +283,7 @@ olink._register('inventory', {
         local inv = GetInv()
         if not inv or not inv.GetVehicleStorageItems then return {} end
         local ok, items = pcall(inv.GetVehicleStorageItems, tostring(identifier), 'trunk')
-        return (ok and type(items) == 'table') and items or {}
+        return (ok and type(items) == 'table') and items or nil
     end,
 
     -- Writes into the native vehicle storage (vehicle_storages /

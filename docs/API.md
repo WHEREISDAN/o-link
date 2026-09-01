@@ -206,9 +206,9 @@ Storage:
 | `AddStashItem(id, item, count, metadata?)` | | `boolean` | Add one item to a stash |
 | `AddStashItems(id, items)` | `items: { item, count\|amount, metadata\|info }[]` | `boolean` | Add several |
 | `RemoveStashItem(id, item, count)` | | `boolean` | Remove from a stash |
-| `ClearStash(id, type?)` | `type?: 'stash'\|'trunk'\|'glovebox'` | `boolean` | Empty a container. With `'trunk'`/`'glovebox'`, `id` is the **plate** and the adapter derives the container id. |
-| `AddTrunkItems(plate, items)` | `items: { item, count\|amount, metadata\|info }[]` | `boolean` | Put items in a vehicle's trunk |
-| `GetTrunkItems(plate)` | `plate: string` | `table[]` | Read a vehicle trunk's contents |
+| `ClearStash(id, type?, netId?)` | `type?: 'stash'\|'trunk'\|'glovebox'` | `boolean` | Empty a container. With `'trunk'`/`'glovebox'`, `id` is the **plate** and the adapter derives the container id. |
+| `AddTrunkItems(plate, items, netId?)` | `items: { item, count\|amount, metadata\|info }[]` | `boolean` | Put items in a vehicle's trunk |
+| `GetTrunkItems(plate, netId?)` | `plate: string, netId?: number` | `table[]\|nil` | Read a trunk's contents. **`nil` when the inventory cannot read one** -- never `{}`, which would be indistinguishable from an empty trunk. |
 | `UpdatePlate(oldPlate, newPlate)` | | `boolean` | Move vehicle storage to a new plate |
 | `OpenShop(src, shopId)` / `RegisterShop(...)` | | `boolean` | Shop passthrough |
 
@@ -218,9 +218,11 @@ Storage:
 [SUPPORT-MATRIX.md](SUPPORT-MATRIX.md#inventoryaddtrunkitems). Gate on the **return value** —
 `olink.supports()` cannot be used here, because the fallback stub is itself callable.
 
-On `ox_inventory` the trunk is resolved through the vehicle **entity**, so the vehicle must
-exist and be network-owned when you call it; writing to a car that has just been created
-server-side and not yet streamed to anyone returns `false`.
+On `ox_inventory` the trunk is resolved through the vehicle **entity**, so **pass `netId`**
+whenever you have one. Without it ox scans world vehicles by plate, which fails for
+entities made with `CreateVehicleServerSetter`. ox also cannot persist a trunk for a
+vehicle the framework does not own -- see
+[SUPPORT-MATRIX.md](SUPPORT-MATRIX.md#inventoryaddtrunkitems--inventorygettrunkitems).
 
 Item entries accept either key spelling: `item` or `name`, and `count` or `amount`.
 

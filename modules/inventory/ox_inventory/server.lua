@@ -233,7 +233,7 @@ olink._register('inventory', {
         local ok, items = pcall(function()
             return ox_inventory:GetInventoryItems(vehicleInv(identifier, netId, 'trunk'))
         end)
-        return (ok and type(items) == 'table') and items or {}
+        return (ok and type(items) == 'table') and items or nil
     end,
 
     -- ox's native trunk id is 'trunk'..plate with no separator -- it parses the

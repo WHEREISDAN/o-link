@@ -249,7 +249,7 @@ olink._register('inventory', {
         local ok, inv = pcall(function()
             return ak47:GetInventory('trunk-' .. tostring(identifier))
         end)
-        if not ok or type(inv) ~= 'table' then return {} end
+        if not ok or type(inv) ~= 'table' then return nil end
         return inv.items or inv
     end,
 
