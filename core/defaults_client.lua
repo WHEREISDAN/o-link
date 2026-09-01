@@ -34,9 +34,11 @@ stub('multichar', {
 })
 
 stub('inventory', {
+    'GetResourceName',
     'GetPlayerInventory', 'GetItemCount', 'HasItem', 'GetItemInfo',
     'GetImagePath', 'Items',
 }, {
+    GetResourceName = 'none',
     GetPlayerInventory = function() return {} end,
     GetItemCount = 0,
     HasItem = false,

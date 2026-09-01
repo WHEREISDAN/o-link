@@ -83,12 +83,14 @@ stub('license', {
 })
 
 stub('inventory', {
+    'GetResourceName',
     'GetItemCount', 'HasItem', 'AddItem', 'RemoveItem', 'GetItemBySlot',
     'GetPlayerInventory', 'OpenPlayerInventory', 'RegisterStash', 'OpenStash',
     'GetItemInfo', 'GetImagePath', 'CanCarryItem', 'ClearStash', 'GetStashItems',
     'Items', 'OpenShop', 'RegisterShop', 'RemoveStashItem', 'AddStashItem',
     'SetMetadata', 'UpdatePlate', 'AddTrunkItems', 'AddStashItems',
 }, {
+    GetResourceName = 'none',
     AddStashItems = false,
     GetItemCount = 0,
     HasItem = false,

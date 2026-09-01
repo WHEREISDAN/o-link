@@ -1,15 +1,76 @@
 if not olink._guardImpl('Inventory', 'hex_4_inventory', 'hex_4_inventory') then return end
 if not olink._hasOverride('Inventory') and GetResourceState('oxide-inventory') == 'started' then return end
 
--- hex_4_inventory is a UI layer over the framework's own item store (its UI
--- renders ESX/QB player inventory data), so item mutations go through the
--- framework core. Hex's exports only cover plate changes and opening
--- arbitrary inventories; its AddItemToInventory/RemoveItemFromInventory
--- exports take undocumented playerObject/itemData tables and are not used.
-local hex = exports['hex_4_inventory']
+-- hex_4_inventory is a UI layer over the framework's own item store. Its ESX
+-- integration reads xPlayer.getInventory()/getLoadout() and writes through
+-- addInventoryItem/addWeapon (hex's own server/framework/esx.lua), so item and
+-- weapon mutations go through the framework core here too. Hex's exports only
+-- cover plate changes and opening arbitrary inventories.
+local RESOURCE = 'hex_4_inventory'
+local ICON_DIR = 'dist/img/icons'
+local FALLBACK_ICON = 'https://avatars.githubusercontent.com/u/47620135'
+local DEFAULT_AMMO = 30
+
+local hex = exports[RESOURCE]
 local ESX = GetResourceState('es_extended') == 'started' and exports['es_extended']:getSharedObject() or nil
 local QBCore = not ESX and GetResourceState('qb-core') == 'started' and exports['qb-core']:GetCoreObject() or nil
 local stashes = {}
+local weaponIndex
+local iconCache = {}
+
+---Weapons live in the ESX loadout, not the `items` table. Index ESX's own
+---weapon list, which is also what hex renders its weapon slots from.
+---@return table<string, table>
+local function getWeaponIndex()
+    if weaponIndex and next(weaponIndex) then return weaponIndex end
+    weaponIndex = {}
+    if not ESX or ESX.GetWeaponList == nil then return weaponIndex end
+
+    local ok, list = pcall(ESX.GetWeaponList)
+    if not ok or type(list) ~= 'table' then return weaponIndex end
+
+    for key, data in pairs(list) do
+        local name = type(data) == 'table' and (data.name or (type(key) == 'string' and key)) or nil
+        if type(name) == 'string' and name ~= '' and name:upper() ~= 'WEAPON_UNARMED' then
+            weaponIndex[name:lower()] = { native = name:upper(), label = data.label or name }
+        end
+    end
+    return weaponIndex
+end
+
+---@param item string
+---@return string|nil native, string|nil label
+local function resolveWeapon(item)
+    if type(item) ~= 'string' or item == '' then return nil end
+    local key = item:lower()
+    local entry = getWeaponIndex()[key]
+    if entry then return entry.native, entry.label end
+
+    -- A real `items` row wins: servers do ship craftable parts named
+    -- weapon_something, and those belong in the item store.
+    if ESX and ESX.Items and ESX.Items[item] then return nil end
+
+    -- ESX builds can expose an empty or partial weapon list while still using
+    -- the loadout API, so trust the weapon_ prefix as a fallback.
+    if key ~= 'weapon_unarmed' and key:match('^weapon_[%w_]+$') then
+        return key:upper(), item
+    end
+    return nil
+end
+
+---ESX builds disagree on the casing they store loadout names in; hex checks
+---both for the same reason. Returns the casing that actually matched.
+---@param xPlayer table
+---@param native string
+---@return boolean, string|nil
+local function playerHasWeapon(xPlayer, native)
+    if xPlayer.hasWeapon == nil then return false end
+    for _, name in ipairs({ native:upper(), native:lower() }) do
+        local ok, has = pcall(xPlayer.hasWeapon, name)
+        if ok and has then return true, name end
+    end
+    return false
+end
 
 ---@param src number
 ---@param item string
@@ -18,6 +79,8 @@ local function getTotalCount(src, item)
     if ESX then
         local xPlayer = ESX.GetPlayerFromId(src)
         if not xPlayer then return 0 end
+        local native = resolveWeapon(item)
+        if native then return playerHasWeapon(xPlayer, native) and 1 or 0 end
         local data = xPlayer.getInventoryItem(item)
         return (data and data.count) or 0
     end
@@ -35,7 +98,28 @@ local function getTotalCount(src, item)
     return 0
 end
 
+---@param item string
+---@return table|nil
+local function getItemDefinition(item)
+    if ESX then
+        local native, label = resolveWeapon(item)
+        if native then
+            return { name = item, label = label, weight = 0, type = 'weapon', unique = true }
+        end
+        return ESX.Items and ESX.Items[item]
+    end
+    if QBCore then
+        return QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[item]
+    end
+    return nil
+end
+
 olink._register('inventory', {
+    ---@return string
+    GetResourceName = function()
+        return RESOURCE
+    end,
+
     ---@param src number
     ---@param item string
     ---@return number
@@ -53,6 +137,28 @@ olink._register('inventory', {
         if ESX then
             local xPlayer = ESX.GetPlayerFromId(src)
             if not xPlayer then return false end
+
+            local native = resolveWeapon(item)
+            if native then
+                -- The ESX loadout holds one of each weapon.
+                if playerHasWeapon(xPlayer, native) then return false end
+
+                local ammo = tonumber(metadata and (metadata.ammo or metadata.ammoCount)) or DEFAULT_AMMO
+                local ok, err = pcall(xPlayer.addWeapon, native, ammo)
+                if not ok then
+                    print(('^1[o-link] hex_4_inventory: ESX addWeapon failed for %s (player %s): %s^0')
+                        :format(native, tostring(src), tostring(err)))
+                    return false
+                end
+
+                if not playerHasWeapon(xPlayer, native) then
+                    print(('^1[o-link] hex_4_inventory: ESX did not add %s to player %s loadout.^0')
+                        :format(native, tostring(src)))
+                    return false
+                end
+                return true
+            end
+
             if xPlayer.canCarryItem and not xPlayer.canCarryItem(item, count) then return false end
             xPlayer.addInventoryItem(item, count)
             return true
@@ -76,6 +182,20 @@ olink._register('inventory', {
         if ESX then
             local xPlayer = ESX.GetPlayerFromId(src)
             if not xPlayer then return false end
+
+            local native = resolveWeapon(item)
+            if native then
+                local has, matched = playerHasWeapon(xPlayer, native)
+                if not has then return false end
+                local ok, err = pcall(xPlayer.removeWeapon, matched)
+                if not ok then
+                    print(('^1[o-link] hex_4_inventory: ESX removeWeapon failed for %s (player %s): %s^0')
+                        :format(native, tostring(src), tostring(err)))
+                    return false
+                end
+                return not playerHasWeapon(xPlayer, native)
+            end
+
             local data = xPlayer.getInventoryItem(item)
             if ((data and data.count) or 0) < count then return false end
             xPlayer.removeInventoryItem(item, count)
@@ -111,7 +231,36 @@ olink._register('inventory', {
     ---@param src number
     ---@return table[] SlotData[]
     GetPlayerInventory = function(src)
-        return olink.framework.GetPlayerInventory(src) or {}
+        local result = olink.framework.GetPlayerInventory(src) or {}
+        if not ESX then return result end
+
+        -- ESX keeps weapons in the loadout, so they are absent from the
+        -- framework's item list. Append them as unique slots.
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if not xPlayer or xPlayer.getLoadout == nil then return result end
+
+        local ok, loadout = pcall(xPlayer.getLoadout)
+        if not ok or type(loadout) ~= 'table' then return result end
+
+        for _, weapon in pairs(loadout) do
+            if weapon and type(weapon.name) == 'string' then
+                local metadata = {
+                    ammo = tonumber(weapon.ammo) or 0,
+                    components = weapon.components or {},
+                    tintIndex = weapon.tintIndex or 0,
+                }
+                result[#result + 1] = {
+                    name     = weapon.name:lower(),
+                    label    = weapon.label or weapon.name,
+                    count    = 1,
+                    slot     = #result + 1,
+                    weight   = 0,
+                    metadata = metadata,
+                    type     = 'weapon',
+                }
+            end
+        end
+        return result
     end,
 
     ---@param src number
@@ -154,12 +303,7 @@ olink._register('inventory', {
     ---@param item string
     ---@return table
     GetItemInfo = function(item)
-        local data
-        if ESX then
-            data = ESX.Items and ESX.Items[item]
-        elseif QBCore then
-            data = QBCore.Shared and QBCore.Shared.Items and QBCore.Shared.Items[item]
-        end
+        local data = getItemDefinition(item)
         if not data then return {} end
         return {
             name = data.name or item,
@@ -175,20 +319,47 @@ olink._register('inventory', {
     ---@return string
     GetImagePath = function(item)
         item = olink._stripExt(item)
-        for _, fmt in ipairs({ 'html/images/%s.png', 'images/%s.png', 'web/images/%s.png', 'ui/images/%s.png' }) do
-            local rel = fmt:format(item)
-            if LoadResourceFile('hex_4_inventory', rel) then
-                return ('nui://hex_4_inventory/%s'):format(rel)
+        local cached = iconCache[item]
+        if cached then return cached end
+
+        -- Hex ships weapon icons uppercase (WEAPON_PISTOL.png) and item icons
+        -- lowercase. Filenames are case-sensitive on Linux hosts, so try the
+        -- name as given plus both casings before giving up.
+        local seen, path = {}, nil
+        for _, name in ipairs({ item, item:upper(), item:lower() }) do
+            if not seen[name] then
+                seen[name] = true
+                local rel = ('%s/%s.png'):format(ICON_DIR, name)
+                if LoadResourceFile(RESOURCE, rel) then
+                    path = ('nui://%s/%s'):format(RESOURCE, rel)
+                    break
+                end
             end
         end
-        return 'https://avatars.githubusercontent.com/u/47620135'
+
+        path = path or FALLBACK_ICON
+        iconCache[item] = path
+        return path
     end,
 
     ---@return table All item definitions
     Items = function()
-        if ESX then return ESX.Items or {} end
         if QBCore then return (QBCore.Shared and QBCore.Shared.Items) or {} end
-        return {}
+        if not ESX then return {} end
+
+        local items = {}
+        for name, data in pairs(ESX.Items or {}) do
+            if type(data) == 'table' then items[name] = data end
+        end
+
+        -- Weapons are not in the `items` table, so consumers that build item
+        -- pickers or validate configured names never see them otherwise.
+        for name, entry in pairs(getWeaponIndex()) do
+            if not items[name] then
+                items[name] = { name = name, label = entry.label, weight = 0, type = 'weapon', unique = true }
+            end
+        end
+        return items
     end,
 
     ---@param src number
@@ -197,8 +368,13 @@ olink._register('inventory', {
     ---@return boolean
     CanCarryItem = function(src, item, count)
         if ESX then
+            -- A missing xPlayer stays permissive, as it did before weapons
+            -- were handled here; AddItem still fails on its own.
             local xPlayer = ESX.GetPlayerFromId(src)
-            if xPlayer and xPlayer.canCarryItem then
+            if not xPlayer then return true end
+            local native = resolveWeapon(item)
+            if native then return not playerHasWeapon(xPlayer, native) end
+            if xPlayer.canCarryItem then
                 return xPlayer.canCarryItem(item, count or 1) == true
             end
         end
