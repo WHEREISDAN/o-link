@@ -21,27 +21,33 @@ It lists implementation folders that exist today. It does not guarantee every im
 | `entity` | server + client | built-in framework-agnostic module |
 | `jobcount` | server | built-in framework-agnostic module |
 
-### `inventory.AddTrunkItems`
+### `inventory.AddTrunkItems` / `inventory.GetTrunkItems`
 
-Writing items into a vehicle trunk is not uniform across inventories. Callers must
+Reading and writing a vehicle trunk is not uniform across inventories. Callers must
 gate on the **return value** — `olink.supports()` cannot be used here, because the
-default stub is itself callable.
+default stub is itself callable and would report the namespace as available.
 
-| Adapter | Supported | Container it writes |
-|---------|-----------|---------------------|
-| `ox_inventory` | yes | native trunk `trunk<plate>` (created lazily from the vehicle entity) |
-| `qb-inventory` | yes | `trunk-<plate>` (v2 `CreateInventory`, v1 `inventory:server:addTrunkItems`) |
-| `ak47_qb_inventory` | yes | `trunk-<plate>` |
-| `tgiann-inventory` | yes | native secondary inventory `trunk` |
-| `origen_inventory` | yes (unverified) | stash `trunk_<plate>` |
-| `oxide-inventory` | **no** | vehicle storage lives in `vehicle_storages` with no add-item export |
-| `codem-inventory`, `core_inventory`, `hex_4_inventory`, `jpr-inventory`, `ps-inventory`, `qs-inventory`, `_default` | **no** | — |
+| Adapter | Write | Read | Container |
+|---------|-------|------|-----------|
+| `ox_inventory` | yes | yes | native trunk `trunk<plate>`, created lazily from the vehicle entity |
+| `oxide-inventory` | yes | yes | native vehicle storage (`vehicle_storages` / `vehicle_storage_items`) |
+| `qb-inventory` | yes | yes | `trunk-<plate>` (v2 `CreateInventory`, v1 `inventory:server:addTrunkItems`) |
+| `ak47_qb_inventory` | yes | yes | `trunk-<plate>` |
+| `tgiann-inventory` | yes | no | native secondary inventory `trunk` |
+| `origen_inventory` | yes (unverified) | no | stash `trunk_<plate>` |
+| `codem-inventory`, `core_inventory`, `hex_4_inventory`, `jpr-inventory`, `ps-inventory`, `qs-inventory`, `_default` | no | no | — |
+
+`AddTrunkItems` returns `false` where unsupported; `GetTrunkItems` returns `{}`. An empty
+read is therefore indistinguishable from an unsupported one — pair it with a write attempt
+rather than treating `{}` as "the trunk is empty" on an unknown inventory.
 
 The `ox_inventory` path requires the vehicle to **exist and be network-owned** when
 called — ox resolves the trunk through the entity. Calling it against a vehicle that
 was just created server-side and has not streamed in to any client returns `false`.
 
 Item entries accept either key spelling: `name` or `item`, and `count` or `amount`.
+
+`ClearStash(plate, 'trunk')` empties the same container these write to.
 
 
 ## UI and Interaction

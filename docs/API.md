@@ -192,7 +192,37 @@ Storage:
 | `RegisterStash(id, label, slots, weight, owner?)` | | `boolean` | Register stash |
 | `OpenStash(src, stashId)` | | `nil` | Open stash |
 | `GetItemInfo(item)` | `item: string` | `table` | Item definition or `{}` |
+| `CanCarryItem(src, item, count?)` | | `boolean` | Room check. **Stub default is `false`** — an adapter that omits it will refuse everything, so treat a false return as "unknown" rather than gating on it. |
 | `GetImagePath(item)` | `item: string` | `string` | Image path. When `Config.ImageBaseUrl` is set in `o-link/config.lua`, always returns `<base>/<item>.png`; otherwise returns the adapter's path or `''`. |
+| `SetMetadata(src, item, slot, metadata)` | | `boolean` | Overwrite an item's metadata |
+| `Items()` | | `table` | Active inventory's item definitions |
+
+#### Containers (server)
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `RegisterStash(id, label, slots, weight, owner?)` | | `boolean` | Register a stash |
+| `OpenStash(src, stashId)` | | `nil` | Open a stash for a player |
+| `GetStashItems(id)` | `id: string` | `table[]` | Contents of a stash |
+| `AddStashItem(id, item, count, metadata?)` | | `boolean` | Add one item to a stash |
+| `AddStashItems(id, items)` | `items: { item, count\|amount, metadata\|info }[]` | `boolean` | Add several |
+| `RemoveStashItem(id, item, count)` | | `boolean` | Remove from a stash |
+| `ClearStash(id, type?)` | `type?: 'stash'\|'trunk'\|'glovebox'` | `boolean` | Empty a container. With `'trunk'`/`'glovebox'`, `id` is the **plate** and the adapter derives the container id. |
+| `AddTrunkItems(plate, items)` | `items: { item, count\|amount, metadata\|info }[]` | `boolean` | Put items in a vehicle's trunk |
+| `GetTrunkItems(plate)` | `plate: string` | `table[]` | Read a vehicle trunk's contents |
+| `UpdatePlate(oldPlate, newPlate)` | | `boolean` | Move vehicle storage to a new plate |
+| `OpenShop(src, shopId)` / `RegisterShop(...)` | | `boolean` | Shop passthrough |
+
+**Trunk support is not universal.** `AddTrunkItems` / `GetTrunkItems` are real on
+`ox_inventory`, `oxide-inventory`, `qb-inventory`, `ak47_qb_inventory` and (add only)
+`tgiann-inventory` and `origen_inventory`; everything else returns `false` / `{}`. See
+[SUPPORT-MATRIX.md](SUPPORT-MATRIX.md#inventoryaddtrunkitems). Gate on the **return value** —
+`olink.supports()` cannot be used here, because the fallback stub is itself callable.
+
+On `ox_inventory` the trunk is resolved through the vehicle **entity**, so the vehicle must
+exist and be network-owned when you call it; writing to a car that has just been created
+server-side and not yet streamed to anyone returns `false`.
+
+Item entries accept either key spelling: `item` or `name`, and `count` or `amount`.
 
 ### Client
 | Function | Args | Returns | Description |
