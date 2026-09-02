@@ -517,6 +517,48 @@ The oxide-dispatch adapter at [`../modules/dispatch/oxide-dispatch/(server|clien
 | `olink:client:dispatch:alertUpdated` | `(alert)` | Responder attached / status change |
 | `olink:client:dispatch:alertClosed` | `(alertId, reason)` | Alert closed (`'closed'` or `'expired'`) |
 
+## Module: tablet (server + client)
+
+Optional UI host. `oxide-tablet` draws a tablet shell (bezel, launcher, hold animation, focus, ESC) and hosts other resources' existing NUI bundles as apps: each app is an `<iframe>` of the owning resource's own `web/dist` at `https://cfx-nui-<resource>/<url>?tabletHost=oxide-tablet&tabletApp=<id>`. Consumers never depend on the tablet. The stubs return `false` / `'none'`, so gate on the return value (or `GetResourceState('oxide-tablet') == 'started'` plus `olink.tablet.GetResourceName() == 'oxide-tablet'`), never on `olink.supports('tablet')`, and fall back to your own UI.
+
+Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tablet/oxide-tablet/client.lua) (circular provider: registers at o-link load and gates per call on `GetResourceState`). Reference consumer: `oxide-police` (`client/modules/mdt.lua` `PoliceMDT.SyncTabletApp`, `client/modules/nui.lua` `PoliceNUI.PushMdt`). Web-side shim for hosted apps: `tools/templates/web_tablet_host.js`.
+
+### Client
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `RegisterApp(def)` | `def: table` | `boolean` | Add an app to the launcher. `def = { id, label, icon, resource (required), url? = 'web/dist/index.html', query?, requires? = { jobs?, gangs?, duty? }, order?, color?, readyTimeoutMs? }`. `requires` filters the launcher only |
+| `UnregisterApp(id)` | `id: string` | `boolean` | Remove an app (leaves it if on screen) |
+| `Open(appId?)` | `appId?: string` | `boolean` | Open the tablet, optionally straight into an app. Idempotent for the app already on screen. `false` when disabled, dead/downed, or the app is unknown |
+| `Close()` | | `boolean` | Put the tablet away |
+| `CloseApp(appId)` | `appId: string` | `boolean` | Back to the launcher if `appId` is on screen |
+| `IsOpen()` | | `boolean` | |
+| `GetCurrentApp()` | | `string\|nil` | |
+| `Send(appId, message)` | `appId: string, message: { action, data }` | `boolean` | Relay a SendNUIMessage-shaped message into the app on screen; queued until the iframe posts `ready`. Only the current app can be targeted |
+| `SetBadge(appId, count)` | `appId: string, count: number` | `boolean` | Launcher badge |
+
+### Server
+
+| Function | Args | Returns | Description |
+|----------|------|---------|-------------|
+| `Open(src, appId?)` | `src: number, appId?: string` | `boolean` | Relay to the client `Open` |
+| `Close(src)` | `src: number` | `boolean` | Relay to the client `Close` |
+| `Send(src, appId, message)` | `src: number, appId: string, message: table` | `boolean` | Relay to the client `Send` |
+
+### Client-side events (local `TriggerEvent`; subscribe with `AddEventHandler`)
+
+| Event | Args | Description |
+|-------|------|-------------|
+| `olink:client:tablet:ready` | | Tablet client started or restarted: (re)register your apps |
+| `olink:client:tablet:appOpened` | `(appId)` | App put on screen by a launcher tap or `Open`; may fire synchronously inside `Open` |
+| `olink:client:tablet:appReady` | `(appId)` | The app's iframe posted `ready`; queued `Send`s were flushed |
+| `olink:client:tablet:appClosed` | `(appId, reason)` | `reason` is `home`, `closed`, `switch` or `unregistered` |
+| `olink:client:tablet:closed` | | Tablet put away |
+
+### Hosted-app contract (web)
+
+Parent to iframe: `postMessage({ action, data }, '*')`, the SendNUIMessage shape, so existing message listeners work unchanged. Iframe to parent: `postMessage({ type: 'oxide-tablet', event: 'ready' | 'escape' | 'home' | 'close', app }, '*')`. Inside the iframe `GetParentResourceName()` is unreliable: derive the resource from `location.hostname` (`cfx-nui-<name>`), never call `SetNuiFocus` while hosted, forward Escape to the host, and post `ready` only after your message listeners exist. Copy `tools/templates/web_tablet_host.js` into the resource as `web/src/utils/host.js`.
+
 ## Additional verified namespaces
 
 These namespaces are present in the current implementation and load through the same self-registration pattern, but this file does not attempt to fully document every function signature in every implementation:

@@ -74,6 +74,7 @@ Item entries accept either key spelling: `name` or `item`, and `count` or `amoun
 | `radial` | client | `oxide-menu`, `ox_lib` |
 | `zones` | client | `oxlib`, `polyzone` |
 | `placement` | client | `modules/placement` |
+| `tablet` | server + client | `oxide-tablet` (no `_default`: the stubs return falsy so consumers fall back to their own UI) |
 
 `notify` auto-detection selects one renderer. `ox_lib` is fallback-only unless
 forced with `Config.Overrides.Notify = 'ox_lib'`; if multiple non-`ox_lib`
