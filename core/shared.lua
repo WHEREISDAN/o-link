@@ -58,6 +58,7 @@ local overrideKeyMap = {
     needs = 'Needs',
     gang = 'Gang',
     logger = 'Logger',
+    tablet = 'Tablet',
 }
 
 local function normalizeName(value)

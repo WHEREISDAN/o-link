@@ -36,6 +36,7 @@ Config.Overrides = {
     -- Death             = 'oxide-death',
     -- Needs             = 'oxide-needs',
     -- Gang              = 'oxide-core',
+    -- Tablet            = 'oxide-tablet',
 }
 
 Config.Debug = true

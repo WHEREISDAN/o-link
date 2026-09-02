@@ -259,6 +259,23 @@ stub('medical', {
     IsInjured = false,
 })
 
+stub('tablet', {
+    'GetResourceName',
+    'RegisterApp', 'UnregisterApp', 'Open', 'Close', 'CloseApp',
+    'IsOpen', 'GetCurrentApp', 'Send', 'SetBadge',
+}, {
+    GetResourceName = 'none',
+    RegisterApp = false,
+    UnregisterApp = false,
+    Open = false,
+    Close = false,
+    CloseApp = false,
+    IsOpen = false,
+    GetCurrentApp = function() return nil end,
+    Send = false,
+    SetBadge = false,
+})
+
 stub('vehicleproperties', {
     'GetVehicleProperties', 'SetVehicleProperties',
 }, {

@@ -273,6 +273,15 @@ stub('bossmenu', {
     OpenBossMenu = false,
 })
 
+stub('tablet', {
+    'GetResourceName', 'Open', 'Close', 'Send',
+}, {
+    GetResourceName = 'none',
+    Open = false,
+    Close = false,
+    Send = false,
+})
+
 stub('skills', {
     'AddXp', 'Create', 'GetResourceName', 'GetScaledXP', 'GetSkillLevel',
     'GetXP', 'GetXPRequiredForLevel', 'RemoveXp', 'SetSkillLevel', 'SetXP',

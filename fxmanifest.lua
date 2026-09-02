@@ -66,6 +66,7 @@ server_scripts {
     'modules/helptext/**/server.lua',
     'modules/helptext/server.lua',
     'modules/logger/**/server.lua',
+    'modules/tablet/**/server.lua',
     'lifecycle/**/server.lua',
     'core/loader_server.lua',
     'core/version_check.lua',
@@ -107,6 +108,7 @@ client_scripts {
     'modules/gang/**/client.lua',
     'modules/vehicles/**/client.lua',
     'modules/logger/**/client.lua',
+    'modules/tablet/**/client.lua',
     'lifecycle/**/client.lua',
     'core/loader_client.lua',
 }
