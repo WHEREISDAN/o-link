@@ -350,8 +350,10 @@ olink._register('inventory', {
     ---@param metadata table
     ---@return boolean
     SetMetadata = function(src, item, slot, metadata)
-        qbInventory:SetItemData(src, item, 'info', metadata)
-        return true
+        -- Without the slot qb-inventory writes to the first item of that name, which is
+        -- the wrong one when the player carries two.
+        local ok = qbInventory:SetItemData(src, item, 'info', metadata, slot)
+        return ok ~= false
     end,
 
     ---@param item string
