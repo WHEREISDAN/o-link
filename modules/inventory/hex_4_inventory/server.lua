@@ -300,6 +300,35 @@ olink._register('inventory', {
         })
     end,
 
+    ---Open another player's inventory alongside the caller's own — the police
+    ---search flow. 'player' is hex's documented type for this, keyed by the
+    ---target's server id. Hex resolves the player object from that id, so it is
+    ---passed as a number rather than a string.
+    ---@param src number Player doing the searching
+    ---@param targetSrc number Player being searched
+    ---@return boolean
+    OpenPlayerInventory = function(src, targetSrc)
+        src, targetSrc = tonumber(src), tonumber(targetSrc)
+        if not src or not targetSrc then return false end
+        if GetPlayerName(targetSrc) == nil then return false end
+
+        local ok, result = pcall(function()
+            return hex:OpenInventory(src, {
+                id    = targetSrc,
+                type  = 'player',
+                title = GetPlayerName(targetSrc) or tostring(targetSrc),
+            })
+        end)
+        if not ok then
+            print(('^1[o-link] hex_4_inventory: OpenInventory failed for player %s: %s^0')
+                :format(tostring(targetSrc), tostring(result)))
+            return false
+        end
+        -- Hex returns a success boolean; treat only an explicit false as failure
+        -- so an undocumented nil return does not report a search that did open.
+        return result ~= false
+    end,
+
     ---@param item string
     ---@return table
     GetItemInfo = function(item)
@@ -394,7 +423,6 @@ olink._register('inventory', {
 
     -- Unsupported features (no documented hex export; base framework has no path)
     SetMetadata = function() return false end,
-    OpenPlayerInventory = function() return false end,
     GetStashItems = function() return {} end,
     RemoveStashItem = function() return false end,
     ClearStash = function() return false end,
