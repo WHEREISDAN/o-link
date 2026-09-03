@@ -93,4 +93,13 @@ olink._register('tablet', {
         local ok, result = pcall(function() return res:SetBadge(appId, count) end)
         return ok and result == true
     end,
+
+    ---The device (IMEI) the open tablet was started on; nil when closed, opened by a
+    ---resource rather than an item, or the inventory cannot keep item metadata.
+    ---@return table|nil { imei, name, battery }
+    GetDevice = function()
+        if not isStarted() then return nil end
+        local ok, result = pcall(function() return res:GetDevice() end)
+        return ok and type(result) == 'table' and result or nil
+    end,
 }, RESOURCE)

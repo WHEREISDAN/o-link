@@ -536,6 +536,7 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 | `GetCurrentApp()` | | `string\|nil` | |
 | `Send(appId, message)` | `appId: string, message: { action, data }` | `boolean` | Relay a SendNUIMessage-shaped message into the app on screen; queued until the iframe posts `ready`. Only the current app can be targeted |
 | `SetBadge(appId, count)` | `appId: string, count: number` | `boolean` | Launcher badge |
+| `GetDevice()` | | `table\|nil` | `{ imei, name, battery }` of the device the open tablet was started on. `nil` when closed, opened by a resource rather than an item, or the inventory cannot keep item metadata |
 
 ### Server
 
@@ -544,6 +545,7 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 | `Open(src, appId?)` | `src: number, appId?: string` | `boolean` | Relay to the client `Open` |
 | `Close(src)` | `src: number` | `boolean` | Relay to the client `Close` |
 | `Send(src, appId, message)` | `src: number, appId: string, message: table` | `boolean` | Relay to the client `Send` |
+| `GetDevice(src)` | `src: number` | `table\|nil` | `{ imei, name, item, slot }` the player's open tablet was started on, resolved from the inventory server-side. `nil` for device-less sessions. Key per-device state on this, never on an IMEI a client sent |
 
 ### Client-side events (local `TriggerEvent`; subscribe with `AddEventHandler`)
 
@@ -557,7 +559,7 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 
 ### Hosted-app contract (web)
 
-Parent to iframe: `postMessage({ action, data }, '*')`, the SendNUIMessage shape, so existing message listeners work unchanged. Iframe to parent: `postMessage({ type: 'oxide-tablet', event: 'ready' | 'escape' | 'home' | 'close', app }, '*')`. Inside the iframe `GetParentResourceName()` is unreliable: derive the resource from `location.hostname` (`cfx-nui-<name>`), never call `SetNuiFocus` while hosted, forward Escape to the host, and post `ready` only after your message listeners exist. Copy `tools/templates/web_tablet_host.js` into the resource as `web/src/utils/host.js`.
+Parent to iframe: `postMessage({ action, data }, '*')`, the SendNUIMessage shape, so existing message listeners work unchanged. Iframe to parent: `postMessage({ type: 'oxide-tablet', event: 'ready' | 'escape' | 'home' | 'close', app }, '*')`. Inside the iframe `GetParentResourceName()` is unreliable: derive the resource from `location.hostname` (`cfx-nui-<name>`), never call `SetNuiFocus` while hosted, forward Escape to the host, and post `ready` only after your message listeners exist. Copy `tools/templates/web_tablet_host.js` into the resource as `web/src/utils/host.js`. When the tablet was opened from an item the iframe URL also carries `&tabletImei=<imei>`; it is informational only, confirm it server-side with `olink.tablet.GetDevice(src)`.
 
 ## Additional verified namespaces
 

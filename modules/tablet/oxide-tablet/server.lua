@@ -42,4 +42,15 @@ olink._register('tablet', {
         local ok, result = pcall(function() return res:Send(src, appId, message) end)
         return ok and result == true
     end,
+
+    ---The device (IMEI) the player's open tablet was started on. nil when the tablet is
+    ---not open, was opened by a resource rather than an item, or the inventory cannot
+    ---keep item metadata.
+    ---@param src number
+    ---@return table|nil { imei, name, item, slot }
+    GetDevice = function(src)
+        if not isStarted() then return nil end
+        local ok, result = pcall(function() return res:GetDevice(src) end)
+        return ok and type(result) == 'table' and result or nil
+    end,
 }, RESOURCE)
