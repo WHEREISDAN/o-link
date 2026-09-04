@@ -370,7 +370,7 @@ stub('logger', {
     'GetResourceName',
     'Trace', 'Debug', 'Info', 'Warn', 'Error', 'Fatal',
     'Event', 'CaptureError', 'SafeCall',
-    'SetLevel', 'GetLevel',
+    'SetLevel', 'GetLevel', 'GetRecentErrors',
 }, {
     GetResourceName = 'none',
     Trace = false,

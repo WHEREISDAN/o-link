@@ -52,6 +52,20 @@ Config.CheckForUpdates = true
 -- to be notified only. Has no effect unless CheckForUpdates is also true.
 Config.AutoDownloadUpdates = false
 
+-- `/oxide:diag` writes a support snapshot (server info, framework, which
+-- resource provides each bridged namespace, versions, resource states) to
+-- o-link/diag/. Attach that file to a support ticket. Console always has
+-- access; in game the player needs the ace below or a framework admin.
+Config.Diag = {
+    -- Extra ace that grants access. Set to '' to rely on the admin check alone.
+    RequireAce = 'command.oxide:diag',
+    -- How many captured errors to include (needs oxide-logger installed).
+    RecentErrors = 50,
+    -- Single-level dir only. SaveResourceFile auto-creates ONE parent dir, so
+    -- multi-level paths like 'data/diag' silently fail.
+    SnapshotDir = 'diag',
+}
+
 -- When set, every `olink.inventory.GetImagePath` call returns `<base>/<item>.png`.
 -- Example: 'https://r2.qbox.re/myserver/inventory/'
 Config.ImageBaseUrl = nil

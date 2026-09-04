@@ -1,0 +1,4 @@
+# Diagnostic snapshots are local support artifacts. This file also keeps the
+# directory present in the repo, since SaveResourceFile will not create it.
+*
+!.gitignore

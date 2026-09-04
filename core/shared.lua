@@ -2,6 +2,7 @@ olink = {}
 
 local capabilities = {}
 local moduleKinds = {}
+local moduleOwners = {}
 local warnedCalls = {}
 
 local side = IsDuplicityVersion() and 'server' or 'client'
@@ -222,6 +223,7 @@ function olink._register(namespace, impl, implName)
     mergeImpl(namespace, impl, implName)
     capabilities[namespace] = true
     moduleKinds[namespace] = 'real'
+    if implName then moduleOwners[namespace] = implName end
 end
 
 ---Register a default/stub implementation for a namespace. Fallback namespaces
@@ -236,6 +238,7 @@ function olink._registerDefault(namespace, impl, implName)
     capabilities[namespace] = true
     if moduleKinds[namespace] ~= 'real' then
         moduleKinds[namespace] = 'fallback'
+        if implName then moduleOwners[namespace] = implName end
     end
 end
 
@@ -338,13 +341,17 @@ function olink.supports(path)
     return not first
 end
 
----@return table<string, { loaded: boolean, kind: string|nil }>
+---`provider` is the implementation name passed to `_register`. Adapters that omit
+---it leave this nil, so callers fall back to the namespace's own optional
+---`GetResourceName()`.
+---@return table<string, { loaded: boolean, kind: string|nil, provider: string|nil }>
 function olink._getCapabilities()
     local out = {}
     for namespace, loaded in pairs(capabilities) do
         out[namespace] = {
             loaded = loaded,
             kind = moduleKinds[namespace],
+            provider = moduleOwners[namespace],
         }
     end
     return out

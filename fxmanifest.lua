@@ -70,6 +70,8 @@ server_scripts {
     'lifecycle/**/server.lua',
     'core/loader_server.lua',
     'core/version_check.lua',
+    'core/known_providers.lua',
+    'core/diag_server.lua',
 }
 
 client_scripts {

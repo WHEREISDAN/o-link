@@ -16,4 +16,21 @@ for _, ns in ipairs(modules) do
     end
 end
 
+-- The updater never overwrites config.lua, so a customer who updates keeps the
+-- config they first installed with and silently misses every setting added since.
+-- Code defaults cover them, but naming the gap here turns a silent difference into
+-- something they can act on. ImageBaseUrl is deliberately absent from this list:
+-- it ships as nil, so a missing key and the shipped value are indistinguishable.
+local EXPECTED = { 'Overrides', 'Debug', 'CheckForUpdates', 'AutoDownloadUpdates', 'Diag' }
+local missing = {}
+for _, key in ipairs(EXPECTED) do
+    if rawget(Config, key) == nil then missing[#missing + 1] = key end
+end
+
+if #missing > 0 then
+    print(('^3[o-link] Your config.lua does not have these settings yet: %s^0'):format(table.concat(missing, ', ')))
+    print('^3[o-link] Nothing is broken -- o-link is using its built-in defaults for them.^0')
+    print('^3[o-link] To change them, copy those sections from the config.lua in the latest o-link download.^0')
+end
+
 print('^2[o-link] Server initialization complete.^0')

@@ -132,7 +132,9 @@ o-link/
 |   |-- defaults_client.lua
 |   |-- loader_server.lua
 |   |-- loader_client.lua
-|   `-- version_check.lua
+|   |-- version_check.lua
+|   |-- known_providers.lua
+|   `-- diag_server.lua
 |-- lifecycle/
 |   |-- oxide-core/
 |   |-- qb-core/
@@ -187,21 +189,26 @@ o-link/
 
 ## Configuration Status
 
-Five config surfaces exist in [`../config.lua`](../config.lua):
+Six config surfaces exist in [`../config.lua`](../config.lua):
 
 - `Config.Debug`
 - `Config.Overrides`
 - `Config.CheckForUpdates`
 - `Config.AutoDownloadUpdates`
 - `Config.ImageBaseUrl`
+- `Config.Diag`
 
 `Config.Debug` controls loader logging.
 
-`Config.CheckForUpdates` (default `true`) makes o-link check its public GitHub repo for a newer release on startup and print a notice to the server console.
+`Config.CheckForUpdates` (default `true`) makes o-link check its public GitHub repo for a newer release on startup and print a notice to the server console. Only an explicit `false` disables it: the updater never overwrites `config.lua`, so an install that predates this key has no entry for it, and treating that as off would silence the notice on exactly the installs that are furthest behind.
+
+Because of that same protection, a customer who updates keeps the `config.lua` they first installed with and is missing every key added since. Two things follow, and both are required of any new config surface: every key must default in code, and `core/loader_server.lua` prints a one-time console notice naming the keys their `config.lua` lacks. `Config.ImageBaseUrl` is excluded from that notice because it ships as `nil`, so absent and present are indistinguishable.
 
 `Config.AutoDownloadUpdates` (default `false`) downloads a detected update and writes it over o-link's own files; the new files take effect on the next full server restart. It has no effect unless `Config.CheckForUpdates` is also true.
 
 `Config.ImageBaseUrl` (default `nil`) sets the base URL that `olink.inventory.GetImagePath` resolves item images against.
+
+`Config.Diag` configures the `/oxide:diag` support snapshot written by `core/diag_server.lua`: `RequireAce` (an extra ace that grants access alongside the framework admin check), `RecentErrors` (how many captured errors to include when oxide-logger is running), and `SnapshotDir` (a single-level directory, because `SaveResourceFile` only auto-creates one parent). Every key defaults in code, since the auto-updater never overwrites a customer's `config.lua`.
 
 `Config.Overrides` is consumed during implementation selection. When an override is set for a namespace, only the matching implementation is allowed to load for that namespace and normal priority blocker guards are bypassed for that selected implementation.
 

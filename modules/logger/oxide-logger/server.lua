@@ -116,4 +116,13 @@ olink._register('logger', {
         local ok, result = pcall(function() return res:GetLevel(resource) end)
         return ok and result or 'info'
     end,
+
+    ---Ring-buffered captured errors, used to enrich o-link's /oxide:diag snapshot.
+    ---@param limit? integer
+    ---@return table[]|nil
+    GetRecentErrors = function(limit)
+        if not isStarted() then return nil end
+        local ok, result = pcall(function() return res:GetRecentErrors(limit) end)
+        return ok and result or nil
+    end,
 }, RESOURCE)

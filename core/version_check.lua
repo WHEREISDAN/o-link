@@ -6,7 +6,11 @@
 -- that snapshotted o-link's exports at boot, so the new files apply only on
 -- the next full server restart.
 
-if not Config.CheckForUpdates then return end
+-- Absent, not false, is the common case: the updater never overwrites config.lua,
+-- so a customer who installed before this key existed keeps a config without it.
+-- Treating absent as off would silence the update notice on exactly the installs
+-- that are furthest behind, so only an explicit `false` disables the check.
+if Config.CheckForUpdates == false then return end
 
 local RESOURCE = GetCurrentResourceName()
 local REPO_OWNER = 'WHEREISDAN'

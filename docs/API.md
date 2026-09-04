@@ -669,7 +669,7 @@ For the unified multichar spawn flow. `GetOwnedProperties` lists for a selector;
 
 ## Module: logger (server + client)
 
-Provided by `oxide-logger` when installed, otherwise routed through `ox_lib`. The ox_lib adapter prints structured `[LEVEL][resource][category]` lines to the server/client console for INFO+ events and forwards through `lib.logger` to Datadog / Fivemanage / Loki when the `ox:logger` convar is set. `oxide-logger` adds rotating file logs, dedicated Discord/Fivemanage sinks, ring-buffered error capture, and `/oxide:diag` snapshots on top.
+Provided by `oxide-logger` when installed, otherwise routed through `ox_lib`. The ox_lib adapter prints structured `[LEVEL][resource][category]` lines to the server/client console for INFO+ events and forwards through `lib.logger` to Datadog / Fivemanage / Loki when the `ox:logger` convar is set. `oxide-logger` adds rotating file logs, dedicated Discord/Fivemanage sinks, and ring-buffered error capture on top. The `/oxide:diag` support snapshot is owned by o-link itself (`core/diag_server.lua`) so every server can produce one; when `oxide-logger` is running, o-link pulls its captured error history into that snapshot via `GetRecentErrors`.
 
 ### Server
 | Function | Args | Returns | Description |
@@ -685,9 +685,10 @@ Provided by `oxide-logger` when installed, otherwise routed through `ox_lib`. Th
 | `SafeCall(fn, resource, category?)` | | `any` | xpcall wrapper that captures errors |
 | `SetLevel(resource, level)` | `level: 'trace'\|'debug'\|'info'\|'warn'\|'error'\|'fatal'` | `boolean` | Override the per-resource level at runtime |
 | `GetLevel(resource)` | | `string` | Current level for the resource |
+| `GetRecentErrors(limit?)` | `limit: number` (default 50) | `table[]\|nil` | Recent captured errors from the ring buffer; `nil` when no provider supplies one. Used by `/oxide:diag` |
 
 ### Client
-Same surface as server minus `SetLevel`/`GetLevel` (level control is server-only — the server owns the sink configuration). Client log calls forward to the server for sink dispatch; only `SafeCall` and the local error ring buffer run client-side.
+Same surface as server minus `SetLevel`/`GetLevel`/`GetRecentErrors` (level control is server-only — the server owns the sink configuration). Client log calls forward to the server for sink dispatch; only `SafeCall` and the local error ring buffer run client-side.
 
 Categories are free-form strings; the Discord sink uses them to choose a webhook URL via `Config.Discord.Webhooks[category]` with fallback to `default`.
 
