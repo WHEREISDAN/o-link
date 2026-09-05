@@ -1,23 +1,32 @@
-if not olink._guardImpl('Weather', 'oxide-weather', 'oxide-weather') then return end
+local function RegisterWeather()
+    if not olink._guardImpl('Weather', 'oxide-weather', 'oxide-weather') then return end
+    olink._register('weather', {
+        ---@return string
+        GetResourceName = function()
+            return 'oxide-weather'
+        end,
 
-olink._register('weather', {
-    ---@return string
-    GetResourceName = function()
-        return 'oxide-weather'
-    end,
+        ---@param toggle boolean
+        ToggleSync = function(toggle)
+            -- Scene sync ownership is implemented in oxide-weather Phase 5.
+        end,
 
-    ---@param toggle boolean
-    ToggleSync = function(toggle)
-        -- oxide-weather sync is server-authoritative; no client toggle needed
-    end,
+        ---@return string
+        GetWeather = function()
+            return GlobalState['oxide:weather'] or 'CLEAR'
+        end,
 
-    ---@return string
-    GetWeather = function()
-        return GlobalState['oxide:weather'] or 'CLEAR'
-    end,
+        ---@return table { hour: number, minute: number }
+        GetTime = function()
+            return GlobalState['oxide:time'] or { hour = 12, minute = 0 }
+        end,
+    }, 'oxide-weather')
+end
 
-    ---@return table { hour: number, minute: number }
-    GetTime = function()
-        return GlobalState['oxide:time'] or { hour = 12, minute = 0 }
-    end,
-})
+RegisterWeather()
+
+-- oxide-weather now depends on o-link, so it can start after adapter discovery.
+-- Merge into the existing namespace to update references already held by callers.
+AddEventHandler('onClientResourceStart', function(resource)
+    if resource == 'oxide-weather' then RegisterWeather() end
+end)
