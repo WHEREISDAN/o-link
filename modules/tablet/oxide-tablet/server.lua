@@ -65,4 +65,34 @@ olink._register('tablet', {
         local ok, result = pcall(function() return res:SetWidgetData(src, id, data) end)
         return ok and result == true
     end,
+
+    ---Relay a push notification to a player's tablet (client Notify). The id is fixed
+    ---server-side so it comes back synchronously; a result means relayed, not shown.
+    ---@param src number
+    ---@param def table { app, message, title?, icon?, id?, data?, sound?, toast? }
+    ---@return string|false id in the form `app:id`
+    Notify = function(src, def)
+        if type(def) ~= 'table' then return false end
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:Notify(src, def) end)
+        return ok and type(result) == 'string' and result or false
+    end,
+
+    ---@param src number
+    ---@param id string
+    ---@return boolean
+    DismissNotification = function(src, id)
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:DismissNotification(src, id) end)
+        return ok and result == true
+    end,
+
+    ---@param src number
+    ---@param appId? string nil = every app
+    ---@return boolean
+    ClearNotifications = function(src, appId)
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:ClearNotifications(src, appId) end)
+        return ok and result == true
+    end,
 }, RESOURCE)

@@ -132,4 +132,31 @@ olink._register('tablet', {
         local ok, result = pcall(function() return res:SetWidgetData(id, data) end)
         return ok and result == true
     end,
+
+    ---Post a push notification for a registered app. Kept whether or not the tablet is
+    ---open; while open it shows a banner and lands in the status-bar tray.
+    ---@param def table { app, message, title?, icon?, id?, data?, sound?, toast? }
+    ---@return string|false id in the form `app:id`
+    Notify = function(def)
+        if type(def) ~= 'table' then return false end
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:Notify(def) end)
+        return ok and type(result) == 'string' and result or false
+    end,
+
+    ---@param id string the id Notify returned
+    ---@return boolean
+    DismissNotification = function(id)
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:DismissNotification(id) end)
+        return ok and result == true
+    end,
+
+    ---@param appId? string nil = every app
+    ---@return boolean
+    ClearNotifications = function(appId)
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:ClearNotifications(appId) end)
+        return ok and result == true
+    end,
 }, RESOURCE)

@@ -540,6 +540,9 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 | `RegisterWidget(def)` | `def: table` | `boolean` | Add a home-screen widget. `def = { id, label, resource (required), type = 'stat' \| 'list' \| 'progress' \| 'text' \| 'frame', sizes? = { 'small', 'medium', 'large' } (first entry is the default; default `{ 'small' }`), icon?, color?, app? (app id opened on tap; the widget is only shown while that app is), requires?, order?, data?, url?/query?/readyTimeoutMs? (frame only) }`. Widget ids are a separate namespace from app ids. Players place widgets from the gallery; nothing is added to their screens automatically |
 | `UnregisterWidget(id)` | `id: string` | `boolean` | Remove a widget. A placed instance disappears from the screen; the player's saved slot is kept for when it registers again |
 | `SetWidgetData(id, data)` | `id: string, data: table\|nil` | `boolean` | Push the widget's data (see the shapes below). Cached whether or not the tablet is open, so the last value shows as soon as the home screen does. Template widgets re-render; frame widgets receive `{ action: 'tablet:widgetData', data }`. `false` when unregistered or above 8 KB encoded |
+| `Notify(def)` | `def: table` | `string\|false` | Post a push notification for a registered app. `def = { app (required), message (required), title?, icon? (default: the app's icon), id? (caller id, namespaced per app: the same id replaces the record and shows the banner again), data? (table, at most 8 KB encoded, relayed on tap), sound? = true, toast? }`. Kept in memory whether or not the tablet is open; while open a banner drops in under the status bar (skipped when the app is already on screen unless `toast = true`, never when `toast = false`) and the entry lands in the tray. Returns the id `app:id`; `false` when the app is not registered or notifications are disabled |
+| `DismissNotification(id)` | `id: string` | `boolean` | Drop one notification by the id `Notify` returned |
+| `ClearNotifications(appId?)` | `appId?: string` | `boolean` | Drop every notification of an app, or all of them when omitted |
 
 ### Server
 
@@ -550,6 +553,9 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 | `Send(src, appId, message)` | `src: number, appId: string, message: table` | `boolean` | Relay to the client `Send` |
 | `GetDevice(src)` | `src: number` | `table\|nil` | `{ imei, name, item, slot }` the player's open tablet was started on, resolved from the inventory server-side. `nil` for device-less sessions. Key per-device state on this, never on an IMEI a client sent |
 | `SetWidgetData(src, id, data)` | `src: number, id: string, data: table\|nil` | `boolean` | Relay to the client `SetWidgetData` |
+| `Notify(src, def)` | `src: number, def: table` | `string\|false` | Relay to the client `Notify`. The id is fixed server-side (`def.id` or generated) so it comes back synchronously; a result means relayed, not shown |
+| `DismissNotification(src, id)` | `src: number, id: string` | `boolean` | Relay to the client `DismissNotification` |
+| `ClearNotifications(src, appId?)` | `src: number, appId?: string` | `boolean` | Relay to the client `ClearNotifications` |
 
 ### Client-side events (local `TriggerEvent`; subscribe with `AddEventHandler`)
 
@@ -562,6 +568,7 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 | `olink:client:tablet:closed` | | Tablet put away |
 | `olink:client:tablet:widgetReady` | `(widgetId)` | A frame widget's iframe posted `ready`; queued `SetWidgetData` was flushed |
 | `olink:client:tablet:deviceRenamed` | `(device)` | The player renamed the device the open tablet runs on; `device = { imei, name, battery }` |
+| `olink:client:tablet:notificationTapped` | `(id, appId, data)` | The player tapped a notification (banner or tray entry). The app was opened and, when `data` was set, received `{ action = 'tablet:notification', data }` through the relay queue |
 
 ### Hosted-app contract (web)
 
@@ -584,6 +591,12 @@ Register from `olink:client:tablet:ready` exactly as for apps, then `SetWidgetDa
 ### Hosted-widget contract (web)
 
 A `frame` widget is an iframe of the owning resource's bundle at `https://cfx-nui-<resource>/<url>?tabletHost=oxide-tablet&tabletWidget=<id>&tabletSize=<small|medium|large>[&tabletImei=<imei>]` (no `tabletApp`). The shim exposes `hostedWidget` and `hostedSize`; `isHosted` is true for apps and widgets alike. Post `ready` the same way; data arrives as `{ action: 'tablet:widgetData', data }`. A size change re-mounts the iframe with a new `tabletSize`. `escape`, `home` and `close` are ignored for widgets; post `openApp` (shim `requestOpenApp(app?)`) to open the widget's app. Never call `SetNuiFocus` from a widget. The frame is destroyed whenever its page is not on screen, so keep startup cheap and expect to receive the last data again after `ready`. Refresh your copy of `web_tablet_host.js` (or the classic port) before shipping a widget: copies made before widgets existed treat a widget frame as a top-level page.
+
+### Notifications
+
+Apps post notifications with `Notify`; the tablet draws them, the app never does. While the tablet is open a banner drops in under the status bar, and tapping the status bar opens the tray: every notification grouped by app, newest first, with per-item dismiss, per-app clear and clear all. Tapping a banner or a tray entry opens the app under the same job and item rules as a launcher tap, relays `{ action = 'tablet:notification', data }` into it once it reports ready, and drops the notification. While the tablet is away a small bubble springs in at the bottom right of the screen (newest on top of a short stack, gone after the configured duration; the tablet's `showWhenClosed` setting turns it off), and the notification waits in memory for the next open. They are gone after a character switch, when the app is unregistered or its resource stops, and beyond the server's cap (oldest first).
+
+The tile badge is the larger of `SetBadge` and the app's pending notifications, so `SetBadge(app, 0)` does not hide them: call `ClearNotifications(app)` once the app has handled them itself. Register the app on `olink:client:tablet:ready` before notifying; a notification for an app the tablet does not know is dropped. Only `message`, `title` and the icon reach the screen; `data` stays in Lua until the tap.
 
 ## Additional verified namespaces
 

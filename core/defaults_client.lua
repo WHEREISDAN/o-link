@@ -264,6 +264,7 @@ stub('tablet', {
     'RegisterApp', 'UnregisterApp', 'Open', 'Close', 'CloseApp',
     'IsOpen', 'GetCurrentApp', 'Send', 'SetBadge', 'GetDevice',
     'RegisterWidget', 'UnregisterWidget', 'SetWidgetData',
+    'Notify', 'DismissNotification', 'ClearNotifications',
 }, {
     GetResourceName = 'none',
     RegisterApp = false,
@@ -279,6 +280,9 @@ stub('tablet', {
     RegisterWidget = false,
     UnregisterWidget = false,
     SetWidgetData = false,
+    Notify = false,
+    DismissNotification = false,
+    ClearNotifications = false,
 })
 
 stub('vehicleproperties', {

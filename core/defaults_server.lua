@@ -275,6 +275,7 @@ stub('bossmenu', {
 
 stub('tablet', {
     'GetResourceName', 'Open', 'Close', 'Send', 'GetDevice', 'SetWidgetData',
+    'Notify', 'DismissNotification', 'ClearNotifications',
 }, {
     GetResourceName = 'none',
     Open = false,
@@ -282,6 +283,9 @@ stub('tablet', {
     Send = false,
     GetDevice = function() return nil end,
     SetWidgetData = false,
+    Notify = false,
+    DismissNotification = false,
+    ClearNotifications = false,
 })
 
 stub('skills', {
