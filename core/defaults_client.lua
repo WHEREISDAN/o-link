@@ -263,6 +263,7 @@ stub('tablet', {
     'GetResourceName',
     'RegisterApp', 'UnregisterApp', 'Open', 'Close', 'CloseApp',
     'IsOpen', 'GetCurrentApp', 'Send', 'SetBadge', 'GetDevice',
+    'RegisterWidget', 'UnregisterWidget', 'SetWidgetData',
 }, {
     GetResourceName = 'none',
     RegisterApp = false,
@@ -275,6 +276,9 @@ stub('tablet', {
     Send = false,
     SetBadge = false,
     GetDevice = function() return nil end,
+    RegisterWidget = false,
+    UnregisterWidget = false,
+    SetWidgetData = false,
 })
 
 stub('vehicleproperties', {

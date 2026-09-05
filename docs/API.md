@@ -537,6 +537,9 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 | `Send(appId, message)` | `appId: string, message: { action, data }` | `boolean` | Relay a SendNUIMessage-shaped message into the app on screen; queued until the iframe posts `ready`. Only the current app can be targeted |
 | `SetBadge(appId, count)` | `appId: string, count: number` | `boolean` | Launcher badge |
 | `GetDevice()` | | `table\|nil` | `{ imei, name, battery }` of the device the open tablet was started on. `nil` when closed, opened by a resource rather than an item, or the inventory cannot keep item metadata |
+| `RegisterWidget(def)` | `def: table` | `boolean` | Add a home-screen widget. `def = { id, label, resource (required), type = 'stat' \| 'list' \| 'progress' \| 'text' \| 'frame', sizes? = { 'small', 'medium', 'large' } (first entry is the default; default `{ 'small' }`), icon?, color?, app? (app id opened on tap; the widget is only shown while that app is), requires?, order?, data?, url?/query?/readyTimeoutMs? (frame only) }`. Widget ids are a separate namespace from app ids. Players place widgets from the gallery; nothing is added to their screens automatically |
+| `UnregisterWidget(id)` | `id: string` | `boolean` | Remove a widget. A placed instance disappears from the screen; the player's saved slot is kept for when it registers again |
+| `SetWidgetData(id, data)` | `id: string, data: table\|nil` | `boolean` | Push the widget's data (see the shapes below). Cached whether or not the tablet is open, so the last value shows as soon as the home screen does. Template widgets re-render; frame widgets receive `{ action: 'tablet:widgetData', data }`. `false` when unregistered or above 8 KB encoded |
 
 ### Server
 
@@ -546,20 +549,41 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 | `Close(src)` | `src: number` | `boolean` | Relay to the client `Close` |
 | `Send(src, appId, message)` | `src: number, appId: string, message: table` | `boolean` | Relay to the client `Send` |
 | `GetDevice(src)` | `src: number` | `table\|nil` | `{ imei, name, item, slot }` the player's open tablet was started on, resolved from the inventory server-side. `nil` for device-less sessions. Key per-device state on this, never on an IMEI a client sent |
+| `SetWidgetData(src, id, data)` | `src: number, id: string, data: table\|nil` | `boolean` | Relay to the client `SetWidgetData` |
 
 ### Client-side events (local `TriggerEvent`; subscribe with `AddEventHandler`)
 
 | Event | Args | Description |
 |-------|------|-------------|
-| `olink:client:tablet:ready` | | Tablet client started or restarted: (re)register your apps |
+| `olink:client:tablet:ready` | | Tablet client started or restarted: (re)register your apps and widgets, then push widget data |
 | `olink:client:tablet:appOpened` | `(appId)` | App put on screen by a launcher tap or `Open`; may fire synchronously inside `Open` |
 | `olink:client:tablet:appReady` | `(appId)` | The app's iframe posted `ready`; queued `Send`s were flushed |
 | `olink:client:tablet:appClosed` | `(appId, reason)` | `reason` is `home`, `closed`, `switch` or `unregistered` |
 | `olink:client:tablet:closed` | | Tablet put away |
+| `olink:client:tablet:widgetReady` | `(widgetId)` | A frame widget's iframe posted `ready`; queued `SetWidgetData` was flushed |
+| `olink:client:tablet:deviceRenamed` | `(device)` | The player renamed the device the open tablet runs on; `device = { imei, name, battery }` |
 
 ### Hosted-app contract (web)
 
 Parent to iframe: `postMessage({ action, data }, '*')`, the SendNUIMessage shape, so existing message listeners work unchanged. Iframe to parent: `postMessage({ type: 'oxide-tablet', event: 'ready' | 'escape' | 'home' | 'close', app }, '*')`. Inside the iframe `GetParentResourceName()` is unreliable: derive the resource from `location.hostname` (`cfx-nui-<name>`), never call `SetNuiFocus` while hosted, forward Escape to the host, and post `ready` only after your message listeners exist. Copy `tools/templates/web_tablet_host.js` into the resource as `web/src/utils/host.js`; resources without a bundler (plain `<script>` tags) copy `tools/templates/web_tablet_host_classic.js` as `html/js/host.js` instead, which exposes the same API on `window.OxideTabletHost` (reference: `oxide-vending`). When the tablet was opened from an item the iframe URL also carries `&tabletImei=<imei>`; it is informational only, confirm it server-side with `olink.tablet.GetDevice(src)`.
+
+### Widgets
+
+Widgets sit on the player's home screen next to app tiles. Players decide which widgets they place, at which size, on which page; a resource only registers what is available and pushes data. Four **template** types are rendered by the tablet from the data you push, and `frame` hosts your own page like an app does. Sizes: `small` 2x2 cells, `medium` 4x2, `large` 4x4 (the grid is 8x5 per page).
+
+| Type | `data` shape |
+|------|--------------|
+| `stat` | `{ value, label, sub?, icon?, trend? = 'up' \| 'down' \| 'flat' \| number }` |
+| `list` | `{ title?, items = { { text, value?, sub?, icon?, color? }, ... }, empty? }` |
+| `progress` | `{ label, value, max? = 100, sub?, color? }` |
+| `text` | `{ title?, body }` |
+| `frame` | Anything: relayed into the iframe as `{ action: 'tablet:widgetData', data }` |
+
+Register from `olink:client:tablet:ready` exactly as for apps, then `SetWidgetData` whenever the value changes (it is cheap: the tablet only re-renders when open). `data = nil` shows the widget's loading state.
+
+### Hosted-widget contract (web)
+
+A `frame` widget is an iframe of the owning resource's bundle at `https://cfx-nui-<resource>/<url>?tabletHost=oxide-tablet&tabletWidget=<id>&tabletSize=<small|medium|large>[&tabletImei=<imei>]` (no `tabletApp`). The shim exposes `hostedWidget` and `hostedSize`; `isHosted` is true for apps and widgets alike. Post `ready` the same way; data arrives as `{ action: 'tablet:widgetData', data }`. A size change re-mounts the iframe with a new `tabletSize`. `escape`, `home` and `close` are ignored for widgets; post `openApp` (shim `requestOpenApp(app?)`) to open the widget's app. Never call `SetNuiFocus` from a widget. The frame is destroyed whenever its page is not on screen, so keep startup cheap and expect to receive the last data again after `ready`. Refresh your copy of `web_tablet_host.js` (or the classic port) before shipping a widget: copies made before widgets existed treat a widget frame as a top-level page.
 
 ## Additional verified namespaces
 

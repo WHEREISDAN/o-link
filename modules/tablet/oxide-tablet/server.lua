@@ -53,4 +53,16 @@ olink._register('tablet', {
         local ok, result = pcall(function() return res:GetDevice(src) end)
         return ok and type(result) == 'table' and result or nil
     end,
+
+    ---Relay widget data to a player's tablet (client SetWidgetData).
+    ---@param src number
+    ---@param id string
+    ---@param data table|nil
+    ---@return boolean
+    SetWidgetData = function(src, id, data)
+        if data ~= nil and type(data) ~= 'table' then return false end
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:SetWidgetData(src, id, data) end)
+        return ok and result == true
+    end,
 }, RESOURCE)

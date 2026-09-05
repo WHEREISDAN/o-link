@@ -102,4 +102,34 @@ olink._register('tablet', {
         local ok, result = pcall(function() return res:GetDevice() end)
         return ok and type(result) == 'table' and result or nil
     end,
+
+    ---Register a home-screen widget. `def.resource` is required, like RegisterApp.
+    ---@param def table { id, label, resource, type = 'stat'|'list'|'progress'|'text'|'frame', sizes?, icon?, color?, app?, requires?, order?, data?, url?, query?, readyTimeoutMs? }
+    ---@return boolean
+    RegisterWidget = function(def)
+        if type(def) ~= 'table' then return false end
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:RegisterWidget(def) end)
+        return ok and result == true
+    end,
+
+    ---@param id string
+    ---@return boolean
+    UnregisterWidget = function(id)
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:UnregisterWidget(id) end)
+        return ok and result == true
+    end,
+
+    ---Push a widget's data. Cached by the tablet whether or not it is open; template
+    ---widgets re-render, frame widgets receive { action = 'tablet:widgetData', data }.
+    ---@param id string
+    ---@param data table|nil
+    ---@return boolean
+    SetWidgetData = function(id, data)
+        if data ~= nil and type(data) ~= 'table' then return false end
+        if not isStarted() then return false end
+        local ok, result = pcall(function() return res:SetWidgetData(id, data) end)
+        return ok and result == true
+    end,
 }, RESOURCE)

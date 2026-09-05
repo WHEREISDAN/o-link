@@ -274,13 +274,14 @@ stub('bossmenu', {
 })
 
 stub('tablet', {
-    'GetResourceName', 'Open', 'Close', 'Send', 'GetDevice',
+    'GetResourceName', 'Open', 'Close', 'Send', 'GetDevice', 'SetWidgetData',
 }, {
     GetResourceName = 'none',
     Open = false,
     Close = false,
     Send = false,
     GetDevice = function() return nil end,
+    SetWidgetData = false,
 })
 
 stub('skills', {
