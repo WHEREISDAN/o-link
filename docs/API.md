@@ -581,7 +581,7 @@ Widgets sit on the player's home screen next to app tiles. Players decide which 
 | Type | `data` shape |
 |------|--------------|
 | `stat` | `{ value, label, sub?, icon?, trend? = 'up' \| 'down' \| 'flat' \| number }` |
-| `list` | `{ title?, items = { { text, value?, sub?, icon?, color? }, ... }, empty? }` |
+| `list` | `{ title?, summary? = { value, label?, sub?, trend? }, items = { { text, value?, sub?, icon?, color?, trend? }, ... }, empty? }`. `summary` is a headline number drawn above the rows (its own column on `medium`); `trend` on it and on a row is `'up' \| 'down' \| 'flat'`, a number (shown as a signed percentage) or `{ dir, text }` for a pill with its own label such as `+$980`. Rows show `icon` (or the first letter of `text`) on a tile tinted with `color`; `small` cells draw one line per row |
 | `progress` | `{ label, value, max? = 100, sub?, color? }` |
 | `text` | `{ title?, body }` |
 | `frame` | Anything: relayed into the iframe as `{ action: 'tablet:widgetData', data }` |
