@@ -7,8 +7,10 @@ local function RegisterWeather()
         end,
 
         ---@param toggle boolean
-        ToggleSync = function(toggle)
-            -- Scene sync ownership is implemented in oxide-weather Phase 5.
+        ToggleSync = function(toggle, owner)
+            owner = owner or GetInvokingResource() or GetCurrentResourceName()
+            local ok, result = pcall(function() return exports['oxide-weather']:ToggleSync(toggle, owner) end)
+            return ok and result or false
         end,
 
         ---@return string
@@ -19,7 +21,8 @@ local function RegisterWeather()
 
         ---@return table { hour: number, minute: number }
         GetTime = function()
-            return GlobalState['oxide:time'] or { hour = 12, minute = 0 }
+            local ok, time = pcall(function() return exports['oxide-weather']:GetTime() end)
+            return ok and time or GlobalState['oxide:time'] or { hour = 12, minute = 0 }
         end,
     }, 'oxide-weather')
 end
