@@ -527,9 +527,9 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
-| `RegisterApp(def)` | `def: table` | `boolean` | Add an app to the launcher. `def = { id, label, icon, resource (required), url? = 'web/dist/index.html', query?, requires? = { jobs?, gangs?, duty? }, order?, color?, readyTimeoutMs? }`. `requires` filters the launcher only |
+| `RegisterApp(def)` | `def: table` | `boolean` | Make an app available. `def = { id, label, icon, resource (required), url? = 'web/dist/index.html', query?, requires? = { jobs?, gangs?, duty? }, order?, color?, readyTimeoutMs?, description?, tagline?, category?, publisher? }`. `requires` filters the launcher and the store only. Players install apps on each tablet from the built-in App Store (see below); `description` (280 chars), `publisher` (60) and the version shown there fall back to the resource's own `fxmanifest.lua` `description`, `author` and `version`, `tagline` (80) is the one-line subtitle, `category` is one of `business`, `finance`, `law`, `medical`, `social`, `utilities` (default), `other`. `system` and `native` are the tablet's own and are ignored from consumers |
 | `UnregisterApp(id)` | `id: string` | `boolean` | Remove an app (leaves it if on screen) |
-| `Open(appId?)` | `appId?: string` | `boolean` | Open the tablet, optionally straight into an app. Idempotent for the app already on screen. `false` when disabled, dead/downed, or the app is unknown |
+| `Open(appId?)` | `appId?: string` | `boolean` | Open the tablet, optionally straight into an app. Idempotent for the app already on screen. `false` when disabled, dead/downed, or the app is unknown. Opening by id is the resource acting on its own behalf, so it works even when the player has not installed the app (it shows until they go Home; nothing is installed for them) |
 | `Close()` | | `boolean` | Put the tablet away |
 | `CloseApp(appId)` | `appId: string` | `boolean` | Back to the launcher if `appId` is on screen |
 | `IsOpen()` | | `boolean` | |
@@ -569,6 +569,10 @@ Reference adapter: [`../modules/tablet/oxide-tablet/client.lua`](../modules/tabl
 | `olink:client:tablet:widgetReady` | `(widgetId)` | A frame widget's iframe posted `ready`; queued `SetWidgetData` was flushed |
 | `olink:client:tablet:deviceRenamed` | `(device)` | The player renamed the device the open tablet runs on; `device = { imei, name, battery }` |
 | `olink:client:tablet:notificationTapped` | `(id, appId, data)` | The player tapped a notification (banner or tray entry). The app was opened and, when `data` was set, received `{ action = 'tablet:notification', data }` through the relay queue |
+
+### App Store
+
+Registering an app does not put it on anyone's home screen. Every tablet has a built-in App Store (the tablet's own native `app_store` app) listing the apps the player qualifies for (`requires`, plus the item's allowlist); the player installs the ones they want on that device, and the installed set is saved with the device (or the character when the session has no device) next to the home layout. Installed apps then behave exactly as before: they take a home-screen cell, can be hidden into the App Library, carry widgets and notifications. An uninstalled app hides its widgets and notifications too. Server owners control this with `Config.Store` in oxide-tablet (`enabled = false` installs every app automatically, `preinstalled` lists apps installed on every tablet that cannot be uninstalled), and an item in `Config.Items` with an `apps` list is a curated device: what it lists is installed as-is and the store is not offered on it.
 
 ### Hosted-app contract (web)
 
