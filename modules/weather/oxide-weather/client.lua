@@ -13,7 +13,8 @@ local function RegisterWeather()
 
         ---@return string
         GetWeather = function()
-            return GlobalState['oxide:weather'] or 'CLEAR'
+            local ok, weather = pcall(function() return exports['oxide-weather']:GetWeather() end)
+            return ok and weather or GlobalState['oxide:weather'] or 'CLEAR'
         end,
 
         ---@return table { hour: number, minute: number }
