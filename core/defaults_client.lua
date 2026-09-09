@@ -84,12 +84,14 @@ stub('fuel', {
 })
 
 stub('weather', {
-    'GetResourceName', 'GetTime', 'GetWeather', 'ToggleSync',
+    'GetResourceName', 'GetApiVersion', 'ToggleSync', 'IsReady', 'GetWeather', 'GetTime', 'IsBlackout', 'GetForecast', 'GetCurrentZone', 'GetWind', 'GetSeason', 'GetTemperature', 'GetTemperatureAt', 'GetSnowLevel', 'GetSnowLevelAt', 'GetFronts', 'GetCurrentFront', 'IsSyncEnabled', 'GetConditionsAt', 'GetWindAt', 'IsRainingAt', 'IsSnowOnGround', 'IsCovered', 'GetExposureAt', 'RegisterExposureEntity', 'UnregisterExposureEntity', 'GetWeatherData', 'IsTimeFrozen', 'GetRoadConditionsAt',
 }, {
     GetResourceName = 'none',
+    GetApiVersion = 0,
     GetTime = function() return { hour = 12, minute = 0 } end,
     GetWeather = 'CLEAR',
     ToggleSync = false,
+    IsReady = false,
 })
 
 stub('input', {

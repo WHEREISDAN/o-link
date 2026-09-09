@@ -48,6 +48,9 @@ local function GetAllOffline(identifier)
 end
 
 olink._register('license', {
+    ---@return string
+    GetResourceName = function() return 'es_extended' end,
+
     ---@param src number
     ---@param licenceType string
     ---@return boolean
@@ -101,4 +104,4 @@ olink._register('license', {
     ---@param identifier string esx identifier
     ---@return table
     GetAllOffline = GetAllOffline,
-})
+}, 'es_extended')

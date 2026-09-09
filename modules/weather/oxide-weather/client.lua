@@ -1,36 +1,23 @@
+local RESOURCE='oxide-weather'
 local function RegisterWeather()
-    if not olink._guardImpl('Weather', 'oxide-weather', 'oxide-weather') then return end
-    olink._register('weather', {
-        ---@return string
-        GetResourceName = function()
-            return 'oxide-weather'
-        end,
-
-        ---@param toggle boolean
-        ToggleSync = function(toggle, owner)
-            owner = owner or GetInvokingResource() or GetCurrentResourceName()
-            local ok, result = pcall(function() return exports['oxide-weather']:ToggleSync(toggle, owner) end)
-            return ok and result or false
-        end,
-
-        ---@return string
-        GetWeather = function()
-            local ok, weather = pcall(function() return exports['oxide-weather']:GetWeather() end)
-            return ok and weather or GlobalState['oxide:weather'] or 'CLEAR'
-        end,
-
-        ---@return table { hour: number, minute: number }
-        GetTime = function()
-            local ok, time = pcall(function() return exports['oxide-weather']:GetTime() end)
-            return ok and time or GlobalState['oxide:time'] or { hour = 12, minute = 0 }
-        end,
-    }, 'oxide-weather')
+    if not olink._guardImpl('Weather',RESOURCE,RESOURCE) then return end
+    local function Call(method,...)
+        if GetResourceState(RESOURCE)~='started' then return nil end
+        local args=table.pack(...)
+        local result=table.pack(pcall(function() return exports[RESOURCE][method](exports[RESOURCE],table.unpack(args,1,args.n)) end))
+        if result[1] then return table.unpack(result,2,result.n) end
+    end
+    local api={ GetResourceName=function() return GetResourceState(RESOURCE)=='started' and RESOURCE or 'none' end,
+        IsReady=function() return Call('IsReady')==true end,
+        ToggleSync=function(enabled,owner)
+            return Call('ToggleSync',enabled,GetInvokingResource() or owner or GetCurrentResourceName())==true
+        end }
+    for _,method in ipairs({'GetApiVersion', 'GetWeather', 'GetTime', 'IsBlackout', 'GetForecast', 'GetCurrentZone', 'GetWind', 'GetSeason', 'GetTemperature', 'GetTemperatureAt', 'GetSnowLevel', 'GetSnowLevelAt', 'GetFronts', 'GetCurrentFront', 'IsSyncEnabled', 'GetConditionsAt', 'GetWindAt', 'IsRainingAt', 'IsSnowOnGround', 'IsCovered', 'GetExposureAt', 'GetWeatherData', 'IsTimeFrozen', 'GetRoadConditionsAt'}) do api[method]=function(...) return Call(method,...) end end
+    for _,method in ipairs({'RegisterExposureEntity','UnregisterExposureEntity'}) do
+        api[method]=function(entity) return Call(method,entity,GetInvokingResource() or GetCurrentResourceName())==true end
+    end
+    olink._register('weather',api,RESOURCE)
 end
-
 RegisterWeather()
-
--- oxide-weather now depends on o-link, so it can start after adapter discovery.
--- Merge into the existing namespace to update references already held by callers.
-AddEventHandler('onClientResourceStart', function(resource)
-    if resource == 'oxide-weather' then RegisterWeather() end
-end)
+AddEventHandler('onClientResourceStart',function(name) if name==RESOURCE then RegisterWeather() TriggerEvent('olink:client:weather:ready') end end)
+AddEventHandler('onClientResourceStop',function(name) if name==RESOURCE then TriggerEvent('olink:client:weather:stopped') end end)

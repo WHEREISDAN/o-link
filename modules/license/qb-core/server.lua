@@ -31,6 +31,9 @@ local function MutateOffline(identifier, licenceType, granted)
 end
 
 olink._register('license', {
+    ---@return string
+    GetResourceName = function() return 'qb-core' end,
+
     ---@param src number
     ---@param licenceType string
     ---@return boolean
@@ -103,4 +106,4 @@ olink._register('license', {
         local decoded = type(raw) == 'string' and json.decode(raw) or raw
         return type(decoded) == 'table' and decoded or {}
     end,
-})
+}, 'qb-core')

@@ -161,6 +161,7 @@ Licenses are bool flags keyed by license type (`'driver'`, `'weapon'`, `'busines
 
 | Function | Args | Returns | Description |
 |----------|------|---------|-------------|
+| `GetResourceName()` | | `string` | Active provider name, or `'none'` when no license backend is loaded |
 | `Has(src, type)` | `src: number, type: string` | `boolean` | Whether the online player has this license |
 | `Grant(src, type)` | `src: number, type: string` | `boolean` | Grant the license to an online player |
 | `Revoke(src, type)` | `src: number, type: string` | `boolean` | Revoke the license from an online player |
@@ -517,6 +518,48 @@ The oxide-dispatch adapter at [`../modules/dispatch/oxide-dispatch/(server|clien
 | `olink:client:dispatch:alertUpdated` | `(alert)` | Responder attached / status change |
 | `olink:client:dispatch:alertClosed` | `(alertId, reason)` | Alert closed (`'closed'` or `'expired'`) |
 
+## Module: weather (server + client, API v2)
+
+Oxide resources must use `olink.weather` for weather access. Provider exports, native weather lookup fallbacks, and provider-specific events belong in the bridge. `oxide-weather` also retains its direct exports for developers who do not use o-link.
+
+The full v2 implementation is `oxide-weather`. Other providers keep their existing client methods; unsupported v2 calls return nil/false through the stubs. Check `IsReady()` and returned data, not the existence of a callable stub. A missing provider gives neutral gameplay rather than fabricated temperature/exposure data. Server `GetTime()` returns nil when unavailable so consumers may retain their own documented clock fallback.
+
+| Method | Side | Contract |
+| --- | --- | --- |
+| `GetResourceName()`, `GetApiVersion()`, `IsReady()` | Both | Selected provider (`none` if unavailable), API version (`2` for this implementation, `0` for a stub), readiness |
+| `GetConditionsAt(coords)` | Both | `{ weather, weights, zone, rain, snow, raining, temperature?, wind, snowLevel, season?, blackout }`; temperature is Celsius, wind speed m/s, direction degrees, precipitation/snow level normalized 0–1 |
+| `IsRainingAt(coords)`, `GetWindAt(coords)`, `GetTemperatureAt(coords)` | Both | Spatial values including regional blending/fronts; nil when unavailable |
+| `IsSnowOnGround(coords?)` | Both | Accumulation above the ground threshold; client defaults to local position, server defaults to global accumulation |
+| `GetExposureAt(coords, bucket?)` | Server | `{ known, covered?, bucket?, age? }`. Requests a bounded nearby collision probe when needed. Unknown/stale cover is neutral. Bucket defaults to 0 |
+| `GetExposureAt(coords?)`, `IsCovered(coords?)` | Client | Local streamed collision probe; may yield briefly. Missing collision returns unknown/nil |
+| `RegisterExposureEntity(entity)`, `UnregisterExposureEntity(entity)` | Client | Register a crop prop to exclude its own collider from nearby roof tests. Ownership and dead handles are cleaned up. Re-register streamed props on weather ready |
+| `GetPlayerExposure(src)` | Server | Server weather + fresh body cover, wetness, configured clothing insulation, and temperature; the consumer computes its own thermal effects |
+| `GetRoadConditionsAt(coords)` | Both | `{ wetness, ice, cellSize }`; nil outside the configured grid or when unavailable. Client getter may yield and uses a short cache |
+| `GetSetting(key)` | Server | Copy of saved configuration; restart-only edits may differ from current simulation settings |
+| `SetSetting(key, value, actor?)` | Server | Validates and persists an editable setting; uses the standard original-resource allowlist and optional admin actor gate. Settings marked for restart remain staged |
+| `GetWeatherData()` | Client | Current player's server-resolved weather/forecast data; yields through the bridge callback |
+| `GetWeatherData(zone?)` | Server | Existing global or regional data contract |
+| `GetWeatherAlerts(zone?)`, `GenerateWeazelReport(zone?, options?)` | Server | Phase 6 alert/report read APIs through the bridge |
+
+Existing server getters and setters are also exposed: time/freeze/timescale, global and regional weather/forecast, seasons/holidays, fronts, blackout schedules, clock controls and scene locks. Signatures match oxide-weather's direct exports, including the optional final admin actor argument. Existing client getters and `ToggleSync(enabled, owner?)` remain available.
+
+Mutations capture the invoking resource in o-link and forward it over a weather-side guarded call. `Config.SetterResources` applies to the **original resource**, not a blanket o-link permission; any supplied actor is still admin-checked. Scene locks retain that original owner. `WeatherBridge` and `WeatherReadBridge` are reserved adapter transports, not consumer APIs.
+
+```lua
+local weather = exports['o-link']:olink().weather
+local conditions = weather.GetConditionsAt(coords)
+local exposure = weather.GetExposureAt(coords, bucket)
+-- Apply this resource's growth policy only when exposure is known and uncovered.
+local roads = weather.GetRoadConditionsAt(coords)
+-- Server automation must be allowlisted in oxide-weather/shared/config.lua:
+local ok, reason = weather.SetWeather('RAIN', adminSource)
+local report = weather.GenerateWeazelReport('paleto', { unit = 'F' })
+```
+
+Normalized server events: `olink:server:weather:timeChanged`, `clockProgress`, `weatherChanged`, `zoneWeatherChanged`, `seasonChanged`, `blackoutChanged`, `alertsChanged`, `ready`, and `stopped` (all use the same prefix). `clockProgress` is `{ minutes, frozen }`, where minutes is cumulative simulated time since the provider boot; it does not increase on manual SetTime. Client lifecycle events are `olink:client:weather:ready` and `stopped`.
+
+Client cover observations cannot be treated as a server collision oracle. The weather service binds leases to the selected nearby source, registered coordinates and routing bucket, validates freshness, and derives modifiers itself. Server-configured covered areas override probe reports.
+
 ## Module: tablet (server + client)
 
 Optional UI host. `oxide-tablet` draws a tablet shell (bezel, launcher, hold animation, focus, ESC) and hosts other resources' existing NUI bundles as apps: each app is an `<iframe>` of the owning resource's own `web/dist` at `https://cfx-nui-<resource>/<url>?tabletHost=oxide-tablet&tabletApp=<id>`. Consumers never depend on the tablet. The stubs return `false` / `'none'`, so gate on the return value (or `GetResourceState('oxide-tablet') == 'started'` plus `olink.tablet.GetResourceName() == 'oxide-tablet'`), never on `olink.supports('tablet')`, and fall back to your own UI.
@@ -609,7 +652,7 @@ These namespaces are present in the current implementation and load through the 
 | Namespace | Side | Verified implementation folders |
 |-----------|------|---------------------------------|
 | `fuel` | client | 14 |
-| `weather` | client | 5 |
+| `weather` | client + server (oxide-weather v2) | 5 client providers; full gameplay API on oxide-weather |
 | `input` | client | 3 |
 | `menu` | client | 5 |
 | `radial` | client | 2 |

@@ -5,7 +5,7 @@ lua54 'yes'
 name 'o-link'
 author 'Oxide Studios'
 description 'Oxide Studios framework bridge'
-version '1.6.8'
+version '1.7.0'
 
 escrow_ignore {
     'config.lua',
@@ -67,6 +67,7 @@ server_scripts {
     'modules/helptext/server.lua',
     'modules/logger/**/server.lua',
     'modules/tablet/**/server.lua',
+    'modules/weather/**/server.lua',
     'lifecycle/**/server.lua',
     'core/loader_server.lua',
     'core/version_check.lua',

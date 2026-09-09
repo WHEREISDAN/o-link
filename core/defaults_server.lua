@@ -69,9 +69,11 @@ stub('money', {
 })
 
 stub('license', {
+    'GetResourceName',
     'Has', 'Grant', 'Revoke', 'GetAll',
     'HasOffline', 'GrantOffline', 'RevokeOffline', 'GetAllOffline',
 }, {
+    GetResourceName = 'none',
     Has = false,
     Grant = false,
     Revoke = false,
@@ -390,3 +392,5 @@ stub('logger', {
     SetLevel = false,
     GetLevel = 'info',
 })
+
+stub('weather', { 'GetResourceName', 'GetApiVersion', 'GetSetting', 'IsReady', 'GetWeather', 'GetTime', 'GetTimeScale', 'IsTimeFrozen', 'IsBlackout', 'IsDynamicWeather', 'GetWeatherInterval', 'GetForecast', 'GetWeatherData', 'GetZones', 'GetZoneWeather', 'GetZoneForecast', 'GetZoneAt', 'GetSeason', 'GetClimateData', 'GetTemperature', 'GetTemperatureAt', 'GetSnowLevel', 'GetSnowLevelAt', 'GetFronts', 'GetWeatherAt', 'IsZoneBlackout', 'GetBlackouts', 'GetSceneLocks', 'GetWeatherAlerts', 'GenerateWeazelReport', 'GetConditionsAt', 'IsRainingAt', 'GetWindAt', 'IsSnowOnGround', 'GetExposureAt', 'GetPlayerExposure', 'GetRoadConditionsAt', 'SetWeather', 'SetSetting', 'SetTime', 'SetTimeScale', 'FreezeTime', 'SetBlackout', 'SetDynamicWeather', 'SetWeatherInterval', 'SetZoneWeather', 'SetZoneDynamicWeather', 'SetZoneWeatherInterval', 'SetSeason', 'SetHoliday', 'SpawnFront', 'RemoveFront', 'SetZoneBlackout', 'ScheduleBlackout', 'CancelBlackout', 'SetSceneLock', 'ClearSceneLock', 'SetForecast', 'SetClock', 'SetZoneTime' }, { GetResourceName='none',GetApiVersion=0,IsReady=false })

@@ -59,6 +59,9 @@ local function ReadOffline(identifier)
 end
 
 olink._register('license', {
+    ---@return string
+    GetResourceName = function() return 'oxide-core' end,
+
     ---@param src number
     ---@param licenseType string
     ---@return boolean
@@ -120,4 +123,4 @@ olink._register('license', {
     GetAllOffline = function(identifier)
         return ReadOffline(identifier)
     end,
-})
+}, 'oxide-core')
