@@ -98,3 +98,10 @@ olink._register('clothing', {
 RegisterNetEvent('o-link:client:clothing:setAppearance', function(data)
     TriggerEvent('o-link:clothing:applyAppearance', data)
 end)
+
+-- illenium invalidates its per-character outfit cache from a net event, so the
+-- server bounces off the player after writing a row directly. Without this a
+-- freshly saved outfit is missing from every wardrobe until the player rejoins.
+RegisterNetEvent('o-link:client:clothing:resetOutfitCache', function()
+    TriggerServerEvent('illenium-appearance:server:resetOutfitCache')
+end)

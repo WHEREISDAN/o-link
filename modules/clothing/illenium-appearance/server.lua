@@ -106,29 +106,36 @@ olink._register('clothing', {
         local current = getFullAppearanceData(src)
         if not current then return end
 
-        for k, v in pairs(data) do
-            current.skin[k] = v
-        end
+        -- Merge slot-wise onto the stored look. A top-level assign would replace
+        -- the whole components array, dropping every slot this patch never
+        -- mentioned — buying one t-shirt would strip the rest of the outfit.
+        local merged = OlinkIlleniumApplyPatch(current.skin, data)
 
         if not Players[charId].backup or updateBackup then
             Players[charId].backup = current.converted
         end
-        Players[charId].skin = current.skin
+        Players[charId].skin = merged
         Players[charId].model = GetEntityModel(GetPlayerPed(src))
-        Players[charId].converted = data
+        -- The merged look, never the incoming patch: GetAppearance feeds outfit
+        -- saves and consumers' own change diffing, both of which need the whole
+        -- outfit rather than whichever slots the last edit happened to touch.
+        Players[charId].converted = merged
 
         if save then
             if IS_ESX then
                 MySQL.update.await('UPDATE users SET skin = ? WHERE identifier = ?', {
-                    json.encode(current.skin), charId,
+                    json.encode(merged), charId,
                 })
             else
                 MySQL.update.await('UPDATE playerskins SET skin = ? WHERE citizenid = ? AND active = ?', {
-                    json.encode(current.skin), charId, 1,
+                    json.encode(merged), charId, 1,
                 })
             end
         end
-        TriggerClientEvent('o-link:client:clothing:setAppearance', src, Players[charId].converted)
+        -- Send the caller's payload, not the merged look: a partial edit is already
+        -- rendered on the ped, and re-applying every stored slot would strip anything
+        -- another script put on unpersisted (a job uniform, say).
+        TriggerClientEvent('o-link:client:clothing:setAppearance', src, data)
         return Players[charId]
     end,
 
@@ -176,13 +183,24 @@ olink._register('clothing', {
     ---@param data table
     ---@return number|nil
     SaveOutfit = function(src, name, data)
-        local charId = olink.character.GetIdentifier(src)
+        src = tonumber(src)
+        local charId = src and olink.character.GetIdentifier(src)
         if not charId then return nil end
-        local model = GetEntityModel(GetPlayerPed(src))
-        return MySQL.insert.await(
+        -- illenium stores the model NAME here and shows it as the outfit's
+        -- description in its own wardrobe menu; a joaat hash would render as a
+        -- bare number.
+        local model = GetEntityModel(GetPlayerPed(src)) == GetHashKey('mp_f_freemode_01')
+            and 'mp_f_freemode_01' or 'mp_m_freemode_01'
+        local outfitId = MySQL.insert.await(
             'INSERT INTO player_outfits (citizenid, outfitname, model, components, props) VALUES (?, ?, ?, ?, ?)',
-            { charId, name, tostring(model), json.encode(data.components or {}), json.encode(data.props or {}) }
+            { charId, name, model, json.encode(data.components or {}), json.encode(data.props or {}) }
         )
+        -- illenium caches outfits per character in memory and only reloads when
+        -- the cache is empty, so a direct insert stays invisible to every wardrobe
+        -- for the rest of the session. Its own reset is a net event, so the round
+        -- trip goes back through the player.
+        if outfitId then TriggerClientEvent('o-link:client:clothing:resetOutfitCache', src) end
+        return outfitId
     end,
 
     ---@param src number
@@ -216,6 +234,9 @@ olink._register('clothing', {
             'UPDATE player_outfits SET outfitname = ?, components = ?, props = ? WHERE id = ?',
             { name, json.encode(data.components or {}), json.encode(data.props or {}), tonumber(outfitId) }
         )
+        if affected and affected > 0 then
+            TriggerClientEvent('o-link:client:clothing:resetOutfitCache', tonumber(src))
+        end
         return affected and affected > 0
     end,
 
@@ -227,6 +248,9 @@ olink._register('clothing', {
             'DELETE FROM player_outfits WHERE id = ?',
             { tonumber(outfitId) }
         )
+        if affected and affected > 0 then
+            TriggerClientEvent('o-link:client:clothing:resetOutfitCache', tonumber(src))
+        end
         return affected and affected > 0
     end,
 

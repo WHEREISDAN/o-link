@@ -70,23 +70,30 @@ olink._register('clothing', {
         local current = getFullAppearanceData(src)
         if not current then return end
 
-        for k, v in pairs(data) do
-            current.skin[k] = v
-        end
+        -- Merge slot-wise onto the stored look. A top-level assign would replace
+        -- the whole components array, dropping every slot this patch never
+        -- mentioned — buying one t-shirt would strip the rest of the outfit.
+        local merged = OlinkIlleniumApplyPatch(current.skin, data)
 
         if not Players[charId].backup or updateBackup then
             Players[charId].backup = current.converted
         end
-        Players[charId].skin = current.skin
+        Players[charId].skin = merged
         Players[charId].model = GetEntityModel(GetPlayerPed(src))
-        Players[charId].converted = data
+        -- The merged look, never the incoming patch: GetAppearance feeds outfit
+        -- saves and consumers' own change diffing, both of which need the whole
+        -- outfit rather than whichever slots the last edit happened to touch.
+        Players[charId].converted = merged
 
         if save then
             MySQL.update.await('UPDATE playerskins SET skin = ? WHERE citizenid = ? AND active = ?', {
-                json.encode(current.skin), charId, 1,
+                json.encode(merged), charId, 1,
             })
         end
-        TriggerClientEvent('o-link:client:clothing:setAppearance', src, Players[charId].converted)
+        -- Send the caller's payload, not the merged look: a partial edit is already
+        -- rendered on the ped, and re-applying every stored slot would strip anything
+        -- another script put on unpersisted (a job uniform, say).
+        TriggerClientEvent('o-link:client:clothing:setAppearance', src, data)
         return Players[charId]
     end,
 

@@ -187,3 +187,41 @@ function OlinkIlleniumToCanonical(skin)
     if type(skin.tattoos) == 'table' then canonical.tattoos = skin.tattoos end
     return canonical
 end
+
+---Merge a (possibly partial) {components, props} payload over an illenium-shape
+---skin, matching slots by component_id / prop_id. illenium and fivem-appearance
+---store both as arrays, so a top-level assign replaces the whole array and drops
+---every slot the patch never mentioned — buying one t-shirt would wipe the rest
+---of the outfit out of `playerskins`. Non-slot keys (model, headBlend, hair, ...)
+---carry through, the patch's winning where it declares one.
+---
+---Returns a fresh table and never mutates either argument: the adapters alias
+---`skin` and `converted` to one table on load, and the Revert backup is the
+---pre-change `converted`.
+---@param skin table|nil illenium-shape skin to merge onto
+---@param patch table|nil partial or full {components, props} payload
+---@return table merged
+function OlinkIlleniumApplyPatch(skin, patch)
+    local A = olink._appearance
+    local merged = {}
+
+    if type(skin) == 'table' then
+        for k, v in pairs(skin) do merged[k] = v end
+    end
+    if type(patch) == 'table' then
+        for k, v in pairs(patch) do
+            if k ~= 'components' and k ~= 'props' then merged[k] = v end
+        end
+    end
+
+    local components = A.componentsToMap(type(skin) == 'table' and skin.components or nil)
+    local props = A.propsToMap(type(skin) == 'table' and skin.props or nil)
+    if type(patch) == 'table' then
+        for id, v in pairs(A.componentsToMap(patch.components)) do components[id] = v end
+        for id, v in pairs(A.propsToMap(patch.props)) do props[id] = v end
+    end
+
+    merged.components = A.componentsToArray(components)
+    merged.props = A.propsToArray(props)
+    return merged
+end
